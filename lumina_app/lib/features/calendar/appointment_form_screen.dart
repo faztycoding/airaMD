@@ -80,7 +80,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPatientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเลือกผู้ป่วย')),
+        const SnackBar(content: Text('กรุณาเลือกผู้รับบริการ')),
       );
       return;
     }
@@ -157,7 +157,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
             onSave: _loading ? null : _save,
             saveLabel: isThai ? 'บันทึก' : 'Save',
             steps: premiumSteps([
-              (1, isThai ? 'ผู้ป่วย' : 'Patient'),
+              (1, isThai ? 'ผู้รับบริการ' : 'Patient'),
               (2, isThai ? 'วัน-เวลา' : 'DateTime'),
               (3, isThai ? 'สถานะ' : 'Status'),
             ]),
@@ -172,7 +172,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
                       // ─── Patient selection ───
-                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้ป่วย', subtitle: 'เลือกผู้ป่วยสำหรับนัดหมาย'),
+                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้รับบริการ', subtitle: 'เลือกผู้รับบริการสำหรับนัดหมาย'),
                       _buildPatientSelector(patientsAsync),
                       const SizedBox(height: 28),
 
@@ -219,7 +219,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       children: [
         TextField(
           style: airaFieldTextStyle,
-          decoration: airaFieldDecoration(label: '', hint: 'ค้นหาผู้ป่วย...', prefixIcon: Icons.search_rounded),
+          decoration: airaFieldDecoration(label: '', hint: 'ค้นหาผู้รับบริการ...', prefixIcon: Icons.search_rounded),
           onChanged: (v) => setState(() => _patientSearch = v.trim().toLowerCase()),
         ),
         const SizedBox(height: 10),
@@ -238,7 +238,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
             if (filtered.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('ไม่พบผู้ป่วย', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+                child: Text('ไม่พบผู้รับบริการ', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
               );
             }
             return SizedBox(

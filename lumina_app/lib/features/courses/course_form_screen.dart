@@ -73,7 +73,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPatientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาเลือกผู้ป่วย')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาเลือกผู้รับบริการ')));
       return;
     }
 
@@ -139,7 +139,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
             onSave: _loading ? null : _save,
             saveLabel: isThai ? 'บันทึก' : 'Save',
             steps: premiumSteps([
-              (1, isThai ? 'ผู้ป่วย' : 'Patient'),
+              (1, isThai ? 'ผู้รับบริการ' : 'Patient'),
               (2, isThai ? 'คอร์ส' : 'Course'),
               (3, isThai ? 'เซสชั่น' : 'Sessions'),
             ]),
@@ -154,7 +154,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
                       // ─── Patient selector ───
-                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้ป่วย', subtitle: 'เลือกผู้ป่วยสำหรับคอร์สนี้'),
+                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้รับบริการ', subtitle: 'เลือกผู้รับบริการสำหรับคอร์สนี้'),
                       _buildPatientSelector(patientsAsync),
                       const SizedBox(height: 28),
 
@@ -296,7 +296,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       children: [
         TextField(
           style: airaFieldTextStyle,
-          decoration: airaFieldDecoration(label: '', hint: 'ค้นหาผู้ป่วย...', prefixIcon: Icons.search_rounded),
+          decoration: airaFieldDecoration(label: '', hint: 'ค้นหาผู้รับบริการ...', prefixIcon: Icons.search_rounded),
           onChanged: (v) => setState(() => _patientSearch = v.trim().toLowerCase()),
         ),
         const SizedBox(height: 10),

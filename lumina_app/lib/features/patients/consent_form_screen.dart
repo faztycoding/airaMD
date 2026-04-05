@@ -191,7 +191,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ─── Patient Info ───
-                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: isThai ? 'ข้อมูลผู้ป่วย' : 'Patient Information'),
+                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: isThai ? 'ข้อมูลผู้รับบริการ' : 'Patient Information'),
                       patientAsync.when(
                         loading: () => const LinearProgressIndicator(),
                         error: (e, _) => Text('Error: $e'),
@@ -284,7 +284,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       const SizedBox(height: 28),
 
                       // ─── Signature ───
-                      AiraSectionHeader(step: 4, icon: Icons.draw_rounded, title: isThai ? 'ลายเซ็นผู้ป่วย' : 'Patient Signature'),
+                      AiraSectionHeader(step: 4, icon: Icons.draw_rounded, title: isThai ? 'ลายเซ็นผู้รับบริการ' : 'Patient Signature'),
                       Text(
                   isThai ? 'ใช้นิ้วหรือปากกาเซ็นด้านล่าง' : 'Sign below with finger or stylus',
                   style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),

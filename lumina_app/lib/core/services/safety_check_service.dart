@@ -58,7 +58,7 @@ class SafetyCheckService {
             level: WarningLevel.danger,
             title: '⚠️ แพ้ยา: $allergy',
             message:
-                'ผู้ป่วยแพ้ "$allergy" — ผลิตภัณฑ์ "$product" อาจเกี่ยวข้อง กรุณาตรวจสอบก่อนใช้',
+                'ผู้รับบริการแพ้ "$allergy" — ผลิตภัณฑ์ "$product" อาจเกี่ยวข้อง กรุณาตรวจสอบก่อนใช้',
           ));
         }
       }
@@ -68,7 +68,7 @@ class SafetyCheckService {
       warnings.add(SafetyWarning(
         level: WarningLevel.info,
         title: 'ข้อมูลการแพ้ยา',
-        message: 'ผู้ป่วยมีประวัติแพ้: ${patient.drugAllergies.join(", ")}',
+        message: 'ผู้รับบริการมีประวัติแพ้: ${patient.drugAllergies.join(", ")}',
       ));
     }
 
@@ -89,7 +89,7 @@ class SafetyCheckService {
           level: WarningLevel.caution,
           title: '💊 ใช้ Retinoids อยู่',
           message:
-              'ผู้ป่วยกำลังใช้ Retinoids — อาจเพิ่มความเสี่ยงผิวลอก/แดง จาก Laser/Treatment ควรหยุดก่อนอย่างน้อย 3-7 วัน',
+              'ผู้รับบริการกำลังใช้ Retinoids — อาจเพิ่มความเสี่ยงผิวลอก/แดง จาก Laser/Treatment ควรหยุดก่อนอย่างน้อย 3-7 วัน',
         ),
       ];
     }
@@ -109,7 +109,7 @@ class SafetyCheckService {
           level: WarningLevel.caution,
           title: '💉 ทานยาละลายลิ่มเลือด',
           message:
-              'ผู้ป่วยทานยาละลายลิ่มเลือด — เพิ่มความเสี่ยงช้ำ/เลือดออกจากการฉีด ควรแจ้งและระวังเป็นพิเศษ',
+              'ผู้รับบริการทานยาละลายลิ่มเลือด — เพิ่มความเสี่ยงช้ำ/เลือดออกจากการฉีด ควรแจ้งและระวังเป็นพิเศษ',
         ),
       ];
     }
@@ -194,7 +194,7 @@ class SafetyCheckService {
       warnings.add(const SafetyWarning(
         level: WarningLevel.caution,
         title: '🩹 ประวัติ Keloid',
-        message: 'ผู้ป่วยมีประวัติ Keloid — ควรระวังการฉีดและแจ้งผู้ป่วย',
+        message: 'ผู้รับบริการมีประวัติ Keloid — ควรระวังการฉีดและแจ้งผู้รับบริการ',
       ));
     }
 
@@ -202,7 +202,7 @@ class SafetyCheckService {
       warnings.add(const SafetyWarning(
         level: WarningLevel.caution,
         title: '🩸 โรคเบาหวาน',
-        message: 'ผู้ป่วยมีโรคเบาหวาน — การหายของแผลอาจช้ากว่าปกติ',
+        message: 'ผู้รับบริการมีโรคเบาหวาน — การหายของแผลอาจช้ากว่าปกติ',
       ));
     }
 
@@ -212,7 +212,7 @@ class SafetyCheckService {
         level: WarningLevel.danger,
         title: '🛡️ โรคภูมิคุ้มกันทำลายตนเอง',
         message:
-            'ผู้ป่วยมีโรค Autoimmune — Filler/Biostimulator อาจกระตุ้นอาการกำเริบ ต้องปรึกษาแพทย์ก่อน',
+            'ผู้รับบริการมีโรค Autoimmune — Filler/Biostimulator อาจกระตุ้นอาการกำเริบ ต้องปรึกษาแพทย์ก่อน',
       ));
     }
 
@@ -229,7 +229,7 @@ class SafetyCheckService {
       const SafetyWarning(
         level: WarningLevel.info,
         title: '🤰 ตรวจสอบการตั้งครรภ์',
-        message: 'ผู้ป่วยเพศหญิงวัยเจริญพันธุ์ — ควรสอบถามเรื่องการตั้งครรภ์/ให้นมบุตรก่อนทำหัตถการ',
+        message: 'ผู้รับบริการเพศหญิงวัยเจริญพันธุ์ — ควรสอบถามเรื่องการตั้งครรภ์/ให้นมบุตรก่อนทำหัตถการ',
       ),
     ];
   }

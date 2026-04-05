@@ -573,7 +573,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     return AiraPremiumCard(
       accentColor: AiraColors.sage,
       children: [
-        _soapField(_ccCtrl, 'S — Subjective (อาการสำคัญ)', 'ผู้ป่วยมาด้วยเรื่อง...', Icons.record_voice_over_rounded),
+        _soapField(_ccCtrl, 'S — Subjective (อาการสำคัญ)', 'ผู้รับบริการมาด้วยเรื่อง...', Icons.record_voice_over_rounded),
         _soapField(_objectiveCtrl, 'O — Objective (ตรวจร่างกาย)', 'PE: ผิวหน้า...', Icons.visibility_rounded),
         _soapField(_assessmentCtrl, 'A — Assessment (การวินิจฉัย)', 'Dx: ...', Icons.analytics_rounded),
         _soapField(_planCtrl, 'P — Plan (แผนการรักษา)', 'Plan: Botox 20U forehead...', Icons.assignment_rounded),

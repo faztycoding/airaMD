@@ -110,7 +110,7 @@ class FinancialScreen extends ConsumerWidget {
                         DropdownButtonFormField<String>(
                           value: selectedPatientId,
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'ผู้ป่วย *', prefixIcon: Icons.person_rounded),
+                          decoration: airaFieldDecoration(label: 'ผู้รับบริการ *', prefixIcon: Icons.person_rounded),
                           items: patients.map((p) => DropdownMenuItem(
                             value: p.id,
                             child: Text('${p.firstName} ${p.lastName}', overflow: TextOverflow.ellipsis, style: airaFieldTextStyle),

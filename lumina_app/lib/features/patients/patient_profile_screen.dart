@@ -55,7 +55,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         if (patient == null) {
           return Scaffold(
             backgroundColor: AiraColors.cream,
-            body: Center(child: Text(isThai ? 'ไม่พบข้อมูลผู้ป่วย' : 'Patient not found', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
+            body: Center(child: Text(isThai ? 'ไม่พบข้อมูลผู้รับบริการ' : 'Patient not found', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
           );
         }
         return Scaffold(
@@ -137,7 +137,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           child: const Icon(Icons.warning_amber_rounded, size: 30, color: AiraColors.terra),
         ),
         title: Text(
-          isThai ? 'ลบผู้ป่วยออกจากระบบ?' : 'Remove patient?',
+          isThai ? 'ลบผู้รับบริการออกจากระบบ?' : 'Remove patient?',
           style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         content: Column(
