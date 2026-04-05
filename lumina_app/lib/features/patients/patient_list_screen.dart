@@ -98,7 +98,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Text('ผู้ป่วย', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                              Text('ผู้รับบริการ', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                               const SizedBox(width: 10),
                               countAsync.when(
                                 data: (count) => Container(
@@ -180,7 +180,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text('ผู้ป่วย', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                    Text('ผู้รับบริการ', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                     const SizedBox(width: 10),
                     countAsync.when(
                       data: (count) => Container(
@@ -247,7 +247,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           children: [
                             const Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
                             const SizedBox(width: 8),
-                            Text('เพิ่มผู้ป่วย', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                            Text('เพิ่มผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                           ],
                         ),
                       ),
@@ -296,9 +296,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           children: [
                             Icon(Icons.person_search_rounded, size: 56, color: AiraColors.muted.withValues(alpha: 0.3)),
                             const SizedBox(height: 16),
-                            Text('ยังไม่มีข้อมูลผู้ป่วย', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted)),
+                            Text('ยังไม่มีข้อมูลผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted)),
                             const SizedBox(height: 8),
-                            Text('กดปุ่ม "เพิ่มผู้ป่วย" เพื่อเริ่มต้น', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.6))),
+                            Text('กดปุ่ม "เพิ่มผู้รับบริการ" เพื่อเริ่มต้น', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.6))),
                           ],
                         ),
                       );
@@ -355,7 +355,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text('ลบผู้ป่วย?', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+        title: Text('ลบผู้รับบริการ?', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
         content: Text('ต้องการลบ "${patient.fullName}" (${patient.hn ?? '-'}) หรือไม่?\nข้อมูลจะถูกลบถาวร', style: GoogleFonts.plusJakartaSans(fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ยกเลิก')),
@@ -462,7 +462,7 @@ class _PatientCard extends StatelessWidget {
                       Flexible(
                         child: Text(
                           nick != null && nick.isNotEmpty ? '$displayName ($nick)' : displayName,
-                          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -486,9 +486,9 @@ class _PatientCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Text(patient.hn ?? '-', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
+                      Text(patient.hn ?? '-', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
                       Container(width: 3, height: 3, margin: const EdgeInsets.symmetric(horizontal: 8), decoration: const BoxDecoration(color: AiraColors.creamDk, shape: BoxShape.circle)),
-                      Text(patient.phone ?? '-', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+                      Text(patient.phone ?? '-', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
                     ],
                   ),
                 ],
@@ -499,7 +499,7 @@ class _PatientCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${patient.age} ปี', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
+                  Text('${patient.age} ปี', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
                   const SizedBox(height: 2),
                   Text(patient.gender?.label() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
                 ],

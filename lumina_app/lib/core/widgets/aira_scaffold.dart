@@ -50,7 +50,7 @@ class AiraScaffold extends ConsumerWidget {
 
   List<_NavItem> _tabs(bool isThai, bool canAccessSettings) => [
     _NavItem(Icons.dashboard_outlined, Icons.dashboard_rounded, isThai ? 'แดชบอร์ด' : 'Dashboard'),
-    _NavItem(Icons.people_outline_rounded, Icons.people_rounded, isThai ? 'ผู้ป่วย' : 'Patients'),
+    _NavItem(Icons.people_outline_rounded, Icons.people_rounded, isThai ? 'ผู้รับบริการ' : 'Patients'),
     _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, isThai ? 'ปฏิทิน' : 'Calendar'),
     _NavItem(
       canAccessSettings ? Icons.settings_outlined : Icons.lock_outline_rounded,

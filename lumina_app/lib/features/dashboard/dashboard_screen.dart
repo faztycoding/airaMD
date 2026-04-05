@@ -231,7 +231,7 @@ class _QuickActionsStrip extends ConsumerWidget {
         Expanded(
           child: _QuickActionChip(
             icon: Icons.person_add_rounded,
-            label: _t(isThai, 'เพิ่มผู้ป่วย', 'Add Patient'),
+            label: _t(isThai, 'เพิ่มผู้รับบริการ', 'Add Patient'),
             color: AiraColors.woodMid,
             onTap: () => context.push('/patients/new'),
           ),
@@ -1468,9 +1468,9 @@ class _OpsSnapshotCard extends ConsumerWidget {
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted, height: 1.4),
             ),
             const SizedBox(height: 14),
-            _OpsLine(label: _t(isThai, 'คิววันนี้', 'Today queue'), value: '${stats.todayAppointments}', accent: AiraColors.woodMid),
+            _OpsLine(label: _t(isThai, 'นัดหมายวันนี้', 'Today\'s Appointments'), value: '${stats.todayAppointments}', accent: AiraColors.woodMid),
             _OpsLine(label: _t(isThai, 'ติดตามผลค้าง', 'Pending follow-ups'), value: '${stats.pendingFollowUps}', accent: AiraColors.gold),
-            _OpsLine(label: _t(isThai, 'ฐานคนไข้', 'Patient base'), value: '${stats.totalPatients}', accent: AiraColors.sage),
+            _OpsLine(label: _t(isThai, 'ข้อมูลผู้รับบริการ', 'Service Recipients'), value: '${stats.totalPatients}', accent: AiraColors.sage),
             _OpsLine(
               label: _t(isThai, 'รายได้ที่มองเห็น', 'Visible revenue'),
               value: canAccessFinancialData ? _formatDashboardAmount(stats.monthRevenue) : _t(isThai, 'จำกัดสิทธิ์', 'Restricted'),

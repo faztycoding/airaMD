@@ -229,6 +229,11 @@ enum PhotoType {
   after3m('AFTER_3M'),
   after6m('AFTER_6M'),
   followUp('FOLLOW_UP'),
+  angleFront('ANGLE_FRONT'),
+  angleLeft45('ANGLE_LEFT_45'),
+  angleLeft90('ANGLE_LEFT_90'),
+  angleRight45('ANGLE_RIGHT_45'),
+  angleRight90('ANGLE_RIGHT_90'),
   other('OTHER');
 
   final String dbValue;

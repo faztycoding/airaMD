@@ -91,7 +91,7 @@ class AiraFonts {
 
   /// Body font — Plus Jakarta Sans: modern clean sans-serif
   static TextStyle body({
-    double fontSize = 14,
+    double fontSize = 16,
     FontWeight fontWeight = FontWeight.w400,
     Color? color,
     double? height,
@@ -123,7 +123,7 @@ class AiraFonts {
 
   /// Small label font
   static TextStyle label({
-    double fontSize = 12,
+    double fontSize = 14,
     FontWeight fontWeight = FontWeight.w500,
     Color? color,
   }) =>
@@ -236,59 +236,59 @@ class AiraTheme {
       // Text theme
       textTheme: TextTheme(
         displayLarge: headingFont.copyWith(
-          fontSize: 34,
+          fontSize: 36,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displayMedium: headingFont.copyWith(
-          fontSize: 28,
+          fontSize: 30,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displaySmall: headingFont.copyWith(
-          fontSize: 24,
+          fontSize: 26,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         headlineMedium: headingFont.copyWith(
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleLarge: bodyFont.copyWith(
-          fontSize: 18,
+          fontSize: 20,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleMedium: bodyFont.copyWith(
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         titleSmall: bodyFont.copyWith(
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         bodyLarge: bodyFont.copyWith(
-          fontSize: 16,
+          fontSize: 18,
           color: AiraColors.charcoal,
         ),
         bodyMedium: bodyFont.copyWith(
-          fontSize: 14,
+          fontSize: 16,
           color: AiraColors.charcoal,
         ),
         bodySmall: bodyFont.copyWith(
-          fontSize: 12,
+          fontSize: 14,
           color: AiraColors.muted,
         ),
         labelLarge: bodyFont.copyWith(
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         labelMedium: bodyFont.copyWith(
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AiraColors.muted,
         ),

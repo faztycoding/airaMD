@@ -854,9 +854,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       ),
                     ),
                   ),
-                ...entries.map((entry) => Padding(
+                ...entries.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _RosterRow(entry: entry, isThai: isThai),
+                      child: _RosterRow(entry: e.value, isThai: isThai, doctorIndex: e.key),
                     )),
               ],
             );
@@ -909,15 +909,32 @@ class _RosterStatChip extends StatelessWidget {
   }
 }
 
+// Doctor-specific color palette for easy visual identification
+const _doctorColors = [
+  Color(0xFF4A90D9), // ฟ้า (Blue)
+  Color(0xFFE06B8F), // ชมพู (Pink)
+  Color(0xFF7A9070), // เขียว (Green / sage)
+  Color(0xFFC4922A), // ทอง (Gold)
+  Color(0xFF9B59B6), // ม่วง (Purple)
+  Color(0xFFE67E22), // ส้ม (Orange)
+  Color(0xFF2ECC71), // เขียวสด (Emerald)
+  Color(0xFF1ABC9C), // เทอร์ควอยซ์ (Teal)
+];
+
+Color _doctorColor(int index) => _doctorColors[index % _doctorColors.length];
+
 class _RosterRow extends StatelessWidget {
   final _StaffRosterEntry entry;
   final bool isThai;
-  const _RosterRow({required this.entry, required this.isThai});
+  final int doctorIndex;
+  const _RosterRow({required this.entry, required this.isThai, this.doctorIndex = 0});
 
   @override
   Widget build(BuildContext context) {
     final status = entry.status;
-    final color = switch (status) {
+    // Use doctor-specific color for the avatar & left accent
+    final personalColor = _doctorColor(doctorIndex);
+    final statusColor = switch (status) {
       ScheduleStatus.onDuty => AiraColors.sage,
       ScheduleStatus.leave => AiraColors.terra,
       ScheduleStatus.halfDay => AiraColors.gold,
@@ -943,16 +960,26 @@ class _RosterRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AiraColors.parchment,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AiraColors.creamDk.withValues(alpha: 0.5)),
+        border: Border.all(color: personalColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
+          // Left color accent bar
+          Container(
+            width: 4,
+            height: 48,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              color: personalColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           CircleAvatar(
             radius: 22,
-            backgroundColor: color.withValues(alpha: 0.14),
+            backgroundColor: personalColor.withValues(alpha: 0.14),
             child: Text(
               entry.staff.fullName.isEmpty ? '?' : entry.staff.fullName.characters.first,
-              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: color),
+              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: personalColor),
             ),
           ),
           const SizedBox(width: 12),
@@ -960,9 +987,23 @@ class _RosterRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.staff.fullName,
-                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        entry.staff.fullName,
+                        style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 10, height: 10,
+                      decoration: BoxDecoration(
+                        color: personalColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -982,12 +1023,12 @@ class _RosterRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               statusLabel,
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: statusColor),
             ),
           ),
         ],

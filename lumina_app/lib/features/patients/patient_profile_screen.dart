@@ -30,7 +30,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   List<_TabDef> _tabs(bool isThai) => [
     _TabDef(Icons.person_rounded, isThai ? 'ข้อมูลส่วนตัว' : 'Personal Info'),
     _TabDef(Icons.healing_rounded, isThai ? 'ประวัติสุขภาพ (HA)' : 'Health History (HA)'),
-    _TabDef(Icons.note_add_rounded, isThai ? 'บันทึก OPD ใหม่' : 'New OPD Note'),
     _TabDef(Icons.draw_rounded, 'Face Diagram'),
     _TabDef(Icons.colorize_rounded, 'Injectables'),
     _TabDef(Icons.flash_on_rounded, 'Laser'),
@@ -38,9 +37,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     _TabDef(Icons.spa_rounded, isThai ? 'Anti-aging' : 'Anti-aging'),
     _TabDef(Icons.table_chart_rounded, isThai ? 'ตารางคอร์ส' : 'Course Table'),
     _TabDef(Icons.photo_library_rounded, 'Before & After'),
-    _TabDef(Icons.edit_note_rounded, 'Digital Notepad'),
+    _TabDef(Icons.description_rounded, isThai ? 'Consent Form' : 'Consent Form'),
+    _TabDef(Icons.medication_rounded, isThai ? 'อาหารเสริม' : 'Supplements'),
     _TabDef(Icons.favorite_rounded, isThai ? 'ศัลยกรรม' : 'Surgery'),
     _TabDef(Icons.account_balance_wallet_rounded, 'Spending'),
+    _TabDef(Icons.star_rounded, isThai ? 'สถานะคนไข้' : 'Patient Status'),
   ];
 
   @override
@@ -316,51 +317,51 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         return _InfoTab(patient: patient);
       case 1:
         return _HATab(patient: patient);
-      case 2:
+      case 2: // Face Diagram + Digital Notepad embedded
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _NewRecordTab(patientId: patient.id);
+        return _FaceDiagramWithNotepad(patientId: patient.id);
       case 3:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _FaceDiagramSection(patientId: patient.id);
+        return _TreatmentListTab(patientId: patient.id, category: 'INJECTABLE', label: 'Injectable');
       case 4:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _TreatmentListTab(patientId: patient.id, category: 'INJECTABLE', label: 'Injectable');
+        return _TreatmentListTab(patientId: patient.id, category: 'LASER', label: 'Laser');
       case 5:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _TreatmentListTab(patientId: patient.id, category: 'LASER', label: 'Laser');
+        return _TreatmentListTab(patientId: patient.id, category: 'TREATMENT', label: 'Treatment');
       case 6:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _TreatmentListTab(patientId: patient.id, category: 'TREATMENT', label: 'Treatment');
-      case 7:
-        if (!canManageClinicalData) {
-          return const InlineAccessGuard(permission: AiraPermission.clinical);
-        }
         return _AntiAgingTab(patientId: patient.id);
-      case 8:
+      case 7:
         if (!canAccessFinancialData) {
           return const InlineAccessGuard(permission: AiraPermission.financial);
         }
         return _CourseOverviewSection(patientId: patient.id);
-      case 9:
+      case 8:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
         return _PhotosTab(patientId: patient.id);
-      case 10:
+      case 9: // Consent Form
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return NotepadSection(patientId: patient.id);
+        return _ConsentFormTab(patientId: patient.id);
+      case 10: // Supplements
+        if (!canManageClinicalData) {
+          return const InlineAccessGuard(permission: AiraPermission.clinical);
+        }
+        return _SupplementsTab(patientId: patient.id);
       case 11:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
@@ -371,6 +372,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return const InlineAccessGuard(permission: AiraPermission.financial);
         }
         return _FinanceTab(patientId: patient.id);
+      case 13: // Patient Status (hidden from patients)
+        return _PatientStatusTab(patient: patient);
       default:
         return _InfoTab(patient: patient);
     }
@@ -509,7 +512,7 @@ class _ProfileHeader extends ConsumerWidget {
               Text(
                 patient.fullName,
                 style: GoogleFonts.playfairDisplay(
-                  fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2,
+                  fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2,
                 ),
               ),
               if (patient.status == PatientStatus.vip) ...[
@@ -533,12 +536,12 @@ class _ProfileHeader extends ConsumerWidget {
           if (patient.nickname != null && patient.nickname!.isNotEmpty)
             Text(
               'ชื่อเล่น: ${patient.nickname}',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+              style: GoogleFonts.plusJakartaSans(fontSize: 15, color: Colors.white.withValues(alpha: 0.7)),
             ),
           const SizedBox(height: 2),
           Text(
             '${patient.age != null ? "อายุ ${patient.age} ปี" : ""}${patient.hn != null ? " • HN: ${patient.hn}" : ""}',
-            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.white.withValues(alpha: 0.6)),
+            style: GoogleFonts.plusJakartaSans(fontSize: 15, color: Colors.white.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 14),
           // ─── Action buttons ───
@@ -714,19 +717,14 @@ class _InfoTab extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: isThai ? 'สถานะคนไข้' : 'Patient Status',
+          title: isThai ? 'เอกสารยืนยันตัวตน' : 'Identification Documents',
+          icon: Icons.badge_rounded,
+          iconColor: AiraColors.woodMid,
           children: [
-            _StatusSelector(current: patient.status),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _SectionCard(
-          title: isThai ? 'เอกสาร' : 'Documents',
-          children: [
-            if (patient.nationalId != null) _InfoRow(isThai ? 'เลขบัตรประชาชน' : 'National ID', patient.nationalId!),
-            if (patient.passportNo != null) _InfoRow(isThai ? 'หนังสือเดินทาง' : 'Passport', patient.passportNo!),
+            if (patient.nationalId != null) _InfoRow(isThai ? 'บัตรประชาชน' : 'National ID Card', patient.nationalId!),
+            if (patient.passportNo != null) _InfoRow(isThai ? 'พาสปอร์ต' : 'Passport', patient.passportNo!),
             if (patient.nationalId == null && patient.passportNo == null)
-              Text(isThai ? 'ยังไม่มีข้อมูลเอกสาร' : 'No documents on file', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+              Text(isThai ? 'ยังไม่มีข้อมูลเอกสาร' : 'No documents on file', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
           ],
         ),
         if (patient.notes != null && patient.notes!.isNotEmpty) ...[
@@ -1502,10 +1500,11 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
 
   // ─── Helpers ───
   static const _photoTypes = [
-    (type: PhotoType.before, label: 'Before', thLabel: 'Before'),
-    (type: PhotoType.after1m, label: '1 Month', thLabel: '1 เดือน'),
-    (type: PhotoType.after3m, label: '3 Months', thLabel: '3 เดือน'),
-    (type: PhotoType.after6m, label: '6 Months', thLabel: '6 เดือน'),
+    (type: PhotoType.angleFront, label: 'Front', thLabel: 'หน้าตรง'),
+    (type: PhotoType.angleLeft45, label: 'Left 45°', thLabel: '45° ซ้าย'),
+    (type: PhotoType.angleLeft90, label: 'Left 90°', thLabel: '90° ซ้าย'),
+    (type: PhotoType.angleRight45, label: 'Right 45°', thLabel: '45° ขวา'),
+    (type: PhotoType.angleRight90, label: 'Right 90°', thLabel: '90° ขวา'),
   ];
 
   PatientPhoto? _findByType(List<PatientPhoto> photos, PhotoType type) {
@@ -1769,7 +1768,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                                 ),
                               ),
                               Text(
-                                '${photos.where((p) => p.storagePath.isNotEmpty).length}/4',
+                                '${photos.where((p) => p.storagePath.isNotEmpty).length}/5',
                                 style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid),
                               ),
                             ],
@@ -1784,7 +1783,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                                 final label = isThai ? slot.thLabel : slot.label;
                                 return Expanded(
                                   child: Padding(
-                                    padding: EdgeInsets.only(right: slot.type == PhotoType.after6m ? 0 : 12),
+                                    padding: EdgeInsets.only(right: slot.type == PhotoType.angleRight90 ? 0 : 8),
                                     child: Column(
                                       children: [
                                         Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
@@ -2492,7 +2491,7 @@ class _SectionCard extends StatelessWidget {
               ],
               Text(
                 title,
-                style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
               ),
             ],
           ),
@@ -2503,6 +2502,467 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Face Diagram + Digital Notepad combined tab
+// ═══════════════════════════════════════════════════════════════════
+
+class _FaceDiagramWithNotepad extends ConsumerWidget {
+  final String patientId;
+  const _FaceDiagramWithNotepad({required this.patientId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isThai = ref.watch(isThaiProvider);
+    final diagramsAsync = ref.watch(diagramsByPatientProvider(patientId));
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // ─── New Diagram Button ───
+        AiraTapEffect(
+          onTap: () => context.push('/patients/$patientId/diagram'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  isThai ? 'สร้าง Diagram ใหม่' : 'New Diagram',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ─── Saved Diagrams List (sorted by date, newest first) ───
+        _SectionCard(
+          title: isThai ? 'Diagram ที่บันทึกแล้ว' : 'Saved Diagrams',
+          icon: Icons.draw_rounded,
+          iconColor: AiraColors.woodMid,
+          children: [
+            Text(
+              isThai
+                  ? 'แต่ละ Diagram บันทึกแยกครั้ง เซฟแล้วแก้ไขไม่ได้ (Immutable Lock)'
+                  : 'Each diagram is saved separately and cannot be edited after saving.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 12),
+            diagramsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => Text('Error: $e',
+                  style: GoogleFonts.plusJakartaSans(color: AiraColors.terra)),
+              data: (diagrams) {
+                if (diagrams.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AiraColors.parchment,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.draw_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
+                        const SizedBox(height: 8),
+                        Text(
+                          isThai ? 'ยังไม่มี Diagram' : 'No diagrams yet',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            color: AiraColors.muted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                const viewOrder = [DiagramView.front, DiagramView.leftSide, DiagramView.rightSide, DiagramView.side, DiagramView.lipZone];
+                final Map<String, List<FaceDiagram>> sessions = {};
+                for (final d in diagrams) {
+                  final key = d.createdAt != null
+                      ? '${d.createdAt!.year}-${d.createdAt!.month}-${d.createdAt!.day} ${d.createdAt!.hour}:${d.createdAt!.minute}'
+                      : 'unknown';
+                  sessions.putIfAbsent(key, () => []).add(d);
+                }
+                for (final g in sessions.values) {
+                  g.sort((a, b) => viewOrder.indexOf(a.viewType).compareTo(viewOrder.indexOf(b.viewType)));
+                }
+                // Sort sessions by date (newest first)
+                final sortedEntries = sessions.entries.toList()
+                  ..sort((a, b) {
+                    final aDate = a.value.first.createdAt ?? DateTime(2000);
+                    final bDate = b.value.first.createdAt ?? DateTime(2000);
+                    return bDate.compareTo(aDate);
+                  });
+
+                return Column(
+                  children: sortedEntries.map((entry) {
+                    final group = entry.value;
+                    final first = group.first;
+                    final dateStr = first.createdAt != null
+                        ? '${first.createdAt!.day}/${first.createdAt!.month}/${first.createdAt!.year}  ${first.createdAt!.hour.toString().padLeft(2, '0')}:${first.createdAt!.minute.toString().padLeft(2, '0')}'
+                        : '-';
+
+                    String viewLabel(DiagramView v) => switch (v) {
+                      DiagramView.front => isThai ? 'ด้านหน้า' : 'Front',
+                      DiagramView.side => isThai ? 'ด้านข้าง' : 'Side',
+                      DiagramView.leftSide => isThai ? 'ด้านซ้าย' : 'Left',
+                      DiagramView.rightSide => isThai ? 'ด้านขวา' : 'Right',
+                      DiagramView.lipZone => isThai ? 'ริมฝีปาก' : 'Lip',
+                    };
+
+                    IconData viewIcon(DiagramView v) => switch (v) {
+                      DiagramView.front => Icons.face_rounded,
+                      DiagramView.side => Icons.face_3_rounded,
+                      DiagramView.leftSide => Icons.face_3_rounded,
+                      DiagramView.rightSide => Icons.face_3_rounded,
+                      DiagramView.lipZone => Icons.mood_rounded,
+                    };
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.18)),
+                          boxShadow: [
+                            BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4)),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [AiraColors.woodPale.withValues(alpha: 0.25), AiraColors.gold.withValues(alpha: 0.15)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.draw_rounded, size: 18, color: AiraColors.woodMid),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isThai ? 'บันทึก Diagram' : 'Diagram Session',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                                      ),
+                                      Text(dateStr, style: GoogleFonts.spaceGrotesk(fontSize: 13, color: AiraColors.muted)),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AiraColors.terra.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.lock_rounded, size: 12, color: AiraColors.terra),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        isThai ? 'ล็อก' : 'Locked',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.terra),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: group.map((d) {
+                                return AiraTapEffect(
+                                  onTap: () => context.push('/patients/$patientId/diagram?diagramId=${d.id}'),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: AiraColors.parchment,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.2)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(viewIcon(d.viewType), size: 16, color: AiraColors.woodMid),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          viewLabel(d.viewType),
+                                          style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.chevron_right_rounded, size: 14, color: AiraColors.muted),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${group.length} ${isThai ? 'มุมมอง' : 'views'}',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // ─── Digital Notepad (embedded) ───
+        _SectionCard(
+          title: isThai ? 'Digital Notepad' : 'Digital Notepad',
+          icon: Icons.edit_note_rounded,
+          iconColor: AiraColors.sage,
+          children: [
+            Text(
+              isThai ? 'โน้ตเพิ่มเติมสำหรับ session นี้' : 'Additional notes for this session',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 500,
+          child: NotepadSection(patientId: patientId),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Consent Form Tab — Separate tab with per-session saving
+// ═══════════════════════════════════════════════════════════════════
+
+class _ConsentFormTab extends ConsumerWidget {
+  final String patientId;
+  const _ConsentFormTab({required this.patientId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isThai = ref.watch(isThaiProvider);
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        AiraTapEffect(
+          onTap: () => context.push('/patients/$patientId/consent'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  isThai ? 'สร้าง Consent Form ใหม่' : 'New Consent Form',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: isThai ? 'Consent Form ที่บันทึกแล้ว' : 'Saved Consent Forms',
+          icon: Icons.description_rounded,
+          iconColor: AiraColors.gold,
+          children: [
+            Text(
+              isThai
+                  ? 'Consent Form แต่ละครั้งจะบันทึกแยกเป็น session เพื่อเก็บเป็นหลักฐานทางการแพทย์'
+                  : 'Each consent form is saved per session for medical compliance.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AiraColors.parchment,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.description_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
+                  const SizedBox(height: 8),
+                  Text(
+                    isThai ? 'กดปุ่มด้านบนเพื่อสร้าง Consent Form ใหม่' : 'Tap button above to create new consent form',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Supplements Tab — อาหารเสริม
+// ═══════════════════════════════════════════════════════════════════
+
+class _SupplementsTab extends StatelessWidget {
+  final String patientId;
+  const _SupplementsTab({required this.patientId});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _SectionCard(
+          title: 'อาหารเสริม / Supplements',
+          icon: Icons.medication_rounded,
+          iconColor: AiraColors.sage,
+          children: [
+            Text(
+              'บันทึกอาหารเสริมที่คนไข้ใช้อยู่ เช่น วิตามิน, คอลลาเจน, กลูต้าไธโอน ฯลฯ',
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 16),
+            _SupplementItem('Vitamin C', '1,000 mg/วัน', Icons.local_pharmacy_rounded, AiraColors.gold),
+            const Divider(height: 24),
+            _SupplementItem('Collagen', '5,000 mg/วัน', Icons.science_rounded, AiraColors.woodMid),
+            const Divider(height: 24),
+            _SupplementItem('Glutathione', '500 mg/วัน', Icons.spa_rounded, AiraColors.sage),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AiraColors.woodPale.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.4)),
+              ),
+              child: Center(
+                child: Text(
+                  '+ เพิ่มอาหารเสริม',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodDk),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SupplementItem extends StatelessWidget {
+  final String name;
+  final String dosage;
+  final IconData icon;
+  final Color color;
+  const _SupplementItem(this.name, this.dosage, this.icon, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+              Text(dosage, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+            ],
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded, size: 20, color: AiraColors.muted),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Patient Status Tab — Hidden from patients, behind Spending
+// ═══════════════════════════════════════════════════════════════════
+
+class _PatientStatusTab extends ConsumerWidget {
+  final Patient patient;
+  const _PatientStatusTab({required this.patient});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isThai = ref.watch(isThaiProvider);
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _SectionCard(
+          title: isThai ? 'สถานะคนไข้ (ภายในเท่านั้น)' : 'Patient Status (Internal Only)',
+          icon: Icons.star_rounded,
+          iconColor: AiraColors.gold,
+          children: [
+            Text(
+              isThai
+                  ? 'ส่วนนี้ใช้ภายในคลินิกเท่านั้น คนไข้จะไม่เห็นข้อมูลนี้'
+                  : 'This section is for internal use only. Patients cannot see this.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 16),
+            _StatusSelector(current: patient.status),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED COMPONENTS (continued)
+// ═══════════════════════════════════════════════════════════════════
 
 class _InfoRow extends StatelessWidget {
   final String label;
@@ -2518,12 +2978,12 @@ class _InfoRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+            child: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
           ),
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
               textAlign: TextAlign.end,
             ),
           ),
