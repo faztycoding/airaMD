@@ -1716,121 +1716,16 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                           // ─── Before / After grid per angle ───
                           ...['angleFront', 'angleLeft45', 'angleLeft90', 'angleRight45', 'angleRight90'].map((angleKey) {
                             final slot = _photoTypes.firstWhere((s) => s.type.name == angleKey);
-                            final angleLabel = isThai ? slot.thLabel : slot.label;
-                            final beforePhoto = _findByType(photos, slot.type);
-                            final hasBeforeImg = beforePhoto != null && beforePhoto.storagePath.isNotEmpty;
-                            final afterPhoto = photos.where((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty).isEmpty
-                                ? null
-                                : photos.firstWhere((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty);
-                            final hasAfterImg = afterPhoto != null;
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: AiraColors.parchment,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.25)),
-                                ),
-                                child: Column(
-                                  children: [
-                                    // ─── Angle Header ───
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      decoration: BoxDecoration(
-                                        color: AiraColors.woodDk.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.camera_alt_rounded, size: 16, color: AiraColors.woodDk),
-                                          const SizedBox(width: 8),
-                                          Text(angleLabel, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
-                                        ],
-                                      ),
-                                    ),
-                                    // ─── Before / After columns ───
-                                    Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // ── Before ──
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                                                decoration: BoxDecoration(
-                                                  color: AiraColors.woodMid.withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text('BEFORE', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid, letterSpacing: 0.5)),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              AiraTapEffect(
-                                                onTap: hasBeforeImg
-                                                    ? () => _showFullPhoto(context, _photoUrl(beforePhoto))
-                                                    : () => _uploadPhoto(setLabel, slot.type, isThai),
-                                                child: AspectRatio(
-                                                  aspectRatio: 3 / 4,
-                                                  child: ClipRRect(
-                                                    borderRadius: BorderRadius.circular(14),
-                                                    child: hasBeforeImg
-                                                        ? Image.network(_photoUrl(beforePhoto), fit: BoxFit.cover,
-                                                            errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
-                                                        : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // ── Divider ──
-                                        Container(
-                                          width: 1,
-                                          height: 160,
-                                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                                          color: AiraColors.woodPale.withValues(alpha: 0.3),
-                                        ),
-                                        // ── After ──
-                                        Expanded(
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                                                decoration: BoxDecoration(
-                                                  color: AiraColors.sage.withValues(alpha: 0.15),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text('AFTER', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.sage, letterSpacing: 0.5)),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              AiraTapEffect(
-                                                onTap: hasAfterImg
-                                                    ? () => _showFullPhoto(context, _photoUrl(afterPhoto))
-                                                    : () => _uploadPhoto('${setLabel}_after_$angleKey', slot.type, isThai),
-                                                child: AspectRatio(
-                                                  aspectRatio: 3 / 4,
-                                                  child: ClipRRect(
-                                                    borderRadius: BorderRadius.circular(14),
-                                                    child: hasAfterImg
-                                                        ? Image.network(_photoUrl(afterPhoto), fit: BoxFit.cover,
-                                                            errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
-                                                        : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            return _CollapsibleAngleCard(
+                              slot: slot,
+                              setLabel: setLabel,
+                              photos: photos,
+                              isThai: isThai,
+                              onUpload: _uploadPhoto,
+                              onView: _showFullPhoto,
+                              photoUrl: _photoUrl,
+                              findByType: _findByType,
+                              slotPlaceholder: _buildSlotPlaceholder,
                             );
                           }),
                         ],
@@ -2020,6 +1915,206 @@ class _AntiAgingItemState extends State<_AntiAgingItem> {
         const SizedBox(height: 6),
         Text('✨ ${widget.desc}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.gold)),
       ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Before/After Collapsible Angle Card Widget
+// ═══════════════════════════════════════════════════════════════════
+
+class _CollapsibleAngleCard extends StatefulWidget {
+  final ({PhotoType type, String label, String thLabel}) slot;
+  final String setLabel;
+  final List<PatientPhoto> photos;
+  final bool isThai;
+  final Function(String, PhotoType, bool) onUpload;
+  final Function(BuildContext, String) onView;
+  final String Function(PatientPhoto) photoUrl;
+  final PatientPhoto? Function(List<PatientPhoto>, PhotoType) findByType;
+  final Widget Function(IconData) slotPlaceholder;
+
+  const _CollapsibleAngleCard({
+    required this.slot,
+    required this.setLabel,
+    required this.photos,
+    required this.isThai,
+    required this.onUpload,
+    required this.onView,
+    required this.photoUrl,
+    required this.findByType,
+    required this.slotPlaceholder,
+  });
+
+  @override
+  State<_CollapsibleAngleCard> createState() => _CollapsibleAngleCardState();
+}
+
+class _CollapsibleAngleCardState extends State<_CollapsibleAngleCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final angleLabel = widget.isThai ? widget.slot.thLabel : widget.slot.label;
+    final beforePhoto = widget.findByType(widget.photos, widget.slot.type);
+    final hasBeforeImg = beforePhoto != null && beforePhoto.storagePath.isNotEmpty;
+    final afterPhoto = widget.photos.where((p) => p.description == '${widget.setLabel}_after_${widget.slot.type.name}' && p.storagePath.isNotEmpty).isEmpty
+        ? null
+        : widget.photos.firstWhere((p) => p.description == '${widget.setLabel}_after_${widget.slot.type.name}' && p.storagePath.isNotEmpty);
+    final hasAfterImg = afterPhoto != null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AiraColors.parchment,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          children: [
+            // ─── Collapsible Header ───
+            AiraTapEffect(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AiraColors.woodDk.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.vertical(
+                    top: const Radius.circular(16),
+                    bottom: Radius.circular(_isExpanded ? 0 : 16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, size: 16, color: AiraColors.woodMid),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        angleLabel,
+                        style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                      ),
+                    ),
+                    // Photo count indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (hasBeforeImg || hasAfterImg) ? AiraColors.sage.withValues(alpha: 0.15) : AiraColors.woodPale.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${hasBeforeImg ? 1 : 0}/${hasAfterImg ? 1 : 0}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: (hasBeforeImg || hasAfterImg) ? AiraColors.sage : AiraColors.muted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: AiraColors.woodMid),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // ─── Expandable Content ───
+            AnimatedCrossFade(
+              firstChild: const SizedBox(height: 0),
+              secondChild: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Before ──
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AiraColors.woodMid.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('BEFORE', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid, letterSpacing: 0.5)),
+                          ),
+                          const SizedBox(height: 8),
+                          AiraTapEffect(
+                            onTap: hasBeforeImg
+                                ? () => widget.onView(context, widget.photoUrl(beforePhoto))
+                                : () => widget.onUpload(widget.setLabel, widget.slot.type, widget.isThai),
+                            child: AspectRatio(
+                              aspectRatio: 3 / 4,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: hasBeforeImg
+                                    ? Image.network(widget.photoUrl(beforePhoto), fit: BoxFit.cover,
+                                        errorBuilder: (_, e, s) => widget.slotPlaceholder(Icons.broken_image_rounded))
+                                    : widget.slotPlaceholder(Icons.add_a_photo_rounded),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ── Divider ──
+                    Container(
+                      width: 1,
+                      height: 160,
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                      color: AiraColors.woodPale.withValues(alpha: 0.3),
+                    ),
+                    // ── After ──
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AiraColors.sage.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('AFTER', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.sage, letterSpacing: 0.5)),
+                          ),
+                          const SizedBox(height: 8),
+                          AiraTapEffect(
+                            onTap: hasAfterImg
+                                ? () => widget.onView(context, widget.photoUrl(afterPhoto!))
+                                : () => widget.onUpload('${widget.setLabel}_after_${widget.slot.type.name}', widget.slot.type, widget.isThai),
+                            child: AspectRatio(
+                              aspectRatio: 3 / 4,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: hasAfterImg
+                                    ? Image.network(widget.photoUrl(afterPhoto!), fit: BoxFit.cover,
+                                        errorBuilder: (_, e, s) => widget.slotPlaceholder(Icons.broken_image_rounded))
+                                    : widget.slotPlaceholder(Icons.add_a_photo_rounded),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 250),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
