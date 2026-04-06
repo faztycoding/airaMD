@@ -912,16 +912,19 @@ class _TreatmentListTab extends ConsumerWidget {
       data: (treatments) => ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: AiraColors.woodPale.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.4)),
-            ),
-            child: Center(
-              child: Text('+ บันทึก $label ใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.woodDk)),
+          AiraTapEffect(
+            onTap: () => context.push('/patients/$patientId/treatments/new'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+              ),
+              child: Center(
+                child: Text('+ บันทึก $label ใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -1639,8 +1642,8 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                   children: [
                     Text(
                       isThai
-                          ? 'จัดรูปแบบเปรียบเทียบ 4 ช่องสำหรับ Before / 1 เดือน / 3 เดือน / 6 เดือน จากข้อมูลจริงของคนไข้รายนี้'
-                          : 'Compare photos across 4 time periods: Before / 1 Month / 3 Months / 6 Months',
+                          ? 'เปรียบเทียบ Before / After แต่ละมุม: หน้าตรง, 45° ซ้าย, 90° ซ้าย, 45° ขวา, 90° ขวา'
+                          : 'Compare Before / After for each angle: Front, Left 45°, Left 90°, Right 45°, Right 90°',
                       style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
                     ),
                   ],
@@ -1704,46 +1707,87 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                                 ),
                               ),
                               Text(
-                                '${photos.where((p) => p.storagePath.isNotEmpty).length}/5',
+                                '${photos.where((p) => p.storagePath.isNotEmpty).length}/10',
                                 style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid),
                               ),
                             ],
                           ),
                           const SizedBox(height: 14),
-                          // 4-column grid
-                          LayoutBuilder(builder: (context, constraints) {
-                            return Row(
-                              children: _photoTypes.map((slot) {
-                                final photo = _findByType(photos, slot.type);
-                                final hasImage = photo != null && photo.storagePath.isNotEmpty;
-                                final label = isThai ? slot.thLabel : slot.label;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(right: slot.type == PhotoType.angleRight90 ? 0 : 8),
-                                    child: Column(
-                                      children: [
-                                        Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
-                                        const SizedBox(height: 6),
-                                        AiraTapEffect(
-                                          onTap: hasImage
-                                              ? () => _showFullPhoto(context, _photoUrl(photo))
-                                              : () => _uploadPhoto(setLabel, slot.type, isThai),
-                                          child: AspectRatio(
-                                            aspectRatio: 3 / 4,
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(12),
-                                              child: hasImage
-                                                  ? Image.network(_photoUrl(photo), fit: BoxFit.cover,
-                                                      errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
-                                                  : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                          // ─── Before / After grid per angle ───
+                          ...['angleFront', 'angleLeft45', 'angleLeft90', 'angleRight45', 'angleRight90'].map((angleKey) {
+                            final slot = _photoTypes.firstWhere((s) => s.type.name == angleKey);
+                            final angleLabel = isThai ? slot.thLabel : slot.label;
+                            // Before = the angle type itself, After = use "before" prefix convention
+                            final beforePhoto = _findByType(photos, slot.type);
+                            final hasBeforeImg = beforePhoto != null && beforePhoto.storagePath.isNotEmpty;
+                            // For After, we search by description convention: "{setLabel}_after_{angleKey}"
+                            final afterPhoto = photos.where((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty).isEmpty
+                                ? null
+                                : photos.firstWhere((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty);
+                            final hasAfterImg = afterPhoto != null;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(angleLabel, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      // ─── Before ───
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text('Before', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
+                                            const SizedBox(height: 4),
+                                            AiraTapEffect(
+                                              onTap: hasBeforeImg
+                                                  ? () => _showFullPhoto(context, _photoUrl(beforePhoto))
+                                                  : () => _uploadPhoto(setLabel, slot.type, isThai),
+                                              child: AspectRatio(
+                                                aspectRatio: 3 / 4,
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: hasBeforeImg
+                                                      ? Image.network(_photoUrl(beforePhoto), fit: BoxFit.cover,
+                                                          errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
+                                                      : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // ─── After ───
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text('After', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.sage)),
+                                            const SizedBox(height: 4),
+                                            AiraTapEffect(
+                                              onTap: hasAfterImg
+                                                  ? () => _showFullPhoto(context, _photoUrl(afterPhoto))
+                                                  : () => _uploadPhoto('${setLabel}_after_$angleKey', slot.type, isThai),
+                                              child: AspectRatio(
+                                                aspectRatio: 3 / 4,
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: hasAfterImg
+                                                      ? Image.network(_photoUrl(afterPhoto), fit: BoxFit.cover,
+                                                          errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
+                                                      : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              }).toList(),
+                                ],
+                              ),
                             );
                           }),
                         ],
@@ -1820,6 +1864,27 @@ class _AntiAgingTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        AiraTapEffect(
+          onTap: () => context.push('/patients/$patientId/treatments/new'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+                const SizedBox(width: 6),
+                Text('+ บันทึก Anti-aging ใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         _SectionCard(
           title: 'Anti-aging Treatments',
           icon: Icons.spa_rounded,
@@ -1830,11 +1895,11 @@ class _AntiAgingTab extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
             ),
             const SizedBox(height: 16),
-            _AntiAgingItem('HIFU / Ultherapy', 'ยกกระชับผิวหน้า', ['1 เดือน', '3 เดือน', '6 เดือน']),
+            _AntiAgingItem('HIFU / Ultherapy', 'ยกกระชับผิวหน้า', ['1 เดือน', '3 เดือน', '6 เดือน'], patientId: patientId),
             const Divider(height: 24),
-            _AntiAgingItem('Thermage FLX', 'กระชับรูขุมขน', ['1 เดือน', '3 เดือน', '6 เดือน', '1 ปี']),
+            _AntiAgingItem('Thermage FLX', 'กระชับรูขุมขน', ['1 เดือน', '3 เดือน', '6 เดือน', '1 ปี'], patientId: patientId),
             const Divider(height: 24),
-            _AntiAgingItem('ร้อยไหม', 'ยกกระชับใบหน้า', ['1 เดือน', '3 เดือน', '6 เดือน', '1 ปี']),
+            _AntiAgingItem('ร้อยไหม', 'ยกกระชับใบหน้า', ['1 เดือน', '3 เดือน', '6 เดือน', '1 ปี'], patientId: patientId),
           ],
         ),
       ],
@@ -1842,11 +1907,19 @@ class _AntiAgingTab extends StatelessWidget {
   }
 }
 
-class _AntiAgingItem extends StatelessWidget {
+class _AntiAgingItem extends StatefulWidget {
   final String name;
   final String desc;
   final List<String> timeline;
-  const _AntiAgingItem(this.name, this.desc, this.timeline);
+  final String patientId;
+  const _AntiAgingItem(this.name, this.desc, this.timeline, {required this.patientId});
+
+  @override
+  State<_AntiAgingItem> createState() => _AntiAgingItemState();
+}
+
+class _AntiAgingItemState extends State<_AntiAgingItem> {
+  int? _selectedIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -1857,36 +1930,52 @@ class _AntiAgingItem extends StatelessWidget {
           children: [
             const Icon(Icons.spa_rounded, size: 14, color: AiraColors.gold),
             const SizedBox(width: 6),
-            Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+            Expanded(child: Text(widget.name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal))),
+            AiraTapEffect(
+              onTap: () => context.push('/patients/${widget.patientId}/treatments/new'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AiraColors.gold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('+ บันทึก', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.gold)),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 6, runSpacing: 6,
-          children: timeline.asMap().entries.map((e) {
-            final isLast = e.key == timeline.length - 1;
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: isLast ? AiraColors.gold.withValues(alpha: 0.12) : AiraColors.parchment,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isLast ? AiraColors.gold.withValues(alpha: 0.3) : AiraColors.woodPale.withValues(alpha: 0.3),
+          children: widget.timeline.asMap().entries.map((e) {
+            final selected = _selectedIndex == e.key;
+            return AiraTapEffect(
+              onTap: () => setState(() => _selectedIndex = e.key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: selected ? AiraColors.gold.withValues(alpha: 0.18) : AiraColors.parchment,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: selected ? AiraColors.gold : AiraColors.woodPale.withValues(alpha: 0.3),
+                    width: selected ? 1.5 : 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                e.value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
-                  color: isLast ? AiraColors.gold : AiraColors.muted,
+                child: Text(
+                  e.value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? AiraColors.gold : AiraColors.muted,
+                  ),
                 ),
               ),
             );
           }).toList(),
         ),
         const SizedBox(height: 6),
-        Text('✨ $desc', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.gold)),
+        Text('✨ ${widget.desc}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.gold)),
       ],
     );
   }

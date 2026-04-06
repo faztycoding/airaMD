@@ -178,6 +178,36 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                       ]),
                       const SizedBox(height: 28),
 
+                      // ─── Treatment Details ───
+                      AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: isThai ? 'รายละเอียดการรักษา' : 'Treatment Details', subtitle: isThai ? 'ประเภท, แพทย์ผู้รับผิดชอบ' : 'Category, doctor'),
+                      AiraPremiumCard(accentColor: AiraColors.terra, children: [
+                        DropdownButtonFormField<String>(
+                          style: airaFieldTextStyle,
+                          decoration: airaFieldDecoration(label: isThai ? 'ประเภทการรักษา' : 'Treatment Category', prefixIcon: Icons.category_rounded),
+                          items: [
+                            DropdownMenuItem(value: 'laser', child: Text('Laser', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'injectable', child: Text('Injectable', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'treatment', child: Text('Treatment', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'anti_aging', child: Text('Anti-aging', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'skincare', child: Text('Skincare', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'other', child: Text(isThai ? 'อื่นๆ' : 'Other', style: airaFieldTextStyle)),
+                          ],
+                          onChanged: (_) {},
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          style: airaFieldTextStyle,
+                          decoration: airaFieldDecoration(label: isThai ? 'แพทย์ผู้รับผิดชอบ' : 'Responsible Doctor', hint: isThai ? 'เช่น พญ.เตย' : 'e.g. Dr. Toey', prefixIcon: Icons.person_rounded),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          style: airaFieldTextStyle,
+                          decoration: airaFieldDecoration(label: isThai ? 'บริเวณที่รักษา' : 'Treatment Area', hint: isThai ? 'เช่น หน้าผาก, คาง, แก้ม' : 'e.g. Forehead, Chin', prefixIcon: Icons.face_rounded),
+                        ),
+                        const SizedBox(height: 8),
+                      ]),
+                      const SizedBox(height: 28),
+
                       // ─── Sessions ───
                       const AiraSectionHeader(step: 3, icon: Icons.confirmation_number_rounded, title: 'จำนวนเซสชั่น', subtitle: 'ซื้อ + แถม'),
                       AiraPremiumCard(accentColor: AiraColors.sage, children: [
