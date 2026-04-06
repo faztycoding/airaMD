@@ -835,7 +835,35 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
             ),
           ),
         ),
-        _premiumField('เวลานัด', _followUpTimeCtrl, hint: 'เช่น 10:00', icon: Icons.access_time_rounded),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: AiraTapEffect(
+            onTap: () async {
+              final initial = TimeOfDay(
+                hour: int.tryParse(_followUpTimeCtrl.text.split(':').first) ?? 10,
+                minute: int.tryParse(_followUpTimeCtrl.text.split(':').last) ?? 0,
+              );
+              final picked = await showTimePicker(context: context, initialTime: initial);
+              if (picked != null) {
+                setState(() {
+                  _followUpTimeCtrl.text = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                });
+              }
+            },
+            child: AbsorbPointer(
+              child: TextFormField(
+                controller: _followUpTimeCtrl,
+                style: airaFieldTextStyle,
+                decoration: airaFieldDecoration(
+                  label: 'เวลานัด',
+                  hint: 'กดเพื่อเลือกเวลา',
+                  prefixIcon: Icons.access_time_rounded,
+                  suffixIcon: const Icon(Icons.schedule_rounded, size: 16, color: AiraColors.woodMid),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
