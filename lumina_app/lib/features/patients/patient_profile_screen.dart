@@ -1059,71 +1059,7 @@ class _TreatmentCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// TAB 6: +บันทึก (New Record) — Placeholder
-// ═══════════════════════════════════════════════════════════════════
-
-class _NewRecordTab extends StatelessWidget {
-  final String patientId;
-  const _NewRecordTab({required this.patientId});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _SectionCard(
-          title: 'บันทึก OPD ใหม่',
-          icon: Icons.note_add_rounded,
-          iconColor: AiraColors.woodMid,
-          children: [
-            Text(
-              'เริ่มบันทึกเคสใหม่ได้ทันทีจากหน้านี้ แล้วกลับมาเปิดดูย้อนหลังได้จากหมวดการรักษาแต่ละประเภท',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _NewRecordTypeBtn(
-              Icons.science_rounded,
-              'Treatment / OPD',
-              AiraColors.sage,
-              onTap: () => context.push('/patients/$patientId/treatments/new'),
-            ),
-            _NewRecordTypeBtn(
-              Icons.draw_rounded,
-              'Face Diagram',
-              AiraColors.woodMid,
-              onTap: () => context.push('/patients/$patientId/diagram'),
-            ),
-            _NewRecordTypeBtn(
-              Icons.description_rounded,
-              'Consent Form',
-              AiraColors.gold,
-              onTap: () => context.push('/patients/$patientId/consent'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _SectionCard(
-          title: 'การดู OPD เดิม',
-          icon: Icons.history_rounded,
-          iconColor: AiraColors.terra,
-          children: [
-            Text(
-              'บันทึกเดิมจะแยกตามหมวด Injectables, Laser และ Treatments ทางเมนูด้านซ้าย เพื่อให้ย้อนดูเคสเก่าได้ง่าย',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.charcoal),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+// (Old _NewRecordTab removed — merged into Face Diagram tab in Phase 2)
 
 class _FaceDiagramSection extends ConsumerWidget {
   final String patientId;
