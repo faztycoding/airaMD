@@ -1224,7 +1224,7 @@ class _StrokesPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final List<_Stroke> allStrokes = [
       ...strokes,
-      ?currentStroke,
+      if (currentStroke != null) currentStroke!,
     ];
 
     for (final stroke in allStrokes) {

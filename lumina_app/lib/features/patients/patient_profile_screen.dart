@@ -2742,6 +2742,18 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
+        // ─── Progress Note ───
+        _ProgressNoteSection(isThai: isThai),
+        const SizedBox(height: 16),
+
+        // ─── Treatment Record / Laser Parameters ───
+        _TreatmentRecordSection(isThai: isThai),
+        const SizedBox(height: 16),
+
+        // ─── Instructions & Follow-up ───
+        _InstructionsFollowUpSection(isThai: isThai),
+        const SizedBox(height: 24),
+
         // ─── Digital Notepad (embedded) ───
         _SectionCard(
           title: isThai ? 'Digital Notepad' : 'Digital Notepad',
@@ -2761,6 +2773,456 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
           child: NotepadSection(patientId: patientId),
         ),
       ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Progress Note — Response to Treatment + Adverse Events
+// ═══════════════════════════════════════════════════════════════════
+
+class _ProgressNoteSection extends StatefulWidget {
+  final bool isThai;
+  const _ProgressNoteSection({required this.isThai});
+
+  @override
+  State<_ProgressNoteSection> createState() => _ProgressNoteSectionState();
+}
+
+class _ProgressNoteSectionState extends State<_ProgressNoteSection> {
+  String? _response; // improved, stable, worsened
+  final Set<String> _adverseEvents = {};
+  final _otherCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _otherCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isThai = widget.isThai;
+    return _SectionCard(
+      title: 'Progress Note',
+      icon: Icons.assignment_rounded,
+      iconColor: AiraColors.woodMid,
+      children: [
+        // ─── Response to Previous Treatment ───
+        Text(
+          isThai ? 'ผลตอบสนองต่อการรักษาครั้งก่อน' : 'Response to Previous Treatment',
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildResponseChip('improved', isThai ? 'ดีขึ้น (Improved)' : 'Improved', AiraColors.sage),
+            _buildResponseChip('stable', isThai ? 'คงที่ (Stable)' : 'Stable', AiraColors.gold),
+            _buildResponseChip('worsened', isThai ? 'แย่ลง (Worsened)' : 'Worsened', AiraColors.terra),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // ─── Adverse Events ───
+        Text(
+          isThai ? 'อาการข้างเคียง (Adverse Events)' : 'Adverse Events',
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildEventChip('none', isThai ? 'ไม่มี (None)' : 'None'),
+            _buildEventChip('erythema', 'Erythema'),
+            _buildEventChip('burn', 'Burn'),
+            _buildEventChip('pih', 'PIH'),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _otherCtrl,
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
+          decoration: InputDecoration(
+            hintText: isThai ? 'อื่นๆ (ระบุ)...' : 'Other (Specify)...',
+            hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResponseChip(String value, String label, Color color) {
+    final selected = _response == value;
+    return AiraTapEffect(
+      onTap: () => setState(() => _response = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.15) : AiraColors.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? color : AiraColors.woodPale.withValues(alpha: 0.3), width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 18, color: selected ? color : AiraColors.muted),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? color : AiraColors.muted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventChip(String value, String label) {
+    final selected = _adverseEvents.contains(value);
+    final color = value == 'none' ? AiraColors.sage : AiraColors.terra;
+    return AiraTapEffect(
+      onTap: () {
+        setState(() {
+          if (value == 'none') {
+            _adverseEvents.clear();
+            _adverseEvents.add('none');
+          } else {
+            _adverseEvents.remove('none');
+            if (selected) {
+              _adverseEvents.remove(value);
+            } else {
+              _adverseEvents.add(value);
+            }
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : AiraColors.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? color : AiraColors.woodPale.withValues(alpha: 0.3), width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded, size: 18, color: selected ? color : AiraColors.muted),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? color : AiraColors.muted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Treatment Record / Laser Parameters
+// ═══════════════════════════════════════════════════════════════════
+
+class _TreatmentRecordSection extends StatelessWidget {
+  final bool isThai;
+  const _TreatmentRecordSection({required this.isThai});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: isThai ? 'บันทึกการรักษา / Laser Parameters' : 'Treatment Record / Laser Parameters',
+      icon: Icons.flash_on_rounded,
+      iconColor: AiraColors.gold,
+      children: [
+        // ─── Assessment ───
+        _buildField(isThai ? 'การวินิจฉัย (Assessment / Diagnosis)' : 'Assessment (Diagnosis / Problem List)', '', 2),
+        const SizedBox(height: 12),
+
+        // ─── Plan of Treatment ───
+        _buildField(isThai ? 'แผนการรักษา (Plan of Treatment)' : 'Plan of Treatment', '', 2),
+        const SizedBox(height: 16),
+
+        // ─── Laser Parameters ───
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AiraColors.gold.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AiraColors.gold.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.flash_on_rounded, size: 16, color: AiraColors.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Laser Parameters',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(child: _buildCompactField('Device / Laser Type', 'เช่น Gentle YAG')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildCompactField('Energy / Fluence', 'เช่น 24')),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _buildCompactField('Pulse Duration / Spot Size', 'เช่น 12')),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildCompactField('Total Shots / Passes', 'เช่น 208')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildField(String label, String hint, int maxLines) {
+    return TextField(
+      maxLines: maxLines,
+      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.muted),
+        hintText: hint.isEmpty ? null : hint,
+        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.4)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AiraColors.woodMid, width: 2)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildCompactField(String label, String hint) {
+    return TextField(
+      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.muted),
+        hintText: hint,
+        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted.withValues(alpha: 0.4)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AiraColors.woodPale)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AiraColors.woodPale)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AiraColors.gold, width: 2)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Instructions & Follow-up + Next Appointment
+// ═══════════════════════════════════════════════════════════════════
+
+class _InstructionsFollowUpSection extends StatefulWidget {
+  final bool isThai;
+  const _InstructionsFollowUpSection({required this.isThai});
+
+  @override
+  State<_InstructionsFollowUpSection> createState() => _InstructionsFollowUpSectionState();
+}
+
+class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSection> {
+  final Set<String> _instructions = {};
+  final _otherInstructionCtrl = TextEditingController();
+  String _nextAppt = 'as_needed'; // 'date' or 'as_needed'
+  DateTime? _nextApptDate;
+  TimeOfDay? _nextApptTime;
+
+  @override
+  void dispose() {
+    _otherInstructionCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isThai = widget.isThai;
+    return _SectionCard(
+      title: isThai ? 'คำแนะนำ & นัดติดตามผล' : 'Instructions & Follow-up',
+      icon: Icons.checklist_rounded,
+      iconColor: AiraColors.sage,
+      children: [
+        // ─── Instruction checkboxes ───
+        _buildInstruction('avoid_sun', isThai ? 'หลีกเลี่ยงแสงแดด (Avoid sun exposure)' : 'Avoid sun exposure'),
+        _buildInstruction('sunscreen', isThai ? 'ทาครีมกันแดด SPF 30+ (Apply sunscreen SPF 30+)' : 'Apply sunscreen SPF 30+'),
+        _buildInstruction('medication', isThai ? 'ทายาตามแพทย์สั่ง / มอยส์เจอไรเซอร์' : 'Apply prescribed medication / moisturizer'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _otherInstructionCtrl,
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
+          decoration: InputDecoration(
+            hintText: isThai ? 'อื่นๆ (ระบุ)...' : 'Other (Specify)...',
+            hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            prefixIcon: const Icon(Icons.edit_rounded, size: 18, color: AiraColors.muted),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ─── Next Appointment ───
+        Text(
+          isThai ? 'นัดหมายครั้งถัดไป' : 'Next Appointment',
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildApptChip('date', isThai ? 'กำหนดวัน-เวลา' : 'Set Date & Time', Icons.calendar_today_rounded),
+            _buildApptChip('as_needed', isThai ? 'ตามความจำเป็น (As needed)' : 'As needed', Icons.access_time_rounded),
+          ],
+        ),
+        if (_nextAppt == 'date') ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: AiraTapEffect(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _nextApptDate ?? DateTime.now().add(const Duration(days: 14)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) setState(() => _nextApptDate = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AiraColors.woodPale),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 16, color: AiraColors.woodMid),
+                        const SizedBox(width: 8),
+                        Text(
+                          _nextApptDate != null ? '${_nextApptDate!.day}/${_nextApptDate!.month}/${_nextApptDate!.year}' : (isThai ? 'เลือกวันที่' : 'Select date'),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: _nextApptDate != null ? AiraColors.charcoal : AiraColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: AiraTapEffect(
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _nextApptTime ?? const TimeOfDay(hour: 10, minute: 0),
+                    );
+                    if (picked != null) setState(() => _nextApptTime = picked);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AiraColors.woodPale),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 16, color: AiraColors.woodMid),
+                        const SizedBox(width: 8),
+                        Text(
+                          _nextApptTime != null ? '${_nextApptTime!.hour.toString().padLeft(2, '0')}:${_nextApptTime!.minute.toString().padLeft(2, '0')}' : (isThai ? 'เลือกเวลา' : 'Select time'),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: _nextApptTime != null ? AiraColors.charcoal : AiraColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInstruction(String value, String label) {
+    final selected = _instructions.contains(value);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AiraTapEffect(
+        onTap: () {
+          setState(() {
+            if (selected) {
+              _instructions.remove(value);
+            } else {
+              _instructions.add(value);
+            }
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? AiraColors.sage.withValues(alpha: 0.08) : AiraColors.parchment,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? AiraColors.sage.withValues(alpha: 0.3) : AiraColors.woodPale.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                size: 20,
+                color: selected ? AiraColors.sage : AiraColors.muted,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: selected ? AiraColors.charcoal : AiraColors.muted)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApptChip(String value, String label, IconData icon) {
+    final selected = _nextAppt == value;
+    final color = AiraColors.woodMid;
+    return AiraTapEffect(
+      onTap: () => setState(() => _nextAppt = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : AiraColors.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? color : AiraColors.woodPale.withValues(alpha: 0.3), width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? Icons.check_circle_rounded : icon, size: 18, color: selected ? color : AiraColors.muted),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: selected ? color : AiraColors.muted)),
+          ],
+        ),
+      ),
     );
   }
 }
