@@ -75,7 +75,7 @@ class AiraFonts {
 
   /// Heading font — Playfair Display: elegant serif for titles
   static TextStyle heading({
-    double fontSize = 24,
+    double fontSize = 29,
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? height,
@@ -91,7 +91,7 @@ class AiraFonts {
 
   /// Body font — Plus Jakarta Sans: modern clean sans-serif
   static TextStyle body({
-    double fontSize = 16,
+    double fontSize = 19,
     FontWeight fontWeight = FontWeight.w400,
     Color? color,
     double? height,
@@ -107,7 +107,7 @@ class AiraFonts {
 
   /// Numeric display font — Space Grotesk: geometric, stunning numbers
   static TextStyle numeric({
-    double fontSize = 24,
+    double fontSize = 29,
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? height,
@@ -123,7 +123,7 @@ class AiraFonts {
 
   /// Small label font
   static TextStyle label({
-    double fontSize = 14,
+    double fontSize = 17,
     FontWeight fontWeight = FontWeight.w500,
     Color? color,
   }) =>
@@ -236,59 +236,59 @@ class AiraTheme {
       // Text theme
       textTheme: TextTheme(
         displayLarge: headingFont.copyWith(
-          fontSize: 36,
+          fontSize: 43,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displayMedium: headingFont.copyWith(
-          fontSize: 30,
+          fontSize: 36,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displaySmall: headingFont.copyWith(
-          fontSize: 26,
+          fontSize: 31,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         headlineMedium: headingFont.copyWith(
-          fontSize: 22,
+          fontSize: 26,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleLarge: bodyFont.copyWith(
-          fontSize: 20,
+          fontSize: 24,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleMedium: bodyFont.copyWith(
-          fontSize: 18,
+          fontSize: 22,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         titleSmall: bodyFont.copyWith(
-          fontSize: 16,
+          fontSize: 19,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         bodyLarge: bodyFont.copyWith(
-          fontSize: 18,
+          fontSize: 22,
           color: AiraColors.charcoal,
         ),
         bodyMedium: bodyFont.copyWith(
-          fontSize: 16,
+          fontSize: 19,
           color: AiraColors.charcoal,
         ),
         bodySmall: bodyFont.copyWith(
-          fontSize: 14,
+          fontSize: 17,
           color: AiraColors.muted,
         ),
         labelLarge: bodyFont.copyWith(
-          fontSize: 16,
+          fontSize: 19,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         labelMedium: bodyFont.copyWith(
-          fontSize: 14,
+          fontSize: 17,
           fontWeight: FontWeight.w500,
           color: AiraColors.muted,
         ),
