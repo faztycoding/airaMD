@@ -1717,76 +1717,119 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                           ...['angleFront', 'angleLeft45', 'angleLeft90', 'angleRight45', 'angleRight90'].map((angleKey) {
                             final slot = _photoTypes.firstWhere((s) => s.type.name == angleKey);
                             final angleLabel = isThai ? slot.thLabel : slot.label;
-                            // Before = the angle type itself, After = use "before" prefix convention
                             final beforePhoto = _findByType(photos, slot.type);
                             final hasBeforeImg = beforePhoto != null && beforePhoto.storagePath.isNotEmpty;
-                            // For After, we search by description convention: "{setLabel}_after_{angleKey}"
                             final afterPhoto = photos.where((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty).isEmpty
                                 ? null
                                 : photos.firstWhere((p) => p.description == '${setLabel}_after_$angleKey' && p.storagePath.isNotEmpty);
                             final hasAfterImg = afterPhoto != null;
 
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(angleLabel, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      // ─── Before ───
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text('Before', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
-                                            const SizedBox(height: 4),
-                                            AiraTapEffect(
-                                              onTap: hasBeforeImg
-                                                  ? () => _showFullPhoto(context, _photoUrl(beforePhoto))
-                                                  : () => _uploadPhoto(setLabel, slot.type, isThai),
-                                              child: AspectRatio(
-                                                aspectRatio: 3 / 4,
-                                                child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: hasBeforeImg
-                                                      ? Image.network(_photoUrl(beforePhoto), fit: BoxFit.cover,
-                                                          errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
-                                                      : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AiraColors.parchment,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.25)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    // ─── Angle Header ───
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      decoration: BoxDecoration(
+                                        color: AiraColors.woodDk.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.camera_alt_rounded, size: 16, color: AiraColors.woodDk),
+                                          const SizedBox(width: 8),
+                                          Text(angleLabel, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                                        ],
+                                      ),
+                                    ),
+                                    // ─── Before / After columns ───
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // ── Before ──
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                                decoration: BoxDecoration(
+                                                  color: AiraColors.woodMid.withValues(alpha: 0.12),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Text('BEFORE', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid, letterSpacing: 0.5)),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              AiraTapEffect(
+                                                onTap: hasBeforeImg
+                                                    ? () => _showFullPhoto(context, _photoUrl(beforePhoto))
+                                                    : () => _uploadPhoto(setLabel, slot.type, isThai),
+                                                child: AspectRatio(
+                                                  aspectRatio: 3 / 4,
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    child: hasBeforeImg
+                                                        ? Image.network(_photoUrl(beforePhoto), fit: BoxFit.cover,
+                                                            errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
+                                                        : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      // ─── After ───
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text('After', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.sage)),
-                                            const SizedBox(height: 4),
-                                            AiraTapEffect(
-                                              onTap: hasAfterImg
-                                                  ? () => _showFullPhoto(context, _photoUrl(afterPhoto))
-                                                  : () => _uploadPhoto('${setLabel}_after_$angleKey', slot.type, isThai),
-                                              child: AspectRatio(
-                                                aspectRatio: 3 / 4,
-                                                child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: hasAfterImg
-                                                      ? Image.network(_photoUrl(afterPhoto), fit: BoxFit.cover,
-                                                          errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
-                                                      : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                                        // ── Divider ──
+                                        Container(
+                                          width: 1,
+                                          height: 160,
+                                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                                          color: AiraColors.woodPale.withValues(alpha: 0.3),
+                                        ),
+                                        // ── After ──
+                                        Expanded(
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                                decoration: BoxDecoration(
+                                                  color: AiraColors.sage.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Text('AFTER', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.sage, letterSpacing: 0.5)),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              AiraTapEffect(
+                                                onTap: hasAfterImg
+                                                    ? () => _showFullPhoto(context, _photoUrl(afterPhoto))
+                                                    : () => _uploadPhoto('${setLabel}_after_$angleKey', slot.type, isThai),
+                                                child: AspectRatio(
+                                                  aspectRatio: 3 / 4,
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    child: hasAfterImg
+                                                        ? Image.network(_photoUrl(afterPhoto), fit: BoxFit.cover,
+                                                            errorBuilder: (_, e, s) => _buildSlotPlaceholder(Icons.broken_image_rounded))
+                                                        : _buildSlotPlaceholder(Icons.add_a_photo_rounded),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           }),
@@ -3331,46 +3374,154 @@ class _ConsentFormTab extends ConsumerWidget {
 // Supplements Tab — อาหารเสริม
 // ═══════════════════════════════════════════════════════════════════
 
-class _SupplementsTab extends StatelessWidget {
+class _SupplementsTab extends StatefulWidget {
   final String patientId;
   const _SupplementsTab({required this.patientId});
+
+  @override
+  State<_SupplementsTab> createState() => _SupplementsTabState();
+}
+
+class _SupplementsTabState extends State<_SupplementsTab> {
+  final List<Map<String, String>> _supplements = [
+    {'name': 'Vitamin C', 'dosage': '1,000 mg/วัน'},
+    {'name': 'Collagen', 'dosage': '5,000 mg/วัน'},
+    {'name': 'Glutathione', 'dosage': '500 mg/วัน'},
+  ];
+
+  static const _colors = [AiraColors.gold, AiraColors.woodMid, AiraColors.sage, AiraColors.terra, AiraColors.woodLt];
+  static const _icons = [Icons.local_pharmacy_rounded, Icons.science_rounded, Icons.spa_rounded, Icons.medication_rounded, Icons.health_and_safety_rounded];
+
+  void _addSupplement() {
+    final nameCtrl = TextEditingController();
+    final dosageCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('เพิ่มอาหารเสริม', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              style: GoogleFonts.plusJakartaSans(fontSize: 15),
+              decoration: InputDecoration(
+                labelText: 'ชื่ออาหารเสริม',
+                hintText: 'เช่น Vitamin D, Omega-3...',
+                hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted.withValues(alpha: 0.5)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                prefixIcon: const Icon(Icons.medication_rounded, size: 20, color: AiraColors.woodMid),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: dosageCtrl,
+              style: GoogleFonts.plusJakartaSans(fontSize: 15),
+              decoration: InputDecoration(
+                labelText: 'ปริมาณ / ขนาดรับประทาน',
+                hintText: 'เช่น 1,000 mg/วัน',
+                hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted.withValues(alpha: 0.5)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                prefixIcon: const Icon(Icons.straighten_rounded, size: 20, color: AiraColors.woodMid),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AiraColors.sage,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              final dosage = dosageCtrl.text.trim();
+              if (name.isNotEmpty) {
+                setState(() => _supplements.add({'name': name, 'dosage': dosage.isEmpty ? '-' : dosage}));
+                Navigator.pop(ctx);
+              }
+            },
+            child: Text('เพิ่ม', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        AiraTapEffect(
+          onTap: _addSupplement,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+                const SizedBox(width: 6),
+                Text('+ เพิ่มอาหารเสริม', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         _SectionCard(
           title: 'อาหารเสริม / Supplements',
           icon: Icons.medication_rounded,
           iconColor: AiraColors.sage,
           children: [
             Text(
-              'บันทึกอาหารเสริมที่คนไข้ใช้อยู่ เช่น วิตามิน, คอลลาเจน, กลูต้าไธโอน ฯลฯ',
+              'บันทึกอาหารเสริมที่ผู้รับบริการใช้อยู่',
               style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
             ),
             const SizedBox(height: 16),
-            _SupplementItem('Vitamin C', '1,000 mg/วัน', Icons.local_pharmacy_rounded, AiraColors.gold),
-            const Divider(height: 24),
-            _SupplementItem('Collagen', '5,000 mg/วัน', Icons.science_rounded, AiraColors.woodMid),
-            const Divider(height: 24),
-            _SupplementItem('Glutathione', '500 mg/วัน', Icons.spa_rounded, AiraColors.sage),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: AiraColors.woodPale.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.4)),
-              ),
-              child: Center(
-                child: Text(
-                  '+ เพิ่มอาหารเสริม',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodDk),
+            if (_supplements.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: AiraColors.parchment, borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  children: [
+                    Icon(Icons.medication_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
+                    const SizedBox(height: 8),
+                    Text('ยังไม่มีข้อมูลอาหารเสริม', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
-            ),
+            ...List.generate(_supplements.length, (i) {
+              final s = _supplements[i];
+              final color = _colors[i % _colors.length];
+              final icon = _icons[i % _icons.length];
+              return Column(
+                children: [
+                  if (i > 0) const Divider(height: 20),
+                  _SupplementItemRow(
+                    name: s['name']!,
+                    dosage: s['dosage']!,
+                    icon: icon,
+                    color: color,
+                    onDelete: () => setState(() => _supplements.removeAt(i)),
+                  ),
+                ],
+              );
+            }),
           ],
         ),
       ],
@@ -3378,24 +3529,25 @@ class _SupplementsTab extends StatelessWidget {
   }
 }
 
-class _SupplementItem extends StatelessWidget {
+class _SupplementItemRow extends StatelessWidget {
   final String name;
   final String dosage;
   final IconData icon;
   final Color color;
-  const _SupplementItem(this.name, this.dosage, this.icon, this.color);
+  final VoidCallback onDelete;
+  const _SupplementItemRow({required this.name, required this.dosage, required this.icon, required this.color, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 36, height: 36,
+          width: 40, height: 40,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, size: 18, color: color),
+          child: Icon(icon, size: 20, color: color),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -3407,7 +3559,17 @@ class _SupplementItem extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right_rounded, size: 20, color: AiraColors.muted),
+        AiraTapEffect(
+          onTap: onDelete,
+          child: Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AiraColors.terra.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.close_rounded, size: 16, color: AiraColors.terra),
+          ),
+        ),
       ],
     );
   }
