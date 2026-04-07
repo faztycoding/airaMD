@@ -284,10 +284,38 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         await repo.updateRecord(record);
       } else {
         await repo.create(record);
+
+        // ─── Auto-deduct stock for products with product_id ───
+        final prodRepo = ref.read(productRepoProvider);
+        final invRepo = ref.read(inventoryRepoProvider);
+        for (final p in _productsUsed) {
+          final productId = p['product_id'] as String?;
+          final qty = (p['quantity'] as num?)?.toDouble() ?? 0;
+          if (productId != null && qty > 0) {
+            try {
+              await prodRepo.deductStock(productId, qty);
+              await invRepo.create(InventoryTransaction(
+                id: const Uuid().v4(),
+                clinicId: clinicId,
+                productId: productId,
+                treatmentRecordId: record.id,
+                patientId: widget.patientId,
+                transactionType: InventoryTransactionType.used,
+                quantity: qty,
+                unit: p['unit'] as String? ?? 'U',
+                notes: 'Auto-deduct: ${record.treatmentName}',
+              ));
+            } catch (_) {
+              // Non-blocking: stock deduction failure shouldn't block treatment save
+            }
+          }
+        }
       }
       ref.invalidate(treatmentsByPatientProvider(widget.patientId));
       ref.invalidate(todayTreatmentsProvider);
       ref.invalidate(dashboardStatsProvider);
+      ref.invalidate(productListProvider);
+      ref.invalidate(lowStockAlertsProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -679,68 +707,119 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     );
   }
 
-  void _showAddProductDialog() {
-    final nameCtrl = TextEditingController();
+  void _showAddProductDialog() async {
+    final products = await ref.read(productListProvider.future);
+    if (!mounted) return;
+
+    Product? selectedProduct;
     final qtyCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
     final unitCtrl = TextEditingController(text: 'U');
+    bool manualMode = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('เพิ่มผลิตภัณฑ์'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'ชื่อผลิตภัณฑ์',
-                hintText: 'เช่น Botulinum Toxin Type A',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('เพิ่มผลิตภัณฑ์', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: qtyCtrl,
-                    decoration: const InputDecoration(labelText: 'จำนวน'),
-                    keyboardType: TextInputType.number,
+                if (!manualMode && products.isNotEmpty) ...[
+                  Text('เลือกจากคลัง:', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<Product>(
+                    value: selectedProduct,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
+                    decoration: InputDecoration(
+                      hintText: 'เลือกผลิตภัณฑ์...',
+                      hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: products.map((p) => DropdownMenuItem(
+                      value: p,
+                      child: Text('${p.name} (สต็อก: ${p.stockQuantity.toStringAsFixed(0)} ${p.unit})', overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (v) {
+                      setDlgState(() {
+                        selectedProduct = v;
+                        if (v != null) unitCtrl.text = v.unit;
+                      });
+                    },
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: unitCtrl,
-                    decoration: const InputDecoration(labelText: 'หน่วย'),
+                  const SizedBox(height: 8),
+                  AiraTapEffect(
+                    onTap: () => setDlgState(() => manualMode = true),
+                    child: Text('หรือพิมพ์ชื่อเอง →', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
                   ),
+                ] else ...[
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'ชื่อผลิตภัณฑ์',
+                      hintText: 'เช่น Botulinum Toxin Type A',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  if (products.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    AiraTapEffect(
+                      onTap: () => setDlgState(() => manualMode = false),
+                      child: Text('← เลือกจากคลัง', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: qtyCtrl,
+                        decoration: InputDecoration(labelText: 'จำนวน', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: unitCtrl,
+                        decoration: InputDecoration(labelText: 'หน่วย', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('ยกเลิก'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isNotEmpty) {
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AiraColors.woodMid, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () {
+                final name = selectedProduct?.name ?? nameCtrl.text.trim();
+                if (name.isEmpty) return;
                 setState(() {
                   _productsUsed.add({
-                    'name': nameCtrl.text.trim(),
+                    'name': name,
                     'quantity': double.tryParse(qtyCtrl.text.trim()) ?? 0,
                     'unit': unitCtrl.text.trim(),
+                    if (selectedProduct != null) 'product_id': selectedProduct!.id,
                   });
                   _safetyChecked = false;
                 });
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('เพิ่ม'),
-          ),
-        ],
+                Navigator.pop(ctx);
+              },
+              child: Text('เพิ่ม', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       ),
     );
   }

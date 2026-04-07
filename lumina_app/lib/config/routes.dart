@@ -10,6 +10,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/settings/product_library_screen.dart';
 import '../features/settings/service_library_screen.dart';
 import '../features/settings/privacy_policy_screen.dart';
+import '../features/settings/inventory_screen.dart';
 import '../features/treatments/treatment_form_screen.dart';
 import '../core/models/models.dart';
 import '../features/courses/course_list_screen.dart';
@@ -250,6 +251,16 @@ final GoRouter appRouter = GoRouter(
       path: '/settings/privacy',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const PrivacyPolicyScreen(),
+    ),
+
+    // ─── Inventory / Stock Management ───────────────────────
+    GoRoute(
+      path: '/settings/inventory',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: InventoryScreen(),
+      ),
     ),
   ],
 );

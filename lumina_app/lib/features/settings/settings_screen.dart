@@ -88,6 +88,7 @@ class _Sidebar extends StatelessWidget {
             _Item(Icons.business_rounded, 'ข้อมูลคลินิก', 'ชื่อ ที่อยู่ เวลาเปิด'),
             _Item(Icons.people_rounded, 'จัดการพนักงาน', 'เพิ่ม/แก้ไข บทบาท'),
             _Item(Icons.inventory_2_rounded, 'คลังผลิตภัณฑ์', 'Botox, Filler, สต๊อก', route: '/settings/products'),
+            _Item(Icons.swap_horiz_rounded, 'ธุรกรรมสต็อก', 'รับเข้า เบิกออก ปรับยอด', route: '/settings/inventory'),
             _Item(Icons.payments_rounded, 'การเงิน', 'รายรับ ค้างชำระ ปิดยอด', route: '/settings/financial'),
           ]),
           const SizedBox(height: 12),

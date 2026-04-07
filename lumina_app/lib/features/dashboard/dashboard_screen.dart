@@ -324,6 +324,8 @@ class _DataPanel extends ConsumerWidget {
         _FollowUpCard(),
         const SizedBox(height: 16),
         _InventoryAlertCard(),
+        const SizedBox(height: 16),
+        _ExpiryAlertCard(),
       ],
     );
   }
@@ -1817,6 +1819,112 @@ class _InventoryAlertCard extends ConsumerWidget {
         loading: () => const _DashboardCardSkeleton(height: 116),
         error: (e, s) => Text(
           _t(isThai, 'โหลดสต็อกไม่สำเร็จ', 'Failed to load inventory alerts'),
+          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.terra),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpiryAlertCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isThai = ref.watch(isThaiProvider);
+    final expiryAsync = ref.watch(expiringProductsProvider);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AiraColors.gold.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: AiraColors.gold.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: expiryAsync.when(
+        data: (items) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AiraColors.gold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.schedule_rounded, color: AiraColors.gold, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _t(isThai, 'สินค้าใกล้หมดอายุ / หมดอายุ', 'Expiring / Expired Products'),
+                    style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                  ),
+                ),
+                if (items.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AiraColors.danger.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${items.length}',
+                      style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.danger),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (items.isEmpty)
+              Text(
+                _t(isThai, 'ไม่มีสินค้าหมดอายุหรือใกล้หมดอายุภายใน 30 วัน', 'No products expiring within 30 days.'),
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
+              ),
+            ...items.take(5).map((product) {
+              final isExpired = product.isExpired;
+              final daysLeft = product.expiryDate!.difference(DateTime.now()).inDays;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      isExpired ? Icons.error_rounded : Icons.warning_amber_rounded,
+                      size: 14,
+                      color: isExpired ? AiraColors.danger : AiraColors.gold,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
+                      ),
+                    ),
+                    Text(
+                      isExpired
+                          ? _t(isThai, 'หมดอายุแล้ว', 'Expired')
+                          : _t(isThai, 'อีก $daysLeft วัน', '${daysLeft}d left'),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isExpired ? AiraColors.danger : AiraColors.gold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+        loading: () => const _DashboardCardSkeleton(height: 116),
+        error: (e, s) => Text(
+          _t(isThai, 'โหลดข้อมูลวันหมดอายุไม่สำเร็จ', 'Failed to load expiry data'),
           style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.terra),
         ),
       ),

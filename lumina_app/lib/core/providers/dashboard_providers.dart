@@ -66,3 +66,16 @@ final lowStockAlertsProvider = FutureProvider<List<Product>>((ref) async {
   final repo = ref.watch(productRepoProvider);
   return repo.getLowStock(clinicId);
 });
+
+/// Products expiring within 30 days or already expired.
+final expiringProductsProvider = FutureProvider<List<Product>>((ref) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return [];
+  final repo = ref.watch(productRepoProvider);
+  final all = await repo.list(clinicId: clinicId);
+  final cutoff = DateTime.now().add(const Duration(days: 30));
+  return all
+      .where((p) => p.expiryDate != null && p.expiryDate!.isBefore(cutoff))
+      .toList()
+    ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
+});
