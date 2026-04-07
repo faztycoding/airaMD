@@ -174,7 +174,7 @@ class AppL10n {
   String get dateOfBirth => isThai ? 'วันเกิด' : 'Date of Birth';
   String get gender => isThai ? 'เพศ' : 'Gender';
   String get phone => isThai ? 'เบอร์โทร' : 'Phone';
-  String get email => isThai ? 'อีเมล' : 'Email';
+  String get patientEmail => isThai ? 'อีเมล' : 'Email';
   String get address => isThai ? 'ที่อยู่' : 'Address';
   String get nationalId => isThai ? 'เลขบัตรประชาชน' : 'National ID';
   String get passportNo => isThai ? 'เลข Passport' : 'Passport No.';
@@ -490,7 +490,7 @@ class AppL10n {
   String get consentAnesthesia => isThai
       ? 'ข้าพเจ้ายินยอมรับยาชาเฉพาะที่ (ถ้าจำเป็น)'
       : 'I consent to local anesthesia if required.';
-  String get fullName => isThai ? 'ชื่อ-สกุล' : 'Name';
+  String get consentFullName => isThai ? 'ชื่อ-สกุล' : 'Name';
   String get signedDate => isThai ? 'วันที่ลงนาม' : 'Signed';
 
   // ═══════════════════════════════════════════════════════════════

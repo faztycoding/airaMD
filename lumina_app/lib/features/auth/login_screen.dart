@@ -650,10 +650,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildModeSwitch() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          _modeSwitchLabel,
-          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+        Flexible(
+          child: Text(
+            _modeSwitchLabel,
+            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         const SizedBox(width: 4),
         AiraTapEffect(
