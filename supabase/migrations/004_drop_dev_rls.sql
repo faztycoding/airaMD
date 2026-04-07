@@ -152,6 +152,7 @@ CREATE POLICY "Allow self staff creation" ON staff
 -- ============================================================
 -- Push tokens: users can manage their own tokens
 -- ============================================================
+DROP POLICY IF EXISTS push_tokens_own ON push_tokens;
 DROP POLICY IF EXISTS "Users manage own push tokens" ON push_tokens;
 CREATE POLICY "Users manage own push tokens" ON push_tokens
   FOR ALL USING (user_id = auth.uid())
