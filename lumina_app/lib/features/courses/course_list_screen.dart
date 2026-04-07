@@ -7,6 +7,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 class CourseListScreen extends ConsumerWidget {
   final String? patientId;
@@ -21,7 +22,7 @@ class CourseListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AiraColors.cream,
       appBar: AppBar(
-        title: const Text('คอร์สทรีทเมนต์'),
+        title: Builder(builder: (ctx) => Text(ctx.l10n.courseTreatment)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
@@ -31,7 +32,7 @@ class CourseListScreen extends ConsumerWidget {
       ),
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('เกิดข้อผิดพลาด: $e')),
+        error: (e, s) => Center(child: Text(context.l10n.errorMsg('$e'))),
         data: (courses) {
           if (courses.isEmpty) {
             return Center(
@@ -67,12 +68,12 @@ class CourseListScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'ยังไม่มีคอร์สทรีทเมนต์',
+                        context.l10n.noCoursesTreatment,
                         style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'เริ่มสร้างคอร์สเพื่อจัดการแพ็กเกจรักษา\nติดตามจำนวนครั้ง และวันหมดอายุ',
+                        context.l10n.courseEmptyDesc,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted, height: 1.5),
                       ),
@@ -95,7 +96,7 @@ class CourseListScreen extends ConsumerWidget {
                             children: [
                               const Icon(Icons.add_circle_outline_rounded, size: 18, color: Colors.white),
                               const SizedBox(width: 8),
-                              Text('สร้างคอร์สใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                              Text(context.l10n.newCourse, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                             ],
                           ),
                         ),
@@ -189,8 +190,8 @@ class _CourseCard extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('ใช้ไป ${course.sessionsUsed}/$total ครั้ง', style: AiraFonts.numeric(fontSize: 12, fontWeight: FontWeight.w500, color: AiraColors.muted)),
-                          Text('เหลือ $remaining ครั้ง', style: AiraFonts.numeric(fontSize: 12, fontWeight: FontWeight.w700, color: _statusColor)),
+                          Text(context.l10n.sessionCount(course.sessionsUsed, total), style: AiraFonts.numeric(fontSize: 12, fontWeight: FontWeight.w500, color: AiraColors.muted)),
+                          Text(context.l10n.remainingSessions(remaining), style: AiraFonts.numeric(fontSize: 12, fontWeight: FontWeight.w700, color: _statusColor)),
                         ],
                       ),
                       const SizedBox(height: 6),

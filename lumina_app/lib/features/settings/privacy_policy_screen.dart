@@ -3,12 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return Scaffold(
       backgroundColor: AiraColors.cream,
       body: Column(
@@ -56,7 +58,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'นโยบายความเป็นส่วนตัว',
+                        l.privacyPolicyTitle,
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -64,7 +66,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Privacy Policy — PDPA Compliance',
+                        l.privacyPolicySubtitle,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.7),
@@ -107,7 +109,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           Icon(Icons.calendar_today_rounded, size: 16, color: AiraColors.sage),
                           const SizedBox(width: 10),
                           Text(
-                            'มีผลบังคับใช้: 1 เมษายน 2569',
+                            l.effectiveDate,
                             style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.sage),
                           ),
                         ],
@@ -115,121 +117,16 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    _buildSection(
-                      icon: Icons.info_outline_rounded,
-                      title: '1. บทนำ',
-                      content:
-                          'คลินิกของเรา ("คลินิก") ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของท่าน '
-                          'ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) '
-                          'นโยบายฉบับนี้อธิบายวิธีที่เราเก็บรวบรวม ใช้ เปิดเผย และคุ้มครองข้อมูลส่วนบุคคลของท่าน '
-                          'เมื่อท่านใช้บริการของคลินิกผ่านแอปพลิเคชัน airaMD',
-                    ),
-
-                    _buildSection(
-                      icon: Icons.folder_open_rounded,
-                      title: '2. ข้อมูลที่เราเก็บรวบรวม',
-                      content: '',
-                      bullets: [
-                        'ข้อมูลส่วนตัว: ชื่อ-นามสกุล, วันเกิด, เพศ, เลขบัตรประชาชน, หมายเลขหนังสือเดินทาง',
-                        'ข้อมูลติดต่อ: เบอร์โทรศัพท์, LINE ID, WhatsApp, อีเมล, ที่อยู่',
-                        'ข้อมูลสุขภาพ: ประวัติการแพ้ยา, โรคประจำตัว, การใช้ยา, ประวัติการรักษา (SOAP Notes)',
-                        'ข้อมูลชีวมิติ: ลายเซ็นดิจิทัล, รูปใบหน้า (Before/After), ไดอะแกรมการรักษา',
-                        'ข้อมูลการเงิน: ประวัติการชำระเงิน, คอร์สที่ซื้อ, ยอดค้างชำระ',
-                        'ข้อมูลการใช้แอป: บันทึกการเข้าสู่ระบบ, กิจกรรมในแอป (Audit Logs)',
-                      ],
-                    ),
-
-                    _buildSection(
-                      icon: Icons.gavel_rounded,
-                      title: '3. วัตถุประสงค์ในการใช้ข้อมูล',
-                      content: '',
-                      bullets: [
-                        'ให้บริการทางการแพทย์และเสริมความงาม',
-                        'จัดทำเวชระเบียนและบันทึกการรักษา',
-                        'นัดหมายและแจ้งเตือนผ่าน LINE / WhatsApp',
-                        'ติดตามผลการรักษาด้วยรูป Before/After',
-                        'จัดการคอร์สการรักษาและการเงิน',
-                        'ปฏิบัติตามกฎหมายที่เกี่ยวข้อง',
-                        'ปรับปรุงคุณภาพการบริการ',
-                      ],
-                    ),
-
-                    _buildSection(
-                      icon: Icons.share_rounded,
-                      title: '4. การเปิดเผยข้อมูล',
-                      content:
-                          'เราจะไม่เปิดเผยข้อมูลส่วนบุคคลของท่านแก่บุคคลภายนอก ยกเว้นกรณีดังนี้:',
-                      bullets: [
-                        'ได้รับความยินยอมจากท่าน',
-                        'ตามคำสั่งศาลหรือหน่วยงานราชการที่มีอำนาจ',
-                        'เพื่อปกป้องชีวิต สุขภาพ หรือผลประโยชน์ที่สำคัญ',
-                        'ผู้ให้บริการเทคโนโลยี (Supabase) ที่ปฏิบัติตามมาตรฐานความปลอดภัยสากล',
-                      ],
-                    ),
-
-                    _buildSection(
-                      icon: Icons.lock_rounded,
-                      title: '5. มาตรการรักษาความปลอดภัย',
-                      content: '',
-                      bullets: [
-                        'การเข้ารหัสข้อมูลระหว่างส่งและจัดเก็บ (HTTPS/TLS + Encryption at rest)',
-                        'ระบบยืนยันตัวตน: PIN Lock + สแกนลายนิ้วมือ/Face ID',
-                        'การควบคุมสิทธิ์การเข้าถึงตามบทบาท (RBAC)',
-                        'Row-Level Security (RLS) ในระดับฐานข้อมูล',
-                        'บันทึกตรวจสอบ (Audit Logs) สำหรับการเปลี่ยนแปลงข้อมูลสำคัญ',
-                        'การสำรองข้อมูลอัตโนมัติผ่าน Supabase',
-                      ],
-                    ),
-
-                    _buildSection(
-                      icon: Icons.timer_rounded,
-                      title: '6. ระยะเวลาการเก็บรักษาข้อมูล',
-                      content:
-                          'เราเก็บรักษาข้อมูลส่วนบุคคลตลอดระยะเวลาที่ท่านเป็นผู้รับบริการของคลินิก '
-                          'และเก็บต่อไปอีกไม่น้อยกว่า 10 ปี ตามกฎหมายว่าด้วยเวชระเบียน '
-                          'หลังพ้นกำหนด ข้อมูลจะถูกลบหรือทำให้ไม่สามารถระบุตัวตนได้',
-                    ),
-
-                    _buildSection(
-                      icon: Icons.person_rounded,
-                      title: '7. สิทธิของเจ้าของข้อมูล',
-                      content: 'ท่านมีสิทธิตาม PDPA ดังนี้:',
-                      bullets: [
-                        'สิทธิในการเข้าถึง: ขอดูข้อมูลส่วนบุคคลของท่าน',
-                        'สิทธิในการแก้ไข: ขอแก้ไขข้อมูลให้ถูกต้องและเป็นปัจจุบัน',
-                        'สิทธิในการลบ: ขอลบข้อมูล (ภายใต้ข้อจำกัดทางกฎหมาย)',
-                        'สิทธิในการระงับ: ขอระงับการใช้ข้อมูลชั่วคราว',
-                        'สิทธิในการคัดค้าน: คัดค้านการใช้ข้อมูลในบางกรณี',
-                        'สิทธิในการโอนย้าย: ขอรับข้อมูลในรูปแบบที่อ่านได้ด้วยเครื่อง',
-                        'สิทธิในการถอนความยินยอม: ถอนความยินยอมได้ทุกเมื่อ',
-                      ],
-                    ),
-
-                    _buildSection(
-                      icon: Icons.child_care_rounded,
-                      title: '8. ข้อมูลผู้เยาว์',
-                      content:
-                          'หากท่านมีอายุต่ำกว่า 20 ปี การเก็บรวบรวมข้อมูลของท่านจะต้องได้รับความยินยอม '
-                          'จากผู้ปกครองหรือผู้แทนโดยชอบธรรมก่อน',
-                    ),
-
-                    _buildSection(
-                      icon: Icons.edit_note_rounded,
-                      title: '9. การเปลี่ยนแปลงนโยบาย',
-                      content:
-                          'คลินิกอาจปรับปรุงนโยบายฉบับนี้เป็นครั้งคราว โดยจะแจ้งให้ท่านทราบผ่านแอปพลิเคชัน '
-                          'หรือช่องทางการติดต่อของท่าน การใช้บริการต่อหลังการเปลี่ยนแปลง '
-                          'ถือว่าท่านยอมรับนโยบายที่ปรับปรุงแล้ว',
-                    ),
-
-                    _buildSection(
-                      icon: Icons.phone_rounded,
-                      title: '10. ช่องทางการติดต่อ',
-                      content:
-                          'หากท่านมีคำถามเกี่ยวกับนโยบายฉบับนี้ หรือต้องการใช้สิทธิตาม PDPA '
-                          'กรุณาติดต่อเจ้าหน้าที่คุ้มครองข้อมูลส่วนบุคคล (DPO) ของคลินิก '
-                          'ผ่านช่องทางที่ระบุในหน้าตั้งค่าของแอปพลิเคชัน',
-                    ),
+                    _buildSection(icon: Icons.info_outline_rounded, title: l.pdpaSec1Title, content: l.pdpaSec1Content),
+                    _buildSection(icon: Icons.folder_open_rounded, title: l.pdpaSec2Title, content: '', bullets: l.pdpaSec2Bullets),
+                    _buildSection(icon: Icons.gavel_rounded, title: l.pdpaSec3Title, content: '', bullets: l.pdpaSec3Bullets),
+                    _buildSection(icon: Icons.share_rounded, title: l.pdpaSec4Title, content: l.pdpaSec4Content, bullets: l.pdpaSec4Bullets),
+                    _buildSection(icon: Icons.lock_rounded, title: l.pdpaSec5Title, content: '', bullets: l.pdpaSec5Bullets),
+                    _buildSection(icon: Icons.timer_rounded, title: l.pdpaSec6Title, content: l.pdpaSec6Content),
+                    _buildSection(icon: Icons.person_rounded, title: l.pdpaSec7Title, content: l.pdpaSec7Content, bullets: l.pdpaSec7Bullets),
+                    _buildSection(icon: Icons.child_care_rounded, title: l.pdpaSec8Title, content: l.pdpaSec8Content),
+                    _buildSection(icon: Icons.edit_note_rounded, title: l.pdpaSec9Title, content: l.pdpaSec9Content),
+                    _buildSection(icon: Icons.phone_rounded, title: l.pdpaSec10Title, content: l.pdpaSec10Content),
 
                     const SizedBox(height: 24),
 
@@ -246,7 +143,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'airaMD ปฏิบัติตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)\nข้อมูลของท่านได้รับการเข้ารหัสและจัดเก็บอย่างปลอดภัย',
+                              l.pdpaFooter,
                               style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted, height: 1.5),
                             ),
                           ),

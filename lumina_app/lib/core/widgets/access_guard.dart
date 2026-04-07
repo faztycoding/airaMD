@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../providers/providers.dart';
+import '../localization/app_localizations.dart';
 
 enum AiraPermission {
   settings,
@@ -29,8 +30,8 @@ class AccessGuard extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: _AccessDeniedPanel(
-                title: _title(isThai),
-                description: _description(isThai),
+                title: _title(context),
+                description: _description(context),
               ),
             ),
           ),
@@ -50,29 +51,30 @@ class AccessGuard extends ConsumerWidget {
     }
   }
 
-  String _title(bool isThai) {
+  String _title(BuildContext context) {
     switch (permission) {
       case AiraPermission.settings:
-        return isThai ? 'ไม่มีสิทธิ์เข้าถึงการตั้งค่า' : 'No access to settings';
+        return context.l10n.noAccessSettings;
       case AiraPermission.financial:
-        return isThai ? 'ไม่มีสิทธิ์เข้าถึงข้อมูลการเงิน' : 'No access to financial data';
+        return context.l10n.noAccessFinancial;
       case AiraPermission.clinical:
-        return isThai ? 'ไม่มีสิทธิ์เข้าถึงข้อมูลการรักษา' : 'No access to clinical data';
+        return context.l10n.noAccessClinical;
     }
   }
 
-  String _description(bool isThai) {
+  String _description(BuildContext context) {
+    final l = context.l10n;
     switch (permission) {
       case AiraPermission.settings:
-        return isThai
+        return l.isThai
             ? 'บัญชีพนักงานถูกจำกัดสิทธิ์สำหรับหน้าตั้งค่า กรุณาใช้บัญชีหมอหรือเจ้าของระบบ'
             : 'Staff accounts are restricted from settings. Please use a doctor or owner account.';
       case AiraPermission.financial:
-        return isThai
+        return l.isThai
             ? 'ข้อมูลรายรับ ยอดค้าง และประวัติการชำระจะแสดงเฉพาะบัญชีหมอหรือเจ้าของระบบ'
             : 'Revenue, outstanding balances, and payment history are available only to doctor or owner accounts.';
       case AiraPermission.clinical:
-        return isThai
+        return l.isThai
             ? 'การสร้างหรือแก้ไขข้อมูลการรักษา, consent และ face diagram จำกัดเฉพาะบัญชีหมอหรือเจ้าของระบบ'
             : 'Creating or editing treatment records, consent, and face diagrams is limited to doctor or owner accounts.';
     }

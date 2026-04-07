@@ -9,6 +9,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 final _messagesByPatientProvider =
@@ -93,13 +94,13 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกข้อความสำเร็จ'), backgroundColor: AiraColors.sage),
+          SnackBar(content: Text(context.l10n.messageSaved), backgroundColor: AiraColors.sage),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: AiraColors.terra),
+          SnackBar(content: Text(context.l10n.errorMsg('$e')), backgroundColor: AiraColors.terra),
         );
       }
     } finally {
@@ -112,7 +113,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
     var channel = MessageChannel.line;
     var templateType = MessageTemplateType.custom;
 
-    final isThai = ref.read(isThaiProvider);
+    final l = context.l10n;
     final patient = widget.patient;
     final hasLine = patient?.lineId != null && patient!.lineId!.isNotEmpty;
     final hasPhone = patient?.phone != null && patient!.phone!.isNotEmpty;
@@ -122,7 +123,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(isThai ? 'ส่งข้อความ' : 'Send Message',
+          title: Text(l.sendMessage,
               style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
           content: SingleChildScrollView(
             child: Column(
@@ -130,7 +131,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Channel picker
-                Text(isThai ? 'ช่องทาง:' : 'Channel:', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+                Text(l.channel, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -153,7 +154,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                 ),
                 const SizedBox(height: 14),
                 // Template type
-                Text(isThai ? 'ประเภท:' : 'Type:', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+                Text(l.typeLabel, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<MessageTemplateType>(
                   value: templateType,
@@ -164,13 +165,13 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                   ),
                   items: MessageTemplateType.values.map((t) => DropdownMenuItem(
                     value: t,
-                    child: Text(_templateLabel(t, isThai)),
+                    child: Text(_templateLabel(t, l)),
                   )).toList(),
                   onChanged: (v) {
                     if (v != null) {
                       setDlg(() {
                         templateType = v;
-                        contentCtrl.text = _templateContent(v, patient, isThai);
+                        contentCtrl.text = _templateContent(v, patient, l.isThai);
                       });
                     }
                   },
@@ -180,7 +181,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                 TextField(
                   controller: contentCtrl,
                   style: airaFieldTextStyle,
-                  decoration: airaFieldDecoration(label: isThai ? 'ข้อความ' : 'Message', prefixIcon: Icons.message_rounded),
+                  decoration: airaFieldDecoration(label: l.message, prefixIcon: Icons.message_rounded),
                   maxLines: 4,
                 ),
               ],
@@ -189,7 +190,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(isThai ? 'ยกเลิก' : 'Cancel', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+              child: Text(l.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -201,7 +202,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                 Navigator.pop(ctx);
                 _sendMessage(channel: channel, templateType: templateType, content: contentCtrl.text.trim());
               },
-              child: Text(isThai ? 'ส่ง + บันทึก' : 'Send & Log', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+              child: Text(l.sendAndLog, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -209,12 +210,12 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
     );
   }
 
-  String _templateLabel(MessageTemplateType t, bool isThai) => switch (t) {
-    MessageTemplateType.appointment => isThai ? 'แจ้งนัดหมาย' : 'Appointment',
-    MessageTemplateType.confirmation => isThai ? 'ยืนยันนัด' : 'Confirmation',
-    MessageTemplateType.afterCare => isThai ? 'คำแนะนำหลังทำ' : 'After Care',
-    MessageTemplateType.promotion => isThai ? 'โปรโมชั่น' : 'Promotion',
-    MessageTemplateType.custom => isThai ? 'ข้อความทั่วไป' : 'Custom',
+  String _templateLabel(MessageTemplateType t, AppL10n l) => switch (t) {
+    MessageTemplateType.appointment => l.templateAppointment,
+    MessageTemplateType.confirmation => l.templateConfirmation,
+    MessageTemplateType.afterCare => l.templateAfterCare,
+    MessageTemplateType.promotion => l.templatePromotion,
+    MessageTemplateType.custom => l.templateCustom,
   };
 
   String _templateContent(MessageTemplateType t, Patient? patient, bool isThai) {
@@ -238,7 +239,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
 
   @override
   Widget build(BuildContext context) {
-    final isThai = ref.watch(isThaiProvider);
+    final l = context.l10n;
     final msgsAsync = ref.watch(_messagesByPatientProvider(widget.patientId));
     final patient = widget.patient;
 
@@ -254,7 +255,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                   Expanded(
                     child: _QuickLink(
                       icon: Icons.chat_rounded,
-                      label: isThai ? 'เปิด LINE' : 'Open LINE',
+                      label: l.openLine,
                       color: const Color(0xFF06C755),
                       onTap: () => _openLine(patient.lineId!),
                     ),
@@ -273,7 +274,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                   Expanded(
                     child: _QuickLink(
                       icon: Icons.phone_rounded,
-                      label: isThai ? 'โทร' : 'Call',
+                      label: l.call,
                       color: AiraColors.woodMid,
                       onTap: () => _openPhone(patient.phone!),
                     ),
@@ -300,7 +301,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                     const Icon(Icons.send_rounded, size: 18, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      isThai ? 'ส่งข้อความ + บันทึก' : 'Send Message + Log',
+                      l.sendMessageAndLog,
                       style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ],
@@ -311,7 +312,7 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
 
             // History
             Text(
-              isThai ? 'ประวัติข้อความ' : 'Message History',
+              l.messageHistory,
               style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
             ),
             const SizedBox(height: 12),
@@ -330,14 +331,14 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                       children: [
                         Icon(Icons.message_outlined, size: 40, color: AiraColors.muted.withValues(alpha: 0.3)),
                         const SizedBox(height: 8),
-                        Text(isThai ? 'ยังไม่มีข้อความที่บันทึก' : 'No messages logged yet',
+                        Text(l.noMessagesYet,
                             style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
                       ],
                     ),
                   );
                 }
                 return Column(
-                  children: msgs.map((msg) => _MessageCard(msg: msg, isThai: isThai)).toList(),
+                  children: msgs.map((msg) => _MessageCard(msg: msg)).toList(),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
@@ -424,8 +425,7 @@ class _ChannelChip extends StatelessWidget {
 
 class _MessageCard extends StatelessWidget {
   final MessageLog msg;
-  final bool isThai;
-  const _MessageCard({required this.msg, required this.isThai});
+  const _MessageCard({required this.msg});
 
   @override
   Widget build(BuildContext context) {
@@ -442,12 +442,13 @@ class _MessageCard extends StatelessWidget {
     };
 
     final dateStr = msg.sentAt != null ? DateFormat('d/M/yy HH:mm').format(msg.sentAt!) : '';
+    final l = context.l10n;
     final typeLabel = switch (msg.templateType) {
-      MessageTemplateType.appointment => isThai ? 'นัดหมาย' : 'Appointment',
-      MessageTemplateType.confirmation => isThai ? 'ยืนยัน' : 'Confirmation',
-      MessageTemplateType.afterCare => isThai ? 'หลังทำ' : 'After Care',
-      MessageTemplateType.promotion => isThai ? 'โปรฯ' : 'Promo',
-      MessageTemplateType.custom => isThai ? 'ทั่วไป' : 'Custom',
+      MessageTemplateType.appointment => l.apptShort,
+      MessageTemplateType.confirmation => l.confirmShort,
+      MessageTemplateType.afterCare => l.afterCareShort,
+      MessageTemplateType.promotion => l.promoShort,
+      MessageTemplateType.custom => l.customShort,
     };
 
     return Container(

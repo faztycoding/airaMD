@@ -3,9 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import 'repository_providers.dart';
 
-// DEV MODE: Demo clinic ID from seed.sql — remove when auth is implemented
-const _devClinicId = '00000000-0000-0000-0000-000000000001';
-
 /// Current Supabase auth user.
 final authUserProvider = StreamProvider<User?>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -18,10 +15,11 @@ final currentStaffProvider = FutureProvider<Staff?>((ref) async {
   return repo.getCurrentStaff();
 });
 
-/// Current clinic ID (derived from current staff, falls back to dev clinic).
+/// Current clinic ID (derived from current staff's clinic).
+/// Returns null when not authenticated — AuthGate prevents this state in UI.
 final currentClinicIdProvider = Provider<String?>((ref) {
   final staffAsync = ref.watch(currentStaffProvider);
-  return staffAsync.valueOrNull?.clinicId ?? _devClinicId;
+  return staffAsync.valueOrNull?.clinicId;
 });
 
 final effectiveStaffRoleProvider = Provider<StaffRole>((ref) {

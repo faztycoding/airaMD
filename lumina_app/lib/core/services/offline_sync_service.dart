@@ -151,6 +151,30 @@ class OfflineSyncService {
       return null;
     }
   }
+
+  // ─── Bulk Operations ─────────────────────────────────────
+
+  /// Get the total size of the queue in bytes (for diagnostics).
+  static Future<int> queueSizeBytes() async {
+    try {
+      final raw = await _storage.read(key: _queueKey);
+      return raw?.length ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Remove all failed operations older than [maxAge].
+  static Future<int> pruneOldOperations({Duration maxAge = const Duration(days: 7)}) async {
+    final queue = await getPendingQueue();
+    final cutoff = DateTime.now().subtract(maxAge);
+    final before = queue.length;
+    queue.removeWhere((op) => op.createdAt.isBefore(cutoff));
+    if (queue.length != before) {
+      await _storage.write(key: _queueKey, value: jsonEncode(queue.map((e) => e.toJson()).toList()));
+    }
+    return before - queue.length;
+  }
 }
 
 // ─── Riverpod Providers ─────────────────────────────────────

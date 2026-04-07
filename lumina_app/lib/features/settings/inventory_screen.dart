@@ -9,6 +9,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 final _invProductIdProvider = StateProvider<String?>((ref) => null);
@@ -112,7 +113,7 @@ class InventoryScreen extends ConsumerWidget {
                             size: 48,
                             color: AiraColors.muted.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text('ยังไม่มีผลิตภัณฑ์ในคลัง',
+                        Text(context.l10n.noProductsYet,
                             style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15, color: AiraColors.muted)),
                       ],
@@ -138,7 +139,7 @@ class InventoryScreen extends ConsumerWidget {
                     Expanded(
                       child: selectedProductId == null
                           ? Center(
-                              child: Text('เลือกผลิตภัณฑ์ด้านซ้าย',
+                              child: Text(context.l10n.selectProductLeft,
                                   style: GoogleFonts.plusJakartaSans(
                                       fontSize: 14, color: AiraColors.muted)),
                             )
@@ -230,7 +231,7 @@ class _ProductList extends StatelessWidget {
                             color: AiraColors.terra.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text('ต่ำ',
+                          child: Text(context.l10n.low,
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
@@ -245,7 +246,7 @@ class _ProductList extends StatelessWidget {
                             color: AiraColors.danger.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text('หมดอายุ',
+                          child: Text(context.l10n.expired,
                               style: GoogleFonts.plusJakartaSans(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
@@ -434,7 +435,7 @@ class _TransactionPanel extends ConsumerWidget {
         // Transaction history title
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('ประวัติธุรกรรม',
+          child: Text(context.l10n.transactionHistory,
               style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -447,7 +448,7 @@ class _TransactionPanel extends ConsumerWidget {
             data: (txs) {
               if (txs.isEmpty) {
                 return Center(
-                  child: Text('ยังไม่มีธุรกรรม',
+                  child: Text(context.l10n.noTransactionsYet,
                       style: GoogleFonts.plusJakartaSans(
                           fontSize: 13, color: AiraColors.muted)),
                 );
@@ -587,7 +588,7 @@ class _TransactionPanel extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('ยกเลิก',
+              child: Text(context.l10n.cancel,
                   style:
                       GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
             ),
@@ -660,7 +661,7 @@ class _TransactionPanel extends ConsumerWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('บันทึกธุรกรรมสำเร็จ'),
+                        content: Text(context.l10n.transactionSaveSuccess),
                         backgroundColor: AiraColors.sage,
                       ),
                     );
@@ -669,14 +670,14 @@ class _TransactionPanel extends ConsumerWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('เกิดข้อผิดพลาด: $e'),
+                        content: Text(context.l10n.errorMsg('$e')),
                         backgroundColor: AiraColors.terra,
                       ),
                     );
                   }
                 }
               },
-              child: Text('บันทึก',
+              child: Text(context.l10n.save,
                   style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.w700)),
             ),

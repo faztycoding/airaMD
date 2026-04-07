@@ -12,6 +12,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 // Digital Notepad — Blank canvas for free-form clinical notes
@@ -198,7 +199,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
     if (_strokes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('ยังไม่ได้เขียนอะไรเลย — กรุณาเขียนก่อนบันทึก',
+          content: Text(context.l10n.nothingToSave,
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           backgroundColor: AiraColors.terra,
           behavior: SnackBarBehavior.floating,
@@ -256,7 +257,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('บันทึก Notepad เรียบร้อย ✓',
+            content: Text(context.l10n.notepadSaved,
                 style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
             backgroundColor: AiraColors.sage,
             behavior: SnackBarBehavior.floating,
@@ -281,26 +282,25 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
   // ═══════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
-    final isThai = ref.watch(isThaiProvider);
     return Scaffold(
       backgroundColor: AiraColors.cream,
-      appBar: _buildAppBar(isThai),
+      appBar: _buildAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AiraColors.woodMid))
           : Column(
               children: [
                 // Title bar
-                if (!widget.isReadOnly) _buildTitleBar(isThai),
+                if (!widget.isReadOnly) _buildTitleBar(),
                 // Canvas
                 Expanded(child: _buildCanvasArea()),
                 // Toolbar
-                if (!widget.isReadOnly) _buildToolbar(isThai),
+                if (!widget.isReadOnly) _buildToolbar(),
               ],
             ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(bool isThai) {
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AiraColors.cream,
       elevation: 0,
@@ -316,8 +316,8 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
           Flexible(
             child: Text(
               widget.isReadOnly
-                  ? (_loadedNotepad?.title ?? (isThai ? 'ดู Notepad' : 'View Notepad'))
-                  : (isThai ? 'Digital Notepad' : 'Digital Notepad'),
+                  ? (_loadedNotepad?.title ?? context.l10n.viewNotepad)
+                  : context.l10n.digitalNotepad,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.playfairDisplay(
                 fontSize: 20,
@@ -335,7 +335,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                isThai ? 'อ่านอย่างเดียว' : 'Read Only',
+                context.l10n.readOnly,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -351,7 +351,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
           // Page style selector
           PopupMenuButton<_PageStyle>(
             icon: const Icon(Icons.grid_on_rounded, size: 20, color: AiraColors.muted),
-            tooltip: isThai ? 'รูปแบบหน้ากระดาษ' : 'Page Style',
+            tooltip: 'Page Style',
             onSelected: (style) => setState(() => _pageStyle = style),
             itemBuilder: (context) => _PageStyle.values.map((style) {
               final selected = style == _pageStyle;
@@ -362,7 +362,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
                     Icon(style.icon, size: 18, color: selected ? AiraColors.woodMid : AiraColors.muted),
                     const SizedBox(width: 10),
                     Text(
-                      isThai ? style.labelTh : style.labelEn,
+                      context.l10n.isThai ? style.labelTh : style.labelEn,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
@@ -396,7 +396,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : Text(
-                        isThai ? 'บันทึก' : 'Save',
+                        context.l10n.save,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white,
                         ),
@@ -409,7 +409,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
     );
   }
 
-  Widget _buildTitleBar(bool isThai) {
+  Widget _buildTitleBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: TextField(
@@ -420,7 +420,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
           color: AiraColors.charcoal,
         ),
         decoration: InputDecoration(
-          hintText: isThai ? 'ชื่อโน้ต (ไม่บังคับ)...' : 'Note title (optional)...',
+          hintText: context.l10n.noteTitleHint,
           hintStyle: GoogleFonts.plusJakartaSans(
             fontSize: 16, fontWeight: FontWeight.w500, color: AiraColors.muted.withValues(alpha: 0.5),
           ),
@@ -575,7 +575,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
   // ═══════════════════════════════════════════════════════════════
   // Toolbar
   // ═══════════════════════════════════════════════════════════════
-  Widget _buildToolbar(bool isThai) {
+  Widget _buildToolbar() {
     final hasStrokes = _strokes.isNotEmpty;
     final hasRedo = _redoStack.isNotEmpty;
 
@@ -593,42 +593,42 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
             children: [
               _toolbarActionBtn(
                 icon: Icons.undo_rounded,
-                label: isThai ? 'ย้อน' : 'Undo',
+                label: context.l10n.undo,
                 enabled: hasStrokes,
                 onTap: _undo,
               ),
               const SizedBox(width: 4),
               _toolbarActionBtn(
                 icon: Icons.redo_rounded,
-                label: isThai ? 'ถัดไป' : 'Redo',
+                label: 'Redo',
                 enabled: hasRedo,
                 onTap: _redo,
               ),
               const SizedBox(width: 4),
               _toolbarActionBtn(
                 icon: Icons.delete_outline_rounded,
-                label: isThai ? 'ลบทั้งหมด' : 'Clear',
+                label: context.l10n.clear,
                 enabled: hasStrokes,
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: Text(isThai ? 'ลบทั้งหมด?' : 'Clear all?',
+                      title: Text(context.l10n.deleteAll,
                           style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700)),
                       content: Text(
-                          isThai ? 'ลบเส้นทั้งหมดในหน้านี้' : 'Remove all strokes on this page',
+                          context.l10n.clearAllStrokes,
                           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: Text(isThai ? 'ยกเลิก' : 'Cancel')),
+                            child: Text(context.l10n.cancel)),
                         TextButton(
                           onPressed: () {
                             Navigator.pop(ctx);
                             _clearAll();
                           },
-                          child: Text(isThai ? 'ลบ' : 'Clear',
+                          child: Text(context.l10n.delete,
                               style: GoogleFonts.plusJakartaSans(
                                   color: AiraColors.terra, fontWeight: FontWeight.w700)),
                         ),
@@ -956,7 +956,7 @@ class NotepadSection extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        isThai ? 'หน้าเปล่าสำหรับเขียนบันทึกอิสระ' : 'Blank pages for free-form notes',
+                        context.l10n.blankPagesDesc,
                         style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
                       ),
                     ],
@@ -983,7 +983,7 @@ class NotepadSection extends ConsumerWidget {
                         const Icon(Icons.add_rounded, size: 18, color: Colors.white),
                         const SizedBox(width: 6),
                         Text(
-                          isThai ? 'เขียนใหม่' : 'New Note',
+                          context.l10n.newNote,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white,
                           ),
@@ -1039,7 +1039,7 @@ class NotepadSection extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isThai ? 'ลบโน้ตนี้?' : 'Delete this note?',
+        title: Text(context.l10n.deleteThisNote,
             style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700)),
         content: Text(
             '"${notepad.title ?? 'Untitled'}"',
@@ -1047,14 +1047,14 @@ class NotepadSection extends ConsumerWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(isThai ? 'ยกเลิก' : 'Cancel')),
+              child: Text(context.l10n.cancel)),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
               await ref.read(notepadRepoProvider).deleteNotepad(notepad.id);
               ref.invalidate(_notepadsByPatientProvider(patientId));
             },
-            child: Text(isThai ? 'ลบ' : 'Delete',
+            child: Text(context.l10n.delete,
                 style: GoogleFonts.plusJakartaSans(
                     color: AiraColors.terra, fontWeight: FontWeight.w700)),
           ),
@@ -1086,16 +1086,14 @@ class _EmptyNotepadState extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            isThai ? 'ยังไม่มีบันทึก' : 'No notes yet',
+            context.l10n.noNotesYet,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            isThai
-                ? 'แตะ "เขียนใหม่" เพื่อเริ่มจดบันทึกอิสระ\nวาดรูป เขียนข้อความ หรือร่างอะไรก็ได้'
-                : 'Tap "New Note" to start writing freely\nDraw, write, or sketch anything you need',
+            context.l10n.tapNewNoteHint,
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
@@ -1125,7 +1123,7 @@ class _EmptyNotepadState extends StatelessWidget {
                   const Icon(Icons.add_rounded, size: 18, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
-                    isThai ? 'เริ่มเขียน' : 'Start Writing',
+                    context.l10n.startWriting,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white,
                     ),

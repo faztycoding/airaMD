@@ -70,6 +70,14 @@ class FinancialRepository extends BaseRepository {
     return data.map(FinancialRecord.fromJson).toList();
   }
 
+  /// Mark an outstanding record as paid.
+  Future<void> markAsPaid(String recordId) async {
+    await client
+        .from(tableName)
+        .update({'is_outstanding': false})
+        .eq('id', recordId);
+  }
+
   /// Calculate today's revenue for a clinic.
   Future<double> todayRevenue(String clinicId) async {
     final now = DateTime.now();

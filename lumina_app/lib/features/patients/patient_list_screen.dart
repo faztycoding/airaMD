@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── Filter state ──────────────────────────────────────────
 final _searchQueryProvider = StateProvider<String>((ref) => '');
@@ -54,6 +55,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     final patientsAsync = ref.watch(_filteredPatientsProvider);
     final countAsync = ref.watch(patientCountProvider);
     final activeFilter = ref.watch(_activeFilterProvider);
+    final l = context.l10n;
 
     return Stack(
       children: [
@@ -98,7 +100,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Text('ผู้รับบริการ', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                              Text(l.patientList, style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                               const SizedBox(width: 10),
                               countAsync.when(
                                 data: (count) => Container(
@@ -147,7 +149,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                               },
                               style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
                               decoration: InputDecoration(
-                                hintText: 'ค้นหาชื่อ, ชื่อเล่น, HN, เบอร์โทร, บัตร ปชช...',
+                                hintText: l.searchHintFull,
                                 hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
                                 prefixIcon: Icon(Icons.search_rounded, size: 20, color: AiraColors.muted.withValues(alpha: 0.6)),
                                 border: InputBorder.none,
@@ -180,7 +182,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text('ผู้รับบริการ', style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                    Text(l.patientList, style: GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                     const SizedBox(width: 10),
                     countAsync.when(
                       data: (count) => Container(
@@ -212,7 +214,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         },
                         style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
                         decoration: InputDecoration(
-                          hintText: 'ค้นหาชื่อ, ชื่อเล่น, HN, เบอร์โทร, บัตร ปชช...',
+                          hintText: l.searchHintFull,
                           hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
                           prefixIcon: Icon(Icons.search_rounded, size: 20, color: AiraColors.muted.withValues(alpha: 0.6)),
                           border: InputBorder.none,
@@ -247,7 +249,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           children: [
                             const Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
                             const SizedBox(width: 8),
-                            Text('เพิ่มผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                            Text(l.addPatient, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                           ],
                         ),
                       ),
@@ -261,7 +263,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
                   children: [
-                    for (final f in ['ทั้งหมด', 'VIP', 'นัดวันนี้', 'Follow-up']) ...[
+                    for (final f in [l.all, 'VIP', l.todayAppt, 'Follow-up']) ...[
                       AiraTapEffect(
                         onTap: () => ref.read(_activeFilterProvider.notifier).state = f,
                         child: _FilterChip(f, activeFilter == f),
@@ -277,7 +279,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         children: [
                           const Icon(Icons.sort_rounded, size: 16, color: AiraColors.muted),
                           const SizedBox(width: 6),
-                          Text('เรียงตาม: ล่าสุด', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+                          Text(l.sortByRecent, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
                         ],
                       ),
                     ),
@@ -296,9 +298,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           children: [
                             Icon(Icons.person_search_rounded, size: 56, color: AiraColors.muted.withValues(alpha: 0.3)),
                             const SizedBox(height: 16),
-                            Text('ยังไม่มีข้อมูลผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted)),
+                            Text(l.noPatientData, style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted)),
                             const SizedBox(height: 8),
-                            Text('กดปุ่ม "เพิ่มผู้รับบริการ" เพื่อเริ่มต้น', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.6))),
+                            Text(l.tapAddToStart, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.6))),
                           ],
                         ),
                       );
@@ -327,14 +329,14 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       children: [
                         const Icon(Icons.error_outline_rounded, size: 48, color: AiraColors.terra),
                         const SizedBox(height: 12),
-                        Text('โหลดข้อมูลไม่สำเร็จ', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
+                        Text(l.failedToLoad, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
                         const SizedBox(height: 4),
                         Text('$e', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted), textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () => ref.invalidate(_filteredPatientsProvider),
                           icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: const Text('ลองใหม่'),
+                          label: Text(l.retry),
                         ),
                       ],
                     ),
@@ -351,14 +353,15 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, Patient patient) {
+    final l = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text('ลบผู้รับบริการ?', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-        content: Text('ต้องการลบ "${patient.fullName}" (${patient.hn ?? '-'}) หรือไม่?\nข้อมูลจะถูกลบถาวร', style: GoogleFonts.plusJakartaSans(fontSize: 14)),
+        title: Text(l.deletePatient, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+        content: Text(l.deletePatientConfirm(patient.fullName, patient.hn), style: GoogleFonts.plusJakartaSans(fontSize: 14)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ยกเลิก')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.cancel)),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -368,18 +371,18 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                 ref.invalidate(patientCountProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('ลบ ${patient.fullName} แล้ว'), backgroundColor: AiraColors.sage),
+                    SnackBar(content: Text(l.deletedPatient(patient.fullName)), backgroundColor: AiraColors.sage),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('ลบไม่สำเร็จ: $e'), backgroundColor: AiraColors.terra),
+                    SnackBar(content: Text(l.deleteFailed('$e')), backgroundColor: AiraColors.terra),
                   );
                 }
               }
             },
-            child: Text('ลบ', style: GoogleFonts.plusJakartaSans(color: AiraColors.terra, fontWeight: FontWeight.w700)),
+            child: Text(l.delete, style: GoogleFonts.plusJakartaSans(color: AiraColors.terra, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -499,7 +502,7 @@ class _PatientCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${patient.age} ปี', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
+                  Text('${patient.age} ${AppL10n.of(context).years}', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
                   const SizedBox(height: 2),
                   Text(patient.gender?.label() ?? '', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
                 ],

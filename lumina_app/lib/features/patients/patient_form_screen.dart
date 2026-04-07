@@ -8,6 +8,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
+import '../../core/localization/app_localizations.dart';
 
 class PatientFormScreen extends ConsumerStatefulWidget {
   final String? patientId;
@@ -104,7 +105,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     if (_nationalIdCtrl.text.trim().isEmpty && _passportCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('กรุณากรอกเลขบัตรประชาชน หรือ หมายเลข Passport อย่างน้อย 1 อย่าง'),
+          content: Text(context.l10n.requireIdOrPassport),
           backgroundColor: AiraColors.terra,
         ),
       );
@@ -177,7 +178,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกไม่สำเร็จ: $e'), backgroundColor: AiraColors.terra),
+          SnackBar(content: Text(context.l10n.saveFailed('$e')), backgroundColor: AiraColors.terra),
         );
       }
     } finally {
@@ -196,7 +197,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         data: (patient) {
           if (patient == null) {
             return Scaffold(
-              body: Center(child: Text('ไม่พบข้อมูลผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 16))),
+              body: Center(child: Text(context.l10n.patientNotFound, style: GoogleFonts.plusJakartaSans(fontSize: 16))),
             );
           }
           _populateFromPatient(patient);
@@ -211,7 +212,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   }
 
   Widget _buildForm(double topPad) {
-    final isThai = ref.watch(isThaiProvider);
+    final l = context.l10n;
+    final isThai = l.isThai;
     return Scaffold(
       backgroundColor: AiraColors.cream,
       body: Column(
@@ -221,17 +223,17 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           // ═══════════════════════════════════════════════════════
           AiraPremiumHeader(
             title: widget.isEdit
-                ? (isThai ? 'แก้ไขข้อมูลผู้รับบริการ' : 'Edit Patient')
-                : (isThai ? 'ลงทะเบียนผู้รับบริการใหม่' : 'New Patient Registration'),
+                ? l.editPatientInfo
+                : l.newPatientRegistration,
             loading: _loading,
             onBack: () => context.pop(),
             onSave: _save,
-            saveLabel: isThai ? 'บันทึก' : 'Save',
+            saveLabel: l.save,
             steps: premiumSteps([
-              (1, isThai ? 'ข้อมูลส่วนตัว' : 'Personal'),
-              (2, isThai ? 'ติดต่อ' : 'Contact'),
-              (3, isThai ? 'เอกสาร' : 'ID'),
-              (4, isThai ? 'การแพทย์' : 'Medical'),
+              (1, l.personalInfo),
+              (2, l.contact),
+              (3, l.idDoc),
+              (4, l.medicalInfo),
             ]),
           ),
           // ═══════════════════════════════════════════════════════
@@ -250,8 +252,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraSectionHeader(
                         step: 1,
                         icon: Icons.person_rounded,
-                        title: isThai ? 'ข้อมูลส่วนตัว' : 'Personal Information',
-                        subtitle: isThai ? 'กรอกชื่อ-นามสกุลของผู้รับบริการ' : 'Patient name and basic details',
+                        title: l.personalInformation,
+                        subtitle: l.patientNameDesc,
                       ),
                       AiraPremiumCard(
                         accentColor: AiraColors.woodMid,
@@ -279,8 +281,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraSectionHeader(
                         step: 2,
                         icon: Icons.contact_phone_rounded,
-                        title: isThai ? 'ข้อมูลติดต่อ' : 'Contact Information',
-                        subtitle: isThai ? 'เบอร์โทร, LINE, Facebook, IG, Email' : 'Phone, LINE, Facebook, IG, email',
+                        title: l.contactInformation,
+                        subtitle: l.contactDesc,
                       ),
                       AiraPremiumCard(
                         accentColor: AiraColors.sage,
@@ -309,8 +311,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraSectionHeader(
                         step: 3,
                         icon: Icons.verified_user_rounded,
-                        title: isThai ? 'สถานะ & เอกสาร' : 'Status & Identification',
-                        subtitle: isThai ? 'สถานะผู้รับบริการ, เลขบัตร' : 'Patient status and ID documents',
+                        title: l.statusAndId,
+                        subtitle: l.statusAndIdDesc,
                       ),
                       AiraPremiumCard(
                         accentColor: AiraColors.gold,
@@ -331,8 +333,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraSectionHeader(
                         step: 4,
                         icon: Icons.medical_information_rounded,
-                        title: isThai ? 'ประวัติทางการแพทย์' : 'Medical History',
-                        subtitle: isThai ? 'แพ้ยา, โรคประจำตัว, พฤติกรรม' : 'Allergies, conditions, habits',
+                        title: l.medicalHistory,
+                        subtitle: l.medicalDesc,
                       ),
                       AiraPremiumCard(
                         accentColor: AiraColors.terra,
@@ -359,8 +361,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraSectionHeader(
                         step: 0,
                         icon: Icons.edit_note_rounded,
-                        title: isThai ? 'หมายเหตุเพิ่มเติม' : 'Additional Notes',
-                        subtitle: isThai ? 'บันทึกสิ่งที่ต้องระวังเป็นพิเศษ' : 'Any special instructions or notes',
+                        title: l.additionalNotes,
+                        subtitle: l.specialNotes,
                       ),
                       AiraPremiumCard(
                         accentColor: AiraColors.muted,
@@ -373,8 +375,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       // ═══ Save Button ═══
                       AiraPremiumSaveButton(
                         label: widget.isEdit
-                            ? (isThai ? 'บันทึกการแก้ไข' : 'Save Changes')
-                            : (isThai ? 'ลงทะเบียนผู้รับบริการ' : 'Register Patient'),
+                            ? l.saveChanges
+                            : l.registerPatient,
                         loading: _loading,
                         onTap: _save,
                       ),
@@ -447,7 +449,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('สถานะผู้รับบริการ', style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.muted)),
+          Text(context.l10n.patientStatus, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.muted)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 10,

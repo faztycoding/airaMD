@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── Dashboard search ─────────────────────────────────────────
 final _dashSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -1702,7 +1703,7 @@ class _FollowUpCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    isThai ? '${items.length} คน' : '${items.length} patients',
+                    context.l10n.nPatients(items.length),
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -1728,7 +1729,7 @@ class _FollowUpCard extends ConsumerWidget {
                 children: items.take(4).map((item) {
                   final dateLabel = item.followUpDate == null
                       ? _t(isThai, 'ยังไม่ระบุวัน', 'Date pending')
-                      : _followUpRelative(item.followUpDate!, isThai);
+                      : _followUpRelative(item.followUpDate!, context.l10n);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _FollowUpRow(item.treatmentName, item.notes ?? _t(isThai, 'รอติดตามอาการ', 'Pending follow-up note'), dateLabel),
@@ -2020,16 +2021,16 @@ String _formatDashboardAmount(double amount) {
   return '฿ $formatted';
 }
 
-String _followUpRelative(DateTime date, bool isThai) {
+String _followUpRelative(DateTime date, AppL10n l) {
   final today = DateTime.now();
   final startToday = DateTime(today.year, today.month, today.day);
   final startTarget = DateTime(date.year, date.month, date.day);
   final diff = startTarget.difference(startToday).inDays;
-  if (diff == 0) return isThai ? 'วันนี้' : 'Today';
-  if (diff == 1) return isThai ? 'พรุ่งนี้' : 'Tomorrow';
-  if (diff > 1) return isThai ? 'อีก $diff วัน' : 'In $diff days';
+  if (diff == 0) return l.today;
+  if (diff == 1) return l.tomorrow;
+  if (diff > 1) return l.inDays(diff);
   final overdue = diff.abs();
-  return isThai ? 'เลยกำหนด $overdue วัน' : '$overdue days overdue';
+  return l.overdueDays(overdue);
 }
 
 class _FollowUpRow extends StatelessWidget {

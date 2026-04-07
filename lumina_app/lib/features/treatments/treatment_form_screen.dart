@@ -11,6 +11,7 @@ import '../../core/services/safety_check_service.dart';
 import '../../core/services/audit_service.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
 
 class TreatmentFormScreen extends ConsumerStatefulWidget {
   final String patientId;
@@ -165,7 +166,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
               const Icon(Icons.warning_amber_rounded,
                   color: Colors.red, size: 28),
               const SizedBox(width: 8),
-              const Text('คำเตือนความปลอดภัย'),
+              Text(context.l10n.safetyWarning),
             ],
           ),
           content: SizedBox(
@@ -204,13 +205,13 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('ยกเลิก'),
+              child: Text(context.l10n.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('รับทราบและดำเนินการต่อ',
-                  style: TextStyle(color: Colors.white)),
+              child: Text(context.l10n.proceedAnyway,
+                  style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -341,7 +342,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('บันทึกไม่สำเร็จ: $e'),
+            content: Text(context.l10n.saveFailed('$e')),
             backgroundColor: AiraColors.terra,
           ),
         );
@@ -361,18 +362,18 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         children: [
           AiraPremiumHeader(
             title: widget.isEdit
-                ? (isThai ? 'แก้ไขบันทึก $catLabel' : 'Edit $catLabel')
-                : (isThai ? 'บันทึก $catLabel ใหม่' : 'New $catLabel Record'),
-            subtitle: isThai ? 'บันทึก SOAP Notes + ผลิตภัณฑ์' : 'SOAP Notes + Products Used',
+                ? context.l10n.editRecord(catLabel)
+                : context.l10n.newRecord(catLabel),
+            subtitle: context.l10n.soapSubtitle,
             loading: _loading,
             onBack: () => context.pop(),
             onSave: _loading ? null : _save,
-            saveLabel: isThai ? 'บันทึก' : 'Save',
+            saveLabel: context.l10n.save,
             steps: premiumSteps([
-              (1, isThai ? 'ข้อมูล' : 'Info'),
+              (1, context.l10n.info),
               (2, 'SOAP'),
-              (3, isThai ? 'ผลิตภัณฑ์' : 'Products'),
-              (4, isThai ? 'ผลลัพธ์' : 'Results'),
+              (3, context.l10n.products),
+              (4, context.l10n.results),
             ]),
           ),
           Expanded(
@@ -487,7 +488,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                               _runSafetyCheck();
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('กรุณาระบุชื่อหัตถการก่อน')),
+                                SnackBar(content: Text(context.l10n.specifyTreatmentFirst)),
                               );
                             }
                           },
@@ -495,8 +496,8 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                       if (_safetyChecked)
                         AiraPremiumSaveButton(
                           label: _loading
-                              ? (isThai ? 'กำลังบันทึก...' : 'Saving...')
-                              : (isThai ? 'บันทึกการรักษา' : 'Save Treatment'),
+                              ? context.l10n.saving
+                              : context.l10n.saveTreatment,
                           loading: _loading,
                           onTap: _save,
                         ),
@@ -707,7 +708,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
               children: [
                 Icon(Icons.add_circle_outline_rounded, size: 18, color: AiraColors.woodMid),
                 const SizedBox(width: 8),
-                Text('เพิ่มผลิตภัณฑ์', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
+                Text(context.l10n.addProduct, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
               ],
             ),
           ),
@@ -731,14 +732,14 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('เพิ่มผลิตภัณฑ์', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+          title: Text(context.l10n.addProduct, style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!manualMode && products.isNotEmpty) ...[
-                  Text('เลือกจากคลัง:', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+                  Text(context.l10n.selectFromLibrary, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<Product>(
                     value: selectedProduct,
@@ -763,7 +764,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                   const SizedBox(height: 8),
                   AiraTapEffect(
                     onTap: () => setDlgState(() => manualMode = true),
-                    child: Text('หรือพิมพ์ชื่อเอง →', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
+                    child: Text(context.l10n.orTypeManually, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
                   ),
                 ] else ...[
                   TextField(
@@ -778,7 +779,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                     const SizedBox(height: 8),
                     AiraTapEffect(
                       onTap: () => setDlgState(() => manualMode = false),
-                      child: Text('← เลือกจากคลัง', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
+                      child: Text(context.l10n.selectProduct, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.woodMid, decoration: TextDecoration.underline)),
                     ),
                   ],
                 ],
@@ -807,7 +808,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+              child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AiraColors.woodMid, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -825,7 +826,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                 });
                 Navigator.pop(ctx);
               },
-              child: Text('เพิ่ม', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+              child: Text(context.l10n.add, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             ),
           ],
         ),

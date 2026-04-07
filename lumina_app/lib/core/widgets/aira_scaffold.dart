@@ -59,7 +59,7 @@ class AiraScaffold extends ConsumerWidget {
       canAccessSettings ? Icons.settings_rounded : Icons.lock_rounded,
       canAccessSettings
           ? l10n.settings
-          : (l10n.isThai ? 'จำกัด' : 'Restricted'),
+          : l10n.restricted,
     ),
   ];
 
@@ -234,8 +234,8 @@ class _SyncStatusBar extends ConsumerWidget {
             const SizedBox(width: 6),
             Text(
               isOnline
-                  ? (isThai ? 'ข้อมูลซิงค์แล้ว' : 'Synced')
-                  : (isThai ? 'รอการเชื่อมต่อ' : 'Offline'),
+                  ? context.l10n.synced
+                  : context.l10n.offline,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,

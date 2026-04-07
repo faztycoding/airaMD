@@ -13,6 +13,8 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'face_outline_painter.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Face Diagram — Clinical Illustration / Skin Mapping screen
 /// Modeled after MEKO Hospital "Dermatology Consultation and Progress Record"
@@ -82,6 +84,9 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
   FaceDiagram? _savedDiagram;
   bool _isLoadingSaved = false;
 
+  // Preloaded image bytes cache (fixes web asset loading issues)
+  final Map<String, Uint8List> _imageCache = {};
+
   static const _penColors = [
     Color(0xFFD32F2F), // Red
     Color(0xFF1565C0), // Blue
@@ -124,6 +129,23 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
       _loadSavedDiagram();
     }
     _loadPatientGender();
+    _preloadAllDiagramImages();
+  }
+
+  /// Preload all face diagram images into memory to avoid web asset issues.
+  Future<void> _preloadAllDiagramImages() async {
+    const genders = ['male', 'female'];
+    const views = ['front', 'left_side', 'right_side', 'lip'];
+    for (final g in genders) {
+      for (final v in views) {
+        final path = 'assets/images/face_diagrams/${g}_$v.jpg';
+        try {
+          final data = await rootBundle.load(path);
+          _imageCache[path] = data.buffer.asUint8List();
+        } catch (_) {}
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadPatientGender() async {
@@ -145,6 +167,34 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
       DiagramView.lipZone => 'lip',
     };
     return 'assets/images/face_diagrams/${gender}_$viewKey.jpg';
+  }
+
+  /// Build the diagram image widget — uses preloaded bytes if available,
+  /// falls back to Image.asset with errorBuilder showing the outline painter.
+  Widget _buildDiagramImage(DiagramView view) {
+    final path = _diagramAssetPath(view);
+    final bytes = _imageCache[path];
+    if (bytes != null && bytes.isNotEmpty) {
+      return Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true);
+    }
+    // Fallback: try Image.asset with errorBuilder
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stack) {
+        final viewStr = switch (view) {
+          DiagramView.front => 'FRONT',
+          DiagramView.side => 'SIDE',
+          DiagramView.leftSide => 'SIDE',
+          DiagramView.rightSide => 'SIDE',
+          DiagramView.lipZone => 'LIP_ZONE',
+        };
+        return CustomPaint(
+          painter: FaceOutlinePainter(view: viewStr),
+          child: const SizedBox.expand(),
+        );
+      },
+    );
   }
 
   /// Load a ui.Image from asset path (for offscreen rendering to PNG).
@@ -374,10 +424,8 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
           Flexible(
             child: Text(
             _isReadOnly
-                ? (isThai
-                    ? 'ดู Diagram${_savedDiagram?.createdAt != null ? ' — ${_savedDiagram!.createdAt!.day}/${_savedDiagram!.createdAt!.month}/${_savedDiagram!.createdAt!.year}' : ''}'
-                    : 'View Diagram${_savedDiagram?.createdAt != null ? ' — ${_savedDiagram!.createdAt!.day}/${_savedDiagram!.createdAt!.month}/${_savedDiagram!.createdAt!.year}' : ''}')
-                : (isThai ? 'Clinical Illustration / Skin Mapping' : 'Face Diagram'),
+                ? '${context.l10n.viewDiagram}${_savedDiagram?.createdAt != null ? ' — ${_savedDiagram!.createdAt!.day}/${_savedDiagram!.createdAt!.month}/${_savedDiagram!.createdAt!.year}' : ''}'
+                : context.l10n.faceDiagramTitle,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.playfairDisplay(
               fontSize: 20,
@@ -399,7 +447,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                   Icon(Icons.lock_rounded, size: 13, color: AiraColors.terra),
                   const SizedBox(width: 3),
                   Text(
-                    isThai ? 'แก้ไขไม่ได้' : 'Immutable',
+                    context.l10n.immutable,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -431,7 +479,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : Text(
-                        isThai ? 'บันทึก' : 'Save',
+                        context.l10n.save,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white,
                         ),
@@ -510,11 +558,11 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         children: _visibleViews.map((view) {
           final selected = view == _currentView;
           final label = switch (view) {
-            DiagramView.front => isThai ? 'ด้านหน้า' : 'Front',
-            DiagramView.side => isThai ? 'ด้านข้าง' : 'Side',
-            DiagramView.leftSide => isThai ? 'ด้านซ้าย' : 'Left',
-            DiagramView.rightSide => isThai ? 'ด้านขวา' : 'Right',
-            DiagramView.lipZone => isThai ? 'ปาก/ริมฝีปาก' : 'Lip Zone',
+            DiagramView.front => context.l10n.front,
+            DiagramView.side => context.l10n.side,
+            DiagramView.leftSide => context.l10n.left,
+            DiagramView.rightSide => context.l10n.right,
+            DiagramView.lipZone => context.l10n.lipZone,
           };
           final icon = switch (view) {
             DiagramView.front => Icons.face_rounded,
@@ -589,10 +637,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
           children: [
             // Face diagram image (gender-aware)
             Positioned.fill(
-              child: Image.asset(
-                _diagramAssetPath(_currentView),
-                fit: BoxFit.cover,
-              ),
+              child: _buildDiagramImage(_currentView),
             ),
             // User strokes
             CustomPaint(
@@ -755,13 +800,13 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      title: Text('ลบทั้งหมด?', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700)),
-                      content: Text('ลบเส้นทั้งหมดในมุมมองนี้', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
+                      title: Text(context.l10n.deleteAll, style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700)),
+                      content: Text(context.l10n.clearAllStrokes, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ยกเลิก')),
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
                         TextButton(
                           onPressed: () { Navigator.pop(ctx); _clearAll(); },
-                          child: Text('ลบ', style: GoogleFonts.plusJakartaSans(color: AiraColors.terra, fontWeight: FontWeight.w700)),
+                          child: Text(context.l10n.delete, style: GoogleFonts.plusJakartaSans(color: AiraColors.terra, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
@@ -898,64 +943,64 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         // ─── Subjective ───
         _formSection(
           icon: Icons.record_voice_over_rounded,
-          title: isThai ? 'Subjective Symptoms (อาการ/ปัญหาหลัก)' : 'Subjective (Chief Complaint)',
+          title: context.l10n.subjectiveTitle,
           accentColor: AiraColors.woodDk,
-          child: _textArea(_chiefComplaintCtrl, isThai ? 'ระบุอาการ / ปัญหาที่มา' : 'Chief complaint...'),
+          child: _textArea(_chiefComplaintCtrl, context.l10n.subjectiveHint),
         ),
         const SizedBox(height: 16),
 
         // ─── Objective ───
         _formSection(
           icon: Icons.visibility_rounded,
-          title: isThai ? 'Objective (ตรวจร่างกาย)' : 'Objective (Physical Exam)',
+          title: context.l10n.objectiveTitle,
           accentColor: AiraColors.woodMid,
-          child: _textArea(_objectiveCtrl, isThai ? 'ผลการตรวจ / สิ่งที่พบ' : 'Findings...'),
+          child: _textArea(_objectiveCtrl, context.l10n.objectiveHint),
         ),
         const SizedBox(height: 16),
 
         // ─── Assessment ───
         _formSection(
           icon: Icons.analytics_rounded,
-          title: isThai ? 'Assessment (วินิจฉัย)' : 'Assessment (Diagnosis)',
+          title: context.l10n.assessmentTitle,
           accentColor: AiraColors.woodLt,
-          child: _textArea(_assessmentCtrl, isThai ? 'การวินิจฉัย / Problem List' : 'Diagnosis / problem list...'),
+          child: _textArea(_assessmentCtrl, context.l10n.assessmentHint),
         ),
         const SizedBox(height: 16),
 
         // ─── Plan ───
         _formSection(
           icon: Icons.assignment_rounded,
-          title: isThai ? 'Plan of Treatment (แผนการรักษา)' : 'Plan of Treatment',
+          title: context.l10n.planTitle,
           accentColor: AiraColors.sage,
-          child: _textArea(_planCtrl, isThai ? 'แผนการรักษา / สิ่งที่จะทำ' : 'Treatment plan...'),
+          child: _textArea(_planCtrl, context.l10n.planHint),
         ),
         const SizedBox(height: 24),
 
         // ─── Laser Parameters ───
         _formSection(
           icon: Icons.flash_on_rounded,
-          title: isThai ? 'Treatment Record / Laser Parameters' : 'Laser Parameters',
+          title: context.l10n.laserParams,
           accentColor: AiraColors.gold,
           child: Column(
             children: [
               _paramRow(
                 Icons.devices_rounded,
-                isThai ? 'Device / Laser Type' : 'Device / Laser Type',
+                'Device / Laser Type',
                 _deviceCtrl,
               ),
               _paramRow(
                 Icons.bolt_rounded,
-                isThai ? 'Energy / Fluence' : 'Energy / Fluence',
+                'Energy / Fluence',
                 _energyCtrl,
               ),
               _paramRow(
                 Icons.timer_rounded,
-                isThai ? 'Pulse Duration / Spot Size' : 'Pulse Duration / Spot Size',
+                'Pulse Duration / Spot Size',
                 _pulseCtrl,
               ),
               _paramRow(
                 Icons.tag_rounded,
-                isThai ? 'Total Shots / Passes' : 'Total Shots / Passes',
+                'Total Shots / Passes',
                 _shotsCtrl,
               ),
             ],
@@ -966,13 +1011,13 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         // ─── Response to Previous Treatment ───
         _formSection(
           icon: Icons.trending_up_rounded,
-          title: isThai ? 'Response to Previous Treatment' : 'Response to Previous',
+          title: context.l10n.responseToPrevious,
           accentColor: AiraColors.woodLt,
           child: Row(
             children: [
-              _responseChip(TreatmentResponse.improved, isThai ? 'ดีขึ้น' : 'Improved', AiraColors.sage),
-              _responseChip(TreatmentResponse.stable, isThai ? 'คงที่' : 'Stable', AiraColors.gold),
-              _responseChip(TreatmentResponse.worse, isThai ? 'แย่ลง' : 'Worsened', AiraColors.terra),
+              _responseChip(TreatmentResponse.improved, context.l10n.improved, AiraColors.sage),
+              _responseChip(TreatmentResponse.stable, context.l10n.stable, AiraColors.gold),
+              _responseChip(TreatmentResponse.worse, context.l10n.worsened, AiraColors.terra),
               _responseChip(TreatmentResponse.notApplicable, 'N/A', AiraColors.muted),
             ],
           ),
@@ -982,7 +1027,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         // ─── Adverse Events ───
         _formSection(
           icon: Icons.warning_amber_rounded,
-          title: isThai ? 'Adverse Events' : 'Adverse Events',
+          title: context.l10n.adverseEvents,
           accentColor: AiraColors.terra,
           child: Wrap(
             spacing: 8,
@@ -1035,7 +1080,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         // ─── Instructions & Follow-up ───
         _formSection(
           icon: Icons.checklist_rounded,
-          title: isThai ? 'Instructions & Follow-up' : 'Instructions & Follow-up',
+          title: context.l10n.instructionsFollowUp,
           accentColor: AiraColors.sage,
           child: Column(
             children: _instructionOptions.map((instr) {

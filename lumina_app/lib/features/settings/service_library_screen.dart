@@ -8,6 +8,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Active category filter for services.
 final _svcCatFilterProvider = StateProvider<ServiceCategory?>((ref) => null);
@@ -23,7 +24,7 @@ class ServiceLibraryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AiraColors.cream,
       appBar: AppBar(
-        title: const Text('บริการ / หัตถการ'),
+        title: Builder(builder: (ctx) => Text(ctx.l10n.serviceManagement)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
@@ -52,7 +53,7 @@ class ServiceLibraryScreen extends ConsumerWidget {
           Expanded(
             child: servicesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('เกิดข้อผิดพลาด: $e')),
+              error: (e, s) => Center(child: Text(context.l10n.errorMsg('$e'))),
               data: (services) {
                 var filtered = services;
                 if (catFilter != null) {
@@ -119,7 +120,7 @@ class ServiceLibraryScreen extends ConsumerWidget {
                                   children: [
                                     const Icon(Icons.add_circle_outline_rounded, size: 18, color: Colors.white),
                                     const SizedBox(width: 8),
-                                    Text('เพิ่มบริการใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                                    Text(context.l10n.addService, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
                                   ],
                                 ),
                               ),
@@ -241,7 +242,7 @@ class ServiceLibraryScreen extends ConsumerWidget {
                             color: AiraColors.creamDk,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Center(child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
+                          child: Center(child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
                         ),
                       ),
                     ),
@@ -250,7 +251,12 @@ class ServiceLibraryScreen extends ConsumerWidget {
                       flex: 2,
                       child: AiraTapEffect(
                         onTap: () async {
-                          if (nameCtrl.text.trim().isEmpty) return;
+                          if (nameCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(context.l10n.pleaseFillRequired)),
+                            );
+                            return;
+                          }
                           final clinicId = ref.read(currentClinicIdProvider);
                           if (clinicId == null) return;
 
@@ -276,7 +282,7 @@ class ServiceLibraryScreen extends ConsumerWidget {
                             if (ctx.mounted) Navigator.pop(ctx);
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ผิดพลาด: $e'), backgroundColor: AiraColors.terra));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.errorMsg('$e')), backgroundColor: AiraColors.terra));
                             }
                           }
                         },
@@ -309,10 +315,10 @@ class ServiceLibraryScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('ยืนยันลบ'),
-        content: Text('ต้องการลบบริการ "${service.name}" ?'),
+        title: Text(context.l10n.confirmDelete),
+        content: Text(context.l10n.deleteService(service.name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ยกเลิก')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AiraColors.terra),
             onPressed: () async {
@@ -322,11 +328,11 @@ class ServiceLibraryScreen extends ConsumerWidget {
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ผิดพลาด: $e')));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.errorMsg('$e'))));
                 }
               }
             },
-            child: const Text('ลบ', style: TextStyle(color: Colors.white)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -429,8 +435,8 @@ class _ServiceCard extends StatelessWidget {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, size: 18, color: AiraColors.muted),
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
-              const PopupMenuItem(value: 'delete', child: Text('ลบ', style: TextStyle(color: Colors.red))),
+              PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
+              PopupMenuItem(value: 'delete', child: Text(context.l10n.delete, style: const TextStyle(color: Colors.red))),
             ],
             onSelected: (v) {
               if (v == 'edit') onEdit();

@@ -10,6 +10,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/access_guard.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 import 'digital_notepad_screen.dart';
 import 'photo_comparison_screen.dart';
 import 'message_history_screen.dart';
@@ -29,36 +30,36 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   int _selectedSection = 0;
 
-  List<_TabDef> _tabs(bool isThai) => [
-    _TabDef(Icons.person_rounded, isThai ? 'ข้อมูลส่วนตัว' : 'Personal Info'),
-    _TabDef(Icons.healing_rounded, isThai ? 'ประวัติสุขภาพ (HA)' : 'Health History (HA)'),
-    _TabDef(Icons.draw_rounded, 'Face Diagram'),
+  List<_TabDef> _tabs(AppL10n l) => [
+    _TabDef(Icons.person_rounded, l.personalInfo),
+    _TabDef(Icons.healing_rounded, l.healthHistory),
+    _TabDef(Icons.draw_rounded, l.faceDiagram),
     _TabDef(Icons.colorize_rounded, 'Injectables'),
-    _TabDef(Icons.flash_on_rounded, 'Laser'),
-    _TabDef(Icons.science_rounded, 'Treatments'),
-    _TabDef(Icons.spa_rounded, isThai ? 'Anti-aging' : 'Anti-aging'),
-    _TabDef(Icons.table_chart_rounded, isThai ? 'ตารางคอร์ส' : 'Course Table'),
-    _TabDef(Icons.photo_library_rounded, 'Before & After'),
-    _TabDef(Icons.description_rounded, isThai ? 'Consent Form' : 'Consent Form'),
-    _TabDef(Icons.medication_rounded, isThai ? 'อาหารเสริม' : 'Supplements'),
-    _TabDef(Icons.favorite_rounded, isThai ? 'ศัลยกรรม' : 'Surgery'),
-    _TabDef(Icons.account_balance_wallet_rounded, 'Spending'),
-    _TabDef(Icons.message_rounded, isThai ? 'ข้อความ' : 'Messages'),
-    _TabDef(Icons.star_rounded, isThai ? 'สถานะคนไข้' : 'Patient Status'),
+    _TabDef(Icons.flash_on_rounded, l.laser),
+    _TabDef(Icons.science_rounded, l.treatment),
+    _TabDef(Icons.spa_rounded, l.antiAging),
+    _TabDef(Icons.table_chart_rounded, l.courseTable),
+    _TabDef(Icons.photo_library_rounded, l.beforeAfter),
+    _TabDef(Icons.description_rounded, l.consentForm),
+    _TabDef(Icons.medication_rounded, l.supplements),
+    _TabDef(Icons.favorite_rounded, l.surgery),
+    _TabDef(Icons.account_balance_wallet_rounded, l.spending),
+    _TabDef(Icons.message_rounded, l.messages),
+    _TabDef(Icons.star_rounded, l.patientStatus),
   ];
 
   @override
   Widget build(BuildContext context) {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
-    final isThai = ref.watch(isThaiProvider);
-    final tabs = _tabs(isThai);
+    final l = context.l10n;
+    final tabs = _tabs(l);
 
     return patientAsync.when(
       data: (patient) {
         if (patient == null) {
           return Scaffold(
             backgroundColor: AiraColors.cream,
-            body: Center(child: Text(isThai ? 'ไม่พบข้อมูลผู้รับบริการ' : 'Patient not found', style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
+            body: Center(child: Text(l.patientNotFound, style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
           );
         }
         return Scaffold(
@@ -69,7 +70,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 patient: patient,
                 onBack: () => context.pop(),
                 onEdit: () => context.push('/patients/${patient.id}/edit'),
-                onDelete: () => _confirmDeletePatient(context, ref, patient, isThai),
+                onDelete: () => _confirmDeletePatient(context, ref, patient),
               ),
               Expanded(
                 child: LayoutBuilder(
@@ -116,17 +117,18 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         children: [
           const Icon(Icons.error_outline_rounded, size: 48, color: AiraColors.terra),
           const SizedBox(height: 12),
-          Text(isThai ? 'โหลดข้อมูลไม่สำเร็จ' : 'Failed to load patient data', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal)),
+          Text(l.failedToLoadPatient, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal)),
           const SizedBox(height: 4),
           Text('$e', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: () => ref.invalidate(patientByIdProvider(widget.patientId)), child: Text(isThai ? 'ลองใหม่' : 'Retry')),
+          ElevatedButton(onPressed: () => ref.invalidate(patientByIdProvider(widget.patientId)), child: Text(l.retry)),
         ],
       ))),
     );
   }
 
-  void _confirmDeletePatient(BuildContext context, WidgetRef ref, Patient patient, bool isThai) {
+  void _confirmDeletePatient(BuildContext context, WidgetRef ref, Patient patient) {
+    final l = context.l10n;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -140,14 +142,14 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           child: const Icon(Icons.warning_amber_rounded, size: 30, color: AiraColors.terra),
         ),
         title: Text(
-          isThai ? 'ลบผู้รับบริการออกจากระบบ?' : 'Remove patient?',
+          l.deletePatient,
           style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              isThai
+              l.isThai
                   ? 'ข้อมูลของ "${patient.fullName}" จะถูกซ่อนจากระบบ แต่ยังคงเก็บไว้ในฐานข้อมูลตามข้อกำหนดทางการแพทย์'
                   : 'Data for "${patient.fullName}" will be hidden but preserved in the database for medical compliance.',
               textAlign: TextAlign.center,
@@ -166,7 +168,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      isThai ? 'การกระทำนี้สามารถกู้คืนได้ภายหลัง' : 'This action can be reversed later.',
+                      l.actionReversible,
                       style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.terra),
                     ),
                   ),
@@ -178,7 +180,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(isThai ? 'ยกเลิก' : 'Cancel', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+            child: Text(l.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -196,7 +198,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isThai ? 'ลบ "${patient.fullName}" ออกจากระบบแล้ว' : '"${patient.fullName}" removed',
+                        l.deletedPatient(patient.fullName),
                         style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
                       ),
                       backgroundColor: AiraColors.terra,
@@ -214,7 +216,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 }
               }
             },
-            child: Text(isThai ? 'ยืนยันลบ' : 'Confirm Delete', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            child: Text(l.confirmDelete, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -451,7 +453,7 @@ class _ProfileHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isThai = ref.watch(isThaiProvider);
+    final l = context.l10n;
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
@@ -540,12 +542,12 @@ class _ProfileHeader extends ConsumerWidget {
           const SizedBox(height: 4),
           if (patient.nickname != null && patient.nickname!.isNotEmpty)
             Text(
-              'ชื่อเล่น: ${patient.nickname}',
+              '${l.nickname}: ${patient.nickname}',
               style: GoogleFonts.plusJakartaSans(fontSize: 15, color: Colors.white.withValues(alpha: 0.7)),
             ),
           const SizedBox(height: 2),
           Text(
-            '${patient.age != null ? "อายุ ${patient.age} ปี" : ""}${patient.hn != null ? " • HN: ${patient.hn}" : ""}',
+            '${patient.age != null ? "${l.age} ${patient.age} ${l.years}" : ""}${patient.hn != null ? " • HN: ${patient.hn}" : ""}',
             style: GoogleFonts.plusJakartaSans(fontSize: 15, color: Colors.white.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 14),
@@ -561,7 +563,7 @@ class _ProfileHeader extends ConsumerWidget {
               const SizedBox(width: 10),
               _HeaderActionBtn(
                 icon: Icons.message_rounded,
-                label: isThai ? 'ข้อความ' : 'Message',
+                label: l.message,
                 color: Colors.white.withValues(alpha: 0.15),
                 textColor: Colors.white,
               ),
@@ -570,7 +572,7 @@ class _ProfileHeader extends ConsumerWidget {
                 onTap: onEdit,
                 child: _HeaderActionBtn(
                   icon: Icons.edit_rounded,
-                  label: isThai ? 'แก้ไข' : 'Edit',
+                  label: l.edit,
                   color: Colors.white.withValues(alpha: 0.15),
                   textColor: Colors.white,
                 ),
@@ -580,7 +582,7 @@ class _ProfileHeader extends ConsumerWidget {
                 onTap: onDelete,
                 child: _HeaderActionBtn(
                   icon: Icons.delete_outline_rounded,
-                  label: isThai ? 'ลบ' : 'Delete',
+                  label: l.delete,
                   color: const Color(0xFFD32F2F).withValues(alpha: 0.25),
                   textColor: Colors.white,
                 ),
@@ -708,33 +710,33 @@ class _InfoTab extends ConsumerWidget {
       padding: const EdgeInsets.all(20),
       children: [
         _SectionCard(
-          title: isThai ? 'ข้อมูลส่วนตัว' : 'Personal Info',
+          title: context.l10n.personalInfo,
           children: [
-            _InfoRow(isThai ? 'ชื่อ / ชื่อเล่น' : 'Name / Nickname', '${patient.fullName}${patient.nickname != null ? "\n${patient.nickname}" : ""}'),
+            _InfoRow(context.l10n.nameNickname, '${patient.fullName}${patient.nickname != null ? "\n${patient.nickname}" : ""}'),
             if (patient.dateOfBirth != null)
-              _InfoRow(isThai ? 'วันเกิด' : 'Date of Birth', '${patient.dateOfBirth!.day}/${patient.dateOfBirth!.month}/${patient.dateOfBirth!.year} (${patient.age} ${isThai ? 'ปี' : 'yrs'})'),
-            if (patient.gender != null) _InfoRow(isThai ? 'เพศ' : 'Gender', patient.gender!.label(isThai: isThai)),
-            if (patient.phone != null) _InfoRow(isThai ? 'เบอร์โทร' : 'Phone', patient.phone!),
+              _InfoRow(context.l10n.dateOfBirth, '${patient.dateOfBirth!.day}/${patient.dateOfBirth!.month}/${patient.dateOfBirth!.year} (${patient.age} ${context.l10n.years})'),
+            if (patient.gender != null) _InfoRow(context.l10n.gender, patient.gender!.label(isThai: isThai)),
+            if (patient.phone != null) _InfoRow(context.l10n.phone, patient.phone!),
             if (patient.lineId != null) _InfoRow('Line ID', patient.lineId!),
             if (patient.email != null) _InfoRow('Email', patient.email!),
-            if (patient.address != null) _InfoRow(isThai ? 'ที่อยู่' : 'Address', patient.address!),
+            if (patient.address != null) _InfoRow(context.l10n.address, patient.address!),
           ],
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: isThai ? 'เอกสารยืนยันตัวตน' : 'Identification Documents',
+          title: context.l10n.identificationDocs,
           icon: Icons.badge_rounded,
           iconColor: AiraColors.woodMid,
           children: [
-            if (patient.nationalId != null) _InfoRow(isThai ? 'บัตรประชาชน' : 'National ID Card', patient.nationalId!),
-            if (patient.passportNo != null) _InfoRow(isThai ? 'พาสปอร์ต' : 'Passport', patient.passportNo!),
+            if (patient.nationalId != null) _InfoRow(context.l10n.nationalId, patient.nationalId!),
+            if (patient.passportNo != null) _InfoRow(context.l10n.passport, patient.passportNo!),
             if (patient.nationalId == null && patient.passportNo == null)
-              Text(isThai ? 'ยังไม่มีข้อมูลเอกสาร' : 'No documents on file', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
+              Text(context.l10n.noDocuments, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
           ],
         ),
         if (patient.notes != null && patient.notes!.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _SectionCard(title: isThai ? 'หมายเหตุ' : 'Notes', children: [
+          _SectionCard(title: context.l10n.notes, children: [
             Text(patient.notes!, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.charcoal)),
           ]),
         ],
@@ -806,14 +808,14 @@ class _HATab extends ConsumerWidget {
     final isThai = ref.watch(isThaiProvider);
     final hasAllergies = patient.drugAllergies.isNotEmpty;
     final hasConditions = patient.medicalConditions.isNotEmpty;
-    final yes = isThai ? 'ใช่' : 'Yes';
-    final no = isThai ? 'ไม่ใช่' : 'No';
+    final yes = context.l10n.yes;
+    final no = context.l10n.no;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _SectionCard(
-          title: isThai ? 'แพ้ยา' : 'Drug Allergies',
+          title: context.l10n.drugAllergies,
           icon: Icons.warning_amber_rounded,
           iconColor: AiraColors.danger,
           children: [
@@ -824,15 +826,15 @@ class _HATab extends ConsumerWidget {
               ),
               if (patient.allergySymptoms != null) ...[
                 const SizedBox(height: 8),
-                _InfoRow(isThai ? 'อาการ' : 'Symptoms', patient.allergySymptoms!),
+                _InfoRow(context.l10n.symptoms, patient.allergySymptoms!),
               ],
             ] else
-              Text(isThai ? 'ไม่มีประวัติแพ้ยา' : 'No drug allergies', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+              Text(context.l10n.noDrugAllergies, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
           ],
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: isThai ? 'โรคประจำตัว' : 'Medical Conditions',
+          title: context.l10n.medicalConditions,
           children: [
             if (hasConditions)
               Wrap(
@@ -840,17 +842,17 @@ class _HATab extends ConsumerWidget {
                 children: patient.medicalConditions.map((c) => _ConditionChip(c)).toList(),
               )
             else
-              Text(isThai ? 'ไม่มีโรคประจำตัว' : 'No medical conditions', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+              Text(context.l10n.noMedicalConditions, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
           ],
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: isThai ? 'บุหรี่ / แอลกอฮอล์ / ยา' : 'Smoking / Alcohol / Medication',
+          title: context.l10n.smokingAlcoholMeds,
           children: [
-            _InfoRow(isThai ? 'สูบบุหรี่' : 'Smoking', patient.smoking.label(isThai: isThai)),
-            _InfoRow(isThai ? 'แอลกอฮอล์' : 'Alcohol', patient.alcohol.label(isThai: isThai)),
-            _InfoRow(isThai ? 'ใช้เรตินอยด์' : 'Using Retinoids', patient.isUsingRetinoids ? yes : no),
-            _InfoRow(isThai ? 'ยาต้านการแข็งตัวของเลือด' : 'On Anticoagulant', patient.isOnAnticoagulant ? yes : no),
+            _InfoRow(context.l10n.smoking, patient.smoking.label(isThai: isThai)),
+            _InfoRow(context.l10n.alcohol, patient.alcohol.label(isThai: isThai)),
+            _InfoRow(context.l10n.usingRetinoids, patient.isUsingRetinoids ? yes : no),
+            _InfoRow(context.l10n.onAnticoagulant, patient.isOnAnticoagulant ? yes : no),
           ],
         ),
       ],
@@ -951,7 +953,7 @@ class _TreatmentListTab extends ConsumerWidget {
                   children: [
                     Icon(Icons.inbox_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
                     const SizedBox(height: 12),
-                    Text('ยังไม่มีบันทึก $label', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
+                    Text(context.l10n.noRecords(label), style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
                   ],
                 ),
               ),
@@ -1100,7 +1102,7 @@ class _FaceDiagramSection extends ConsumerWidget {
                 const Icon(Icons.add_rounded, size: 20, color: Colors.white),
                 const SizedBox(width: 6),
                 Text(
-                  isThai ? 'สร้าง Diagram ใหม่' : 'New Diagram',
+                  context.l10n.newDiagram,
                   style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ],
@@ -1111,7 +1113,7 @@ class _FaceDiagramSection extends ConsumerWidget {
 
         // ─── Saved Diagrams List ───
         _SectionCard(
-          title: isThai ? 'Diagram ที่บันทึกแล้ว' : 'Saved Diagrams',
+          title: context.l10n.savedDiagrams,
           icon: Icons.draw_rounded,
           iconColor: AiraColors.woodMid,
           children: [
@@ -1142,7 +1144,7 @@ class _FaceDiagramSection extends ConsumerWidget {
                         Icon(Icons.draw_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
                         const SizedBox(height: 8),
                         Text(
-                          isThai ? 'ยังไม่มี Diagram' : 'No diagrams yet',
+                          context.l10n.noDiagramsYet,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
                             color: AiraColors.muted,
@@ -1176,11 +1178,11 @@ class _FaceDiagramSection extends ConsumerWidget {
                         : '-';
 
                     String viewLabel(DiagramView v) => switch (v) {
-                      DiagramView.front => isThai ? 'ด้านหน้า' : 'Front',
-                      DiagramView.side => isThai ? 'ด้านข้าง' : 'Side',
-                      DiagramView.leftSide => isThai ? 'ด้านซ้าย' : 'Left',
-                      DiagramView.rightSide => isThai ? 'ด้านขวา' : 'Right',
-                      DiagramView.lipZone => isThai ? 'ริมฝีปาก' : 'Lip',
+                      DiagramView.front => context.l10n.front,
+                      DiagramView.side => context.l10n.side,
+                      DiagramView.leftSide => context.l10n.left,
+                      DiagramView.rightSide => context.l10n.right,
+                      DiagramView.lipZone => context.l10n.lipZone,
                     };
 
                     IconData viewIcon(DiagramView v) => switch (v) {
@@ -1225,7 +1227,7 @@ class _FaceDiagramSection extends ConsumerWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isThai ? 'บันทึก Diagram' : 'Diagram Session',
+                                        context.l10n.diagramSession,
                                         style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
                                       ),
                                       Text(
@@ -1247,7 +1249,7 @@ class _FaceDiagramSection extends ConsumerWidget {
                                       const Icon(Icons.lock_rounded, size: 12, color: AiraColors.terra),
                                       const SizedBox(width: 3),
                                       Text(
-                                        isThai ? 'ล็อก' : 'Locked',
+                                        context.l10n.locked,
                                         style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.terra),
                                       ),
                                     ],
@@ -1289,7 +1291,7 @@ class _FaceDiagramSection extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '${group.length} ${isThai ? 'มุมมอง' : 'views'}',
+                              context.l10n.nViews(group.length),
                               style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted),
                             ),
                           ],
@@ -1472,14 +1474,14 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          isThai ? 'สร้างชุดเปรียบเทียบใหม่' : 'New Comparison Set',
+          context.l10n.newComparisonSet,
           style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              isThai ? 'ตั้งชื่อชุดเปรียบเทียบ เช่น "Botox หน้าผาก" หรือ "Filler ปาก"' : 'Name this set, e.g. "Botox Forehead"',
+              context.l10n.nameComparisonHint,
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
             ),
             const SizedBox(height: 12),
@@ -1488,7 +1490,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
               autofocus: true,
               style: GoogleFonts.plusJakartaSans(fontSize: 14),
               decoration: InputDecoration(
-                hintText: isThai ? 'ชื่อชุดเปรียบเทียบ' : 'Set name',
+                hintText: context.l10n.comparisonSetName,
                 hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1499,7 +1501,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(isThai ? 'ยกเลิก' : 'Cancel', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+            child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1511,7 +1513,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
               final text = controller.text.trim();
               if (text.isNotEmpty) Navigator.pop(ctx, text);
             },
-            child: Text(isThai ? 'สร้าง' : 'Create', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            child: Text(context.l10n.create, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -1573,7 +1575,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isThai ? 'อัพโหลดรูปสำเร็จ' : 'Photo uploaded', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+            content: Text(context.l10n.photoUploaded, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
             backgroundColor: AiraColors.sage,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1583,7 +1585,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
     } catch (e) {
       if (mounted) {
         final msg = e.toString().contains('Bucket not found')
-            ? (isThai ? 'กรุณาสร้าง Storage Bucket "patient-photos" ใน Supabase Dashboard' : 'Create "patient-photos" bucket in Supabase')
+            ? context.l10n.createBucketHint
             : 'Error: $e';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AiraColors.terra));
       }
@@ -1630,7 +1632,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                         const Icon(Icons.add_a_photo_rounded, size: 20, color: Colors.white),
                         const SizedBox(width: 8),
                         Text(
-                          isThai ? 'สร้างชุดเปรียบเทียบใหม่' : 'New Comparison Set',
+                          context.l10n.newComparisonSet,
                           style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
                         ),
                       ],
@@ -1658,7 +1660,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                 // ─── Empty State ───
                 if (grouped.isEmpty)
                   _SectionCard(
-                    title: isThai ? 'ยังไม่มีรูปเปรียบเทียบ' : 'No comparison photos yet',
+                    title: context.l10n.noComparisonPhotos,
                     children: [
                       Text(
                         isThai
@@ -1729,7 +1731,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                                     children: [
                                       const Icon(Icons.compare_rounded, size: 14, color: Colors.white),
                                       const SizedBox(width: 4),
-                                      Text(isThai ? 'เปรียบเทียบ' : 'Compare', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                                      Text(context.l10n.compare, style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
                                     ],
                                   ),
                                 ),
@@ -1815,7 +1817,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
     if (slots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isThai ? 'ยังไม่มีรูปให้เปรียบเทียบ' : 'No photos to compare'),
+          content: Text(context.l10n.noPhotosToCompare),
           backgroundColor: AiraColors.terra,
         ),
       );
@@ -2322,7 +2324,7 @@ class _FinanceTab extends ConsumerWidget {
                 children: [
                   const Icon(Icons.receipt_long_rounded, size: 16, color: AiraColors.woodDk),
                   const SizedBox(width: 6),
-                  Text('คอร์สของคนไข้', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                  Text(context.l10n.patientCourses, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -2330,7 +2332,7 @@ class _FinanceTab extends ConsumerWidget {
                 _SectionCard(
                   title: 'ยังไม่มีคอร์ส',
                   children: [
-                    Text('ยังไม่มีคอร์สที่ผูกกับคนไข้รายนี้', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+                    Text(context.l10n.noCoursesYet, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
                   ],
                 ),
               ...activeCourses.map((course) {
@@ -2357,7 +2359,7 @@ class _FinanceTab extends ConsumerWidget {
                 iconColor: AiraColors.terra,
                 children: [
                   if (outstanding.isEmpty)
-                    Text('ไม่มียอดค้างชำระ', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+                    Text(context.l10n.noOutstanding, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
                   ...outstanding.map((record) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _OutstandingItem(
@@ -2373,7 +2375,7 @@ class _FinanceTab extends ConsumerWidget {
                 children: [
                   const Icon(Icons.history_rounded, size: 16, color: AiraColors.woodDk),
                   const SizedBox(width: 6),
-                  Text('ประวัติการชำระ', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+                  Text(context.l10n.paymentHistory, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -2381,7 +2383,7 @@ class _FinanceTab extends ConsumerWidget {
                 _SectionCard(
                   title: 'ยังไม่มีประวัติการเงิน',
                   children: [
-                    Text('เมื่อมีการบันทึกรับชำระหรือค่าใช้จ่าย ข้อมูลจะแสดงในส่วนนี้', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+                    Text(context.l10n.paymentWillShowHere, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
                   ],
                 ),
               ...history.take(12).map((record) => _PaymentHistoryItem(
@@ -2602,8 +2604,8 @@ class _CourseCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('ใช้แล้ว $sessionsUsed/$sessionsTotal ครั้ง', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
-              Text('เหลือ $remaining ครั้ง', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+              Text(context.l10n.sessionCount(sessionsUsed, sessionsTotal), style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
+              Text(context.l10n.remainingSessions(remaining), style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
             ],
           ),
         ],
@@ -2769,7 +2771,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                 const Icon(Icons.add_rounded, size: 20, color: Colors.white),
                 const SizedBox(width: 6),
                 Text(
-                  isThai ? 'สร้าง Diagram ใหม่' : 'New Diagram',
+                  context.l10n.newDiagram,
                   style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ],
@@ -2780,7 +2782,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
 
         // ─── Saved Diagrams List (sorted by date, newest first) ───
         _SectionCard(
-          title: isThai ? 'Diagram ที่บันทึกแล้ว' : 'Saved Diagrams',
+          title: context.l10n.savedDiagrams,
           icon: Icons.draw_rounded,
           iconColor: AiraColors.woodMid,
           children: [
@@ -2811,7 +2813,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                         Icon(Icons.draw_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
                         const SizedBox(height: 8),
                         Text(
-                          isThai ? 'ยังไม่มี Diagram' : 'No diagrams yet',
+                          context.l10n.noDiagramsYet,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 15,
                             color: AiraColors.muted,
@@ -2850,11 +2852,11 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                         : '-';
 
                     String viewLabel(DiagramView v) => switch (v) {
-                      DiagramView.front => isThai ? 'ด้านหน้า' : 'Front',
-                      DiagramView.side => isThai ? 'ด้านข้าง' : 'Side',
-                      DiagramView.leftSide => isThai ? 'ด้านซ้าย' : 'Left',
-                      DiagramView.rightSide => isThai ? 'ด้านขวา' : 'Right',
-                      DiagramView.lipZone => isThai ? 'ริมฝีปาก' : 'Lip',
+                      DiagramView.front => context.l10n.front,
+                      DiagramView.side => context.l10n.side,
+                      DiagramView.leftSide => context.l10n.left,
+                      DiagramView.rightSide => context.l10n.right,
+                      DiagramView.lipZone => context.l10n.lipZone,
                     };
 
                     IconData viewIcon(DiagramView v) => switch (v) {
@@ -2898,7 +2900,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isThai ? 'บันทึก Diagram' : 'Diagram Session',
+                                        context.l10n.diagramSession,
                                         style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
                                       ),
                                       Text(dateStr, style: GoogleFonts.spaceGrotesk(fontSize: 13, color: AiraColors.muted)),
@@ -2917,7 +2919,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                                       const Icon(Icons.lock_rounded, size: 12, color: AiraColors.terra),
                                       const SizedBox(width: 3),
                                       Text(
-                                        isThai ? 'ล็อก' : 'Locked',
+                                        context.l10n.locked,
                                         style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: AiraColors.terra),
                                       ),
                                     ],
@@ -2958,7 +2960,7 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '${group.length} ${isThai ? 'มุมมอง' : 'views'}',
+                              context.l10n.nViews(group.length),
                               style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
                             ),
                           ],
@@ -2987,12 +2989,12 @@ class _FaceDiagramWithNotepad extends ConsumerWidget {
 
         // ─── Digital Notepad (embedded) ───
         _SectionCard(
-          title: isThai ? 'Digital Notepad' : 'Digital Notepad',
+          title: context.l10n.digitalNotepad,
           icon: Icons.edit_note_rounded,
           iconColor: AiraColors.sage,
           children: [
             Text(
-              isThai ? 'โน้ตเพิ่มเติมสำหรับ session นี้' : 'Additional notes for this session',
+              context.l10n.notepadForSession,
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
             ),
             const SizedBox(height: 12),
@@ -3041,7 +3043,7 @@ class _ProgressNoteSectionState extends State<_ProgressNoteSection> {
       children: [
         // ─── Response to Previous Treatment ───
         Text(
-          isThai ? 'ผลตอบสนองต่อการรักษาครั้งก่อน' : 'Response to Previous Treatment',
+          context.l10n.responseToPrevious,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         const SizedBox(height: 10),
@@ -3049,16 +3051,16 @@ class _ProgressNoteSectionState extends State<_ProgressNoteSection> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildResponseChip('improved', isThai ? 'ดีขึ้น (Improved)' : 'Improved', AiraColors.sage),
-            _buildResponseChip('stable', isThai ? 'คงที่ (Stable)' : 'Stable', AiraColors.gold),
-            _buildResponseChip('worsened', isThai ? 'แย่ลง (Worsened)' : 'Worsened', AiraColors.terra),
+            _buildResponseChip('improved', context.l10n.improved, AiraColors.sage),
+            _buildResponseChip('stable', context.l10n.stable, AiraColors.gold),
+            _buildResponseChip('worsened', context.l10n.worsened, AiraColors.terra),
           ],
         ),
         const SizedBox(height: 20),
 
         // ─── Adverse Events ───
         Text(
-          isThai ? 'อาการข้างเคียง (Adverse Events)' : 'Adverse Events',
+          context.l10n.adverseEvents,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         const SizedBox(height: 10),
@@ -3066,7 +3068,7 @@ class _ProgressNoteSectionState extends State<_ProgressNoteSection> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildEventChip('none', isThai ? 'ไม่มี (None)' : 'None'),
+            _buildEventChip('none', context.l10n.none),
             _buildEventChip('erythema', 'Erythema'),
             _buildEventChip('burn', 'Burn'),
             _buildEventChip('pih', 'PIH'),
@@ -3077,7 +3079,7 @@ class _ProgressNoteSectionState extends State<_ProgressNoteSection> {
           controller: _otherCtrl,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
           decoration: InputDecoration(
-            hintText: isThai ? 'อื่นๆ (ระบุ)...' : 'Other (Specify)...',
+            hintText: context.l10n.otherSpecify,
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
@@ -3163,16 +3165,16 @@ class _TreatmentRecordSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: isThai ? 'บันทึกการรักษา / Laser Parameters' : 'Treatment Record / Laser Parameters',
+      title: context.l10n.treatmentRecordLaser,
       icon: Icons.flash_on_rounded,
       iconColor: AiraColors.gold,
       children: [
         // ─── Assessment ───
-        _buildField(isThai ? 'การวินิจฉัย (Assessment / Diagnosis)' : 'Assessment (Diagnosis / Problem List)', '', 2),
+        _buildField(context.l10n.assessmentDiagnosis, '', 2),
         const SizedBox(height: 12),
 
         // ─── Plan of Treatment ───
-        _buildField(isThai ? 'แผนการรักษา (Plan of Treatment)' : 'Plan of Treatment', '', 2),
+        _buildField(context.l10n.planOfTreatment, '', 2),
         const SizedBox(height: 16),
 
         // ─── Laser Parameters ───
@@ -3284,20 +3286,20 @@ class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSecti
   Widget build(BuildContext context) {
     final isThai = widget.isThai;
     return _SectionCard(
-      title: isThai ? 'คำแนะนำ & นัดติดตามผล' : 'Instructions & Follow-up',
+      title: context.l10n.instructionsFollowUp,
       icon: Icons.checklist_rounded,
       iconColor: AiraColors.sage,
       children: [
         // ─── Instruction checkboxes ───
-        _buildInstruction('avoid_sun', isThai ? 'หลีกเลี่ยงแสงแดด (Avoid sun exposure)' : 'Avoid sun exposure'),
-        _buildInstruction('sunscreen', isThai ? 'ทาครีมกันแดด SPF 30+ (Apply sunscreen SPF 30+)' : 'Apply sunscreen SPF 30+'),
-        _buildInstruction('medication', isThai ? 'ทายาตามแพทย์สั่ง / มอยส์เจอไรเซอร์' : 'Apply prescribed medication / moisturizer'),
+        _buildInstruction('avoid_sun', context.l10n.avoidSun),
+        _buildInstruction('sunscreen', context.l10n.applySunscreen),
+        _buildInstruction('medication', context.l10n.applyMedication),
         const SizedBox(height: 8),
         TextField(
           controller: _otherInstructionCtrl,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.charcoal),
           decoration: InputDecoration(
-            hintText: isThai ? 'อื่นๆ (ระบุ)...' : 'Other (Specify)...',
+            hintText: context.l10n.otherSpecify,
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AiraColors.woodPale)),
@@ -3309,7 +3311,7 @@ class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSecti
 
         // ─── Next Appointment ───
         Text(
-          isThai ? 'นัดหมายครั้งถัดไป' : 'Next Appointment',
+          context.l10n.nextAppointment,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
         ),
         const SizedBox(height: 10),
@@ -3317,8 +3319,8 @@ class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSecti
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildApptChip('date', isThai ? 'กำหนดวัน-เวลา' : 'Set Date & Time', Icons.calendar_today_rounded),
-            _buildApptChip('as_needed', isThai ? 'ตามความจำเป็น (As needed)' : 'As needed', Icons.access_time_rounded),
+            _buildApptChip('date', context.l10n.setDateTime, Icons.calendar_today_rounded),
+            _buildApptChip('as_needed', context.l10n.asNeeded, Icons.access_time_rounded),
           ],
         ),
         if (_nextAppt == 'date') ...[
@@ -3348,7 +3350,7 @@ class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSecti
                         const Icon(Icons.calendar_today_rounded, size: 16, color: AiraColors.woodMid),
                         const SizedBox(width: 8),
                         Text(
-                          _nextApptDate != null ? '${_nextApptDate!.day}/${_nextApptDate!.month}/${_nextApptDate!.year}' : (isThai ? 'เลือกวันที่' : 'Select date'),
+                          _nextApptDate != null ? '${_nextApptDate!.day}/${_nextApptDate!.month}/${_nextApptDate!.year}' : context.l10n.selectDate,
                           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: _nextApptDate != null ? AiraColors.charcoal : AiraColors.muted),
                         ),
                       ],
@@ -3378,7 +3380,7 @@ class _InstructionsFollowUpSectionState extends State<_InstructionsFollowUpSecti
                         const Icon(Icons.access_time_rounded, size: 16, color: AiraColors.woodMid),
                         const SizedBox(width: 8),
                         Text(
-                          _nextApptTime != null ? '${_nextApptTime!.hour.toString().padLeft(2, '0')}:${_nextApptTime!.minute.toString().padLeft(2, '0')}' : (isThai ? 'เลือกเวลา' : 'Select time'),
+                          _nextApptTime != null ? '${_nextApptTime!.hour.toString().padLeft(2, '0')}:${_nextApptTime!.minute.toString().padLeft(2, '0')}' : context.l10n.selectTime,
                           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: _nextApptTime != null ? AiraColors.charcoal : AiraColors.muted),
                         ),
                       ],
@@ -3488,7 +3490,7 @@ class _ConsentFormTab extends ConsumerWidget {
                 const Icon(Icons.add_rounded, size: 20, color: Colors.white),
                 const SizedBox(width: 6),
                 Text(
-                  isThai ? 'สร้าง Consent Form ใหม่' : 'New Consent Form',
+                  context.l10n.newConsentForm,
                   style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
               ],
@@ -3497,7 +3499,7 @@ class _ConsentFormTab extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         _SectionCard(
-          title: isThai ? 'Consent Form ที่บันทึกแล้ว' : 'Saved Consent Forms',
+          title: context.l10n.savedConsentForms,
           icon: Icons.description_rounded,
           iconColor: AiraColors.gold,
           children: [
@@ -3519,7 +3521,7 @@ class _ConsentFormTab extends ConsumerWidget {
                   Icon(Icons.description_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
                   const SizedBox(height: 8),
                   Text(
-                    isThai ? 'กดปุ่มด้านบนเพื่อสร้าง Consent Form ใหม่' : 'Tap button above to create new consent form',
+                    context.l10n.noConsentFormsHint,
                     style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600),
                     textAlign: TextAlign.center,
                   ),
@@ -3562,7 +3564,7 @@ class _SupplementsTabState extends State<_SupplementsTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('เพิ่มอาหารเสริม', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
+        title: Text(context.l10n.addSupplement, style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3597,7 +3599,7 @@ class _SupplementsTabState extends State<_SupplementsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+            child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -3613,7 +3615,7 @@ class _SupplementsTabState extends State<_SupplementsTab> {
                 Navigator.pop(ctx);
               }
             },
-            child: Text('เพิ่ม', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            child: Text(context.l10n.add, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -3664,7 +3666,7 @@ class _SupplementsTabState extends State<_SupplementsTab> {
                   children: [
                     Icon(Icons.medication_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
                     const SizedBox(height: 8),
-                    Text('ยังไม่มีข้อมูลอาหารเสริม', style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600)),
+                    Text(context.l10n.noSupplementData, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -3753,7 +3755,7 @@ class _PatientStatusTab extends ConsumerWidget {
       padding: const EdgeInsets.all(20),
       children: [
         _SectionCard(
-          title: isThai ? 'สถานะคนไข้ (ภายในเท่านั้น)' : 'Patient Status (Internal Only)',
+          title: context.l10n.patientStatusInternal,
           icon: Icons.star_rounded,
           iconColor: AiraColors.gold,
           children: [

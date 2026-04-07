@@ -9,6 +9,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
 
 class CourseFormScreen extends ConsumerStatefulWidget {
   final String? courseId;
@@ -73,7 +74,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPatientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาเลือกผู้รับบริการ')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.selectPatient)));
       return;
     }
 
@@ -107,13 +108,13 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.isEdit ? 'แก้ไขคอร์สสำเร็จ' : 'สร้างคอร์สสำเร็จ'), backgroundColor: AiraColors.sage),
+          SnackBar(content: Text(widget.isEdit ? context.l10n.courseEditSuccess : context.l10n.courseSaveSuccess), backgroundColor: AiraColors.sage),
         );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('บันทึกไม่สำเร็จ: $e'), backgroundColor: AiraColors.terra));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.saveFailed('$e')), backgroundColor: AiraColors.terra));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -131,17 +132,17 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
         children: [
           AiraPremiumHeader(
             title: widget.isEdit
-                ? (isThai ? 'แก้ไขคอร์ส' : 'Edit Course')
-                : (isThai ? 'สร้างคอร์สใหม่' : 'New Course'),
-            subtitle: isThai ? 'ระบบจัดการคอร์สรักษา' : 'Treatment course management',
+                ? context.l10n.editCourse
+                : context.l10n.newCourse,
+            subtitle: context.l10n.courseManagementSubtitle,
             loading: _loading,
             onBack: () => context.pop(),
             onSave: _loading ? null : _save,
-            saveLabel: isThai ? 'บันทึก' : 'Save',
+            saveLabel: context.l10n.save,
             steps: premiumSteps([
-              (1, isThai ? 'ผู้รับบริการ' : 'Patient'),
-              (2, isThai ? 'คอร์ส' : 'Course'),
-              (3, isThai ? 'เซสชั่น' : 'Sessions'),
+              (1, context.l10n.patient),
+              (2, context.l10n.course),
+              (3, context.l10n.sessions),
             ]),
           ),
           Expanded(
@@ -154,12 +155,12 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
                       // ─── Patient selector ───
-                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้รับบริการ', subtitle: 'เลือกผู้รับบริการสำหรับคอร์สนี้'),
+                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: context.l10n.patient, subtitle: context.l10n.selectPatientForAppt),
                       _buildPatientSelector(patientsAsync),
                       const SizedBox(height: 28),
 
                       // ─── Course info ───
-                      const AiraSectionHeader(step: 2, icon: Icons.card_membership_rounded, title: 'ข้อมูลคอร์ส', subtitle: 'ชื่อคอร์ส, ราคา'),
+                      AiraSectionHeader(step: 2, icon: Icons.card_membership_rounded, title: context.l10n.course, subtitle: context.l10n.courseManagementSubtitle),
                       AiraPremiumCard(accentColor: AiraColors.woodMid, children: [
                         TextFormField(
                           controller: _nameCtrl,
@@ -179,30 +180,30 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                       const SizedBox(height: 28),
 
                       // ─── Treatment Details ───
-                      AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: isThai ? 'รายละเอียดการรักษา' : 'Treatment Details', subtitle: isThai ? 'ประเภท, แพทย์ผู้รับผิดชอบ' : 'Category, doctor'),
+                      AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: context.l10n.treatmentDetails, subtitle: context.l10n.treatmentDetailsSubtitle),
                       AiraPremiumCard(accentColor: AiraColors.terra, children: [
                         DropdownButtonFormField<String>(
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: isThai ? 'ประเภทการรักษา' : 'Treatment Category', prefixIcon: Icons.category_rounded),
+                          decoration: airaFieldDecoration(label: context.l10n.treatmentCategory, prefixIcon: Icons.category_rounded),
                           items: [
                             DropdownMenuItem(value: 'laser', child: Text('Laser', style: airaFieldTextStyle)),
                             DropdownMenuItem(value: 'injectable', child: Text('Injectable', style: airaFieldTextStyle)),
                             DropdownMenuItem(value: 'treatment', child: Text('Treatment', style: airaFieldTextStyle)),
                             DropdownMenuItem(value: 'anti_aging', child: Text('Anti-aging', style: airaFieldTextStyle)),
                             DropdownMenuItem(value: 'skincare', child: Text('Skincare', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'other', child: Text(isThai ? 'อื่นๆ' : 'Other', style: airaFieldTextStyle)),
+                            DropdownMenuItem(value: 'other', child: Text(context.l10n.other, style: airaFieldTextStyle)),
                           ],
                           onChanged: (_) {},
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: isThai ? 'แพทย์ผู้รับผิดชอบ' : 'Responsible Doctor', hint: isThai ? 'เช่น พญ.เตย' : 'e.g. Dr. Toey', prefixIcon: Icons.person_rounded),
+                          decoration: airaFieldDecoration(label: context.l10n.responsibleDoctor, hint: context.l10n.doctorHint, prefixIcon: Icons.person_rounded),
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: isThai ? 'บริเวณที่รักษา' : 'Treatment Area', hint: isThai ? 'เช่น หน้าผาก, คาง, แก้ม' : 'e.g. Forehead, Chin', prefixIcon: Icons.face_rounded),
+                          decoration: airaFieldDecoration(label: context.l10n.treatmentArea, hint: context.l10n.areaHint, prefixIcon: Icons.face_rounded),
                         ),
                         const SizedBox(height: 8),
                       ]),
@@ -241,7 +242,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                             child: Row(children: [
                               Icon(Icons.summarize_rounded, size: 16, color: AiraColors.sage),
                               const SizedBox(width: 8),
-                              Text('รวมทั้งหมด: ${bought + bonus} ครั้ง', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.sage)),
+                              Text(context.l10n.totalSessions(bought, bonus), style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.sage)),
                             ]),
                           );
                         }),
@@ -301,8 +302,8 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
 
                       AiraPremiumSaveButton(
                         label: _loading
-                            ? (isThai ? 'กำลังบันทึก...' : 'Saving...')
-                            : (isThai ? 'บันทึกคอร์ส' : 'Save Course'),
+                            ? context.l10n.saving
+                            : context.l10n.saveCourse,
                         loading: _loading,
                         onTap: _save,
                       ),

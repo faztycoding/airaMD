@@ -8,6 +8,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Active category filter.
 final _prodCatFilterProvider = StateProvider<ProductCategory?>((ref) => null);
@@ -23,7 +24,7 @@ class ProductLibraryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AiraColors.cream,
       appBar: AppBar(
-        title: const Text('คลังผลิตภัณฑ์'),
+        title: Builder(builder: (ctx) => Text(ctx.l10n.productLibrary)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),
@@ -53,7 +54,7 @@ class ProductLibraryScreen extends ConsumerWidget {
           Expanded(
             child: productsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('เกิดข้อผิดพลาด: $e')),
+              error: (e, s) => Center(child: Text(context.l10n.errorMsg('$e'))),
               data: (products) {
                 var filtered = products;
                 if (catFilter != null) {
@@ -66,12 +67,12 @@ class ProductLibraryScreen extends ConsumerWidget {
                       children: [
                         Icon(Icons.inventory_2_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
                         const SizedBox(height: 12),
-                        Text('ไม่มีผลิตภัณฑ์', style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
+                        Text(context.l10n.noProductsInLibrary, style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
                         const SizedBox(height: 12),
                         ElevatedButton.icon(
                           onPressed: () => _showProductForm(context, ref, null),
                           icon: const Icon(Icons.add_rounded),
-                          label: const Text('เพิ่มผลิตภัณฑ์'),
+                          label: Text(context.l10n.addProduct),
                         ),
                       ],
                     ),
@@ -181,7 +182,7 @@ class ProductLibraryScreen extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(color: AiraColors.creamDk, borderRadius: BorderRadius.circular(14)),
-                          child: Center(child: Text('ยกเลิก', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
+                          child: Center(child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
                         ),
                       ),
                     ),
@@ -190,7 +191,12 @@ class ProductLibraryScreen extends ConsumerWidget {
                       flex: 2,
                       child: AiraTapEffect(
                         onTap: () async {
-                          if (nameCtrl.text.trim().isEmpty) return;
+                          if (nameCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(context.l10n.pleaseFillRequired)),
+                            );
+                            return;
+                          }
                           final clinicId = ref.read(currentClinicIdProvider);
                           if (clinicId == null) return;
 
@@ -200,7 +206,7 @@ class ProductLibraryScreen extends ConsumerWidget {
                             name: nameCtrl.text.trim(),
                             brand: brandCtrl.text.trim().isEmpty ? null : brandCtrl.text.trim(),
                             category: category,
-                            unit: unitCtrl.text.trim(),
+                            unit: unitCtrl.text.trim().isEmpty ? 'U' : unitCtrl.text.trim(),
                             unitCost: double.tryParse(unitCostCtrl.text.trim()),
                             defaultPrice: double.tryParse(priceCtrl.text.trim()),
                             stockQuantity: double.tryParse(stockCtrl.text.trim()) ?? 0,
@@ -218,7 +224,7 @@ class ProductLibraryScreen extends ConsumerWidget {
                             if (ctx.mounted) Navigator.pop(ctx);
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ผิดพลาด: $e'), backgroundColor: AiraColors.terra));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.errorMsg('$e')), backgroundColor: AiraColors.terra));
                             }
                           }
                         },
@@ -251,10 +257,10 @@ class ProductLibraryScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('ยืนยันลบ'),
-        content: Text('ต้องการลบ "${product.name}" ?'),
+        title: Text(context.l10n.confirmDelete),
+        content: Text(context.l10n.deleteProduct(product.name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ยกเลิก')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.l10n.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AiraColors.terra),
             onPressed: () async {
@@ -264,11 +270,11 @@ class ProductLibraryScreen extends ConsumerWidget {
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ผิดพลาด: $e')));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.errorMsg('$e'))));
                 }
               }
             },
-            child: const Text('ลบ', style: TextStyle(color: Colors.white)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -374,8 +380,8 @@ class _ProductCard extends StatelessWidget {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, size: 18, color: AiraColors.muted),
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
-              const PopupMenuItem(value: 'delete', child: Text('ลบ', style: TextStyle(color: Colors.red))),
+              PopupMenuItem(value: 'edit', child: Text(context.l10n.edit)),
+              PopupMenuItem(value: 'delete', child: Text(context.l10n.delete, style: const TextStyle(color: Colors.red))),
             ],
             onSelected: (v) {
               if (v == 'edit') onEdit();

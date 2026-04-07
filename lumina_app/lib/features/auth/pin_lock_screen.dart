@@ -7,6 +7,7 @@ import 'package:local_auth/local_auth.dart';
 import '../../config/theme.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 const _pinStorageKey = 'airamd_pin_code';
@@ -65,10 +66,10 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         if (pin == null || pin.isEmpty) {
           setState(() {
             _isSettingUp = true;
-            _statusMessage = 'ตั้งรหัส PIN 6 หลัก';
+            _statusMessage = '';
           });
         } else {
-          setState(() => _statusMessage = 'ใส่รหัส PIN เพื่อเข้าใช้งาน');
+          setState(() => _statusMessage = '');
           _tryBiometric();
         }
       } catch (_) {
@@ -76,7 +77,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         if (!mounted) return;
         setState(() {
           _isSettingUp = true;
-          _statusMessage = 'ตั้งรหัส PIN 6 หลัก';
+          _statusMessage = '';
         });
       }
     });
@@ -95,7 +96,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
       if (!canAuth || !isDeviceSupported) return;
 
       final didAuth = await _localAuth.authenticate(
-        localizedReason: 'ยืนยันตัวตนเพื่อเข้าใช้ airaMD',
+        localizedReason: context.l10n.biometricReason,
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: true,
@@ -137,7 +138,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         setState(() {
           _firstPin = _enteredPin;
           _enteredPin = '';
-          _statusMessage = 'ยืนยันรหัส PIN อีกครั้ง';
+          _statusMessage = '';
         });
       } else {
         // Confirm entry
@@ -151,7 +152,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
             _isError = true;
             _enteredPin = '';
             _firstPin = '';
-            _statusMessage = 'รหัสไม่ตรงกัน ลองใหม่';
+            _statusMessage = '_mismatch';
           });
         }
       }
@@ -165,15 +166,23 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         setState(() {
           _isError = true;
           _enteredPin = '';
-          _statusMessage = 'รหัสไม่ถูกต้อง';
+          _statusMessage = '_incorrect';
         });
       }
     }
   }
 
+  String _resolveStatus(AppL10n l) {
+    if (_statusMessage == '_mismatch') return l.pinMismatch;
+    if (_statusMessage == '_incorrect') return l.pinIncorrect;
+    if (_isSettingUp && _firstPin.isEmpty) return l.setupPin;
+    if (_isSettingUp && _firstPin.isNotEmpty) return l.confirmPinAgain;
+    return l.enterPinToUnlock;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isThai = ref.watch(isThaiProvider);
+    final l = context.l10n;
     final size = MediaQuery.of(context).size;
     final isTablet = size.shortestSide > 600;
 
@@ -225,9 +234,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _statusMessage.isNotEmpty
-                      ? _statusMessage
-                      : (isThai ? 'ใส่รหัส PIN เพื่อเข้าใช้งาน' : 'Enter PIN to unlock'),
+                  _resolveStatus(l),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     color: _isError ? AiraColors.terra : AiraColors.muted,
@@ -296,7 +303,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
                     onPressed: _tryBiometric,
                     icon: Icon(Icons.fingerprint_rounded, color: AiraColors.woodMid, size: 28),
                     label: Text(
-                      isThai ? 'ใช้ลายนิ้วมือ / Face ID' : 'Use Biometrics',
+                      l.useBiometrics,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         color: AiraColors.woodMid,

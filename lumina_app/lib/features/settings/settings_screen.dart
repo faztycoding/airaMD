@@ -1,15 +1,20 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/theme.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/offline_banner.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../app.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       bottom: false,
       child: LayoutBuilder(
@@ -35,7 +40,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'ตั้งค่า',
+                      context.l10n.settings,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 28, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
                       ),
@@ -85,28 +90,40 @@ class _Sidebar extends StatelessWidget {
           _ProfileCard(),
           const SizedBox(height: 20),
           // Setting groups
-          _SettingsGroup('คลินิก', [
-            _Item(Icons.business_rounded, 'ข้อมูลคลินิก', 'ชื่อ ที่อยู่ เวลาเปิด'),
-            _Item(Icons.people_rounded, 'จัดการพนักงาน', 'เพิ่ม/แก้ไข บทบาท'),
-            _Item(Icons.inventory_2_rounded, 'คลังผลิตภัณฑ์', 'Botox, Filler, สต๊อก', route: '/settings/products'),
-            _Item(Icons.swap_horiz_rounded, 'ธุรกรรมสต็อก', 'รับเข้า เบิกออก ปรับยอด', route: '/settings/inventory'),
-            _Item(Icons.payments_rounded, 'การเงิน', 'รายรับ ค้างชำระ ปิดยอด', route: '/settings/financial'),
-          ]),
+          Builder(builder: (context) {
+            final l = context.l10n;
+            return Column(
+              children: [
+                _SettingsGroup(l.settingsClinic, [
+                  _Item(Icons.business_rounded, l.clinicInfo, l.clinicInfoSubtitle, route: '/settings/clinic-info'),
+                  _Item(Icons.people_rounded, l.manageStaff, l.manageStaffSubtitle, route: '/settings/staff'),
+                  _Item(Icons.inventory_2_rounded, l.productLibrary, l.productLibrarySubtitle, route: '/settings/products'),
+                  _Item(Icons.swap_horiz_rounded, l.stockTransactions, l.stockTransactionsSubtitle, route: '/settings/inventory'),
+                  _Item(Icons.payments_rounded, l.financial, l.financialSubtitle, route: '/settings/financial'),
+                ]),
+                const SizedBox(height: 12),
+                _SettingsGroup(l.settingsProcedures, [
+                  _Item(Icons.medical_services_rounded, l.serviceList, l.serviceListSubtitle, route: '/settings/services'),
+                  _Item(Icons.card_membership_rounded, l.courses, l.manageCourses, route: '/settings/course-overview'),
+                  _Item(Icons.description_rounded, l.consentTemplates, l.consentTemplateSubtitle, route: '/settings/consent-templates'),
+                  _Item(Icons.timer_rounded, l.treatmentRules, l.treatmentRulesSubtitle, route: '/settings/treatment-rules'),
+                ]),
+                const SizedBox(height: 12),
+                _SettingsGroup(l.system, [
+                  _Item(Icons.notifications_rounded, l.notificationSettings, l.notificationSettingsSubtitle, route: '/settings/notifications'),
+                  _Item(Icons.chat_rounded, l.messagingConfig, l.messagingConfigSubtitle, route: '/settings/messaging'),
+                  _Item(Icons.language_rounded, l.language, l.languageSubtitle),
+                  _Item(Icons.shield_rounded, l.security, l.securitySubtitle, route: '/settings/security'),
+                  _Item(Icons.cloud_sync_rounded, l.cloudData, l.cloudDataSubtitle),
+                  _Item(Icons.privacy_tip_rounded, 'PDPA', l.privacyPolicy, route: '/settings/privacy'),
+                  _Item(Icons.history_rounded, l.auditLogs, l.auditLogTitle, route: '/settings/audit-logs'),
+                ]),
+              ],
+            );
+          }),
           const SizedBox(height: 12),
-          _SettingsGroup('หัตถการ', [
-            _Item(Icons.medical_services_rounded, 'รายการบริการ', 'ราคาหัตถการทั้งหมด', route: '/settings/services'),
-            _Item(Icons.card_membership_rounded, 'คอร์ส', 'จัดการคอร์สทรีทเมนต์', route: '/courses'),
-            _Item(Icons.description_rounded, 'ใบยินยอม', 'เทมเพลต Consent Form'),
-            _Item(Icons.timer_rounded, 'กฎระยะห่าง', 'Botox, Filler, HIFU...'),
-          ]),
-          const SizedBox(height: 12),
-          _SettingsGroup('ระบบ', [
-            _Item(Icons.language_rounded, 'ภาษา', 'ไทย / English'),
-            _Item(Icons.shield_rounded, 'ความปลอดภัย', 'PIN, Auto-lock'),
-            _Item(Icons.cloud_sync_rounded, 'ข้อมูลคลาวด์', 'Backup, Sync'),
-            _Item(Icons.privacy_tip_rounded, 'PDPA', 'นโยบายความเป็นส่วนตัว', route: '/settings/privacy'),
-            _Item(Icons.history_rounded, 'Audit Logs', 'ประวัติการใช้งานระบบ', route: '/settings/audit-logs'),
-          ]),
+          // ─── Logout Button ───
+          _LogoutButton(ref: ref),
           const SizedBox(height: 16),
           const SyncStatusCard(),
           const SizedBox(height: 20),
@@ -335,24 +352,115 @@ class _ContentPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            Builder(builder: (context) {
+              final l = context.l10n;
+              return Column(
+                children: [
+                  Text(
+                    l.selectMenuToSettings,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AiraColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    l.settingsWillShowHere,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: AiraColors.muted.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Logout Button ─────────────────────────────────────────────
+class _LogoutButton extends StatelessWidget {
+  final WidgetRef ref;
+  const _LogoutButton({required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return AiraTapEffect(
+      onTap: () => _showLogoutDialog(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AiraColors.terra.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AiraColors.terra.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, size: 20, color: AiraColors.terra),
+            const SizedBox(width: 10),
             Text(
-              'เลือกเมนูด้านซ้ายเพื่อตั้งค่า',
+              l.logoutButton,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: AiraColors.muted,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'การตั้งค่าจะแสดงในพื้นที่นี้',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                color: AiraColors.muted.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+                color: AiraColors.terra,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    final l = context.l10n;
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AiraColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l.logoutButton,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AiraColors.charcoal,
+          ),
+        ),
+        content: Text(
+          l.logoutConfirm,
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              l.cancel,
+              style: GoogleFonts.plusJakartaSans(color: AiraColors.muted),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Supabase.instance.client.auth.signOut();
+              ref.read(appUnlockedProvider.notifier).state = false;
+            },
+            child: Text(
+              l.logoutButton,
+              style: GoogleFonts.plusJakartaSans(
+                color: AiraColors.terra,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

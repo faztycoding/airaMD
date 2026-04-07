@@ -12,10 +12,18 @@ import '../features/settings/service_library_screen.dart';
 import '../features/settings/privacy_policy_screen.dart';
 import '../features/settings/inventory_screen.dart';
 import '../features/settings/audit_log_screen.dart';
+import '../features/settings/pin_management_screen.dart';
+import '../features/settings/consent_template_screen.dart';
+import '../features/settings/notification_settings_screen.dart';
+import '../features/settings/messaging_config_screen.dart';
+import '../features/settings/clinic_info_screen.dart';
+import '../features/settings/staff_management_screen.dart';
+import '../features/settings/treatment_rule_screen.dart';
 import '../features/treatments/treatment_form_screen.dart';
 import '../core/models/models.dart';
 import '../features/courses/course_list_screen.dart';
 import '../features/courses/course_form_screen.dart';
+import '../features/courses/course_overview_screen.dart';
 import '../features/financial/financial_screen.dart';
 import '../features/patients/consent_form_screen.dart';
 import '../features/patients/face_diagram_screen.dart';
@@ -264,6 +272,26 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
 
+    // ─── PIN Management ─────────────────────────────────
+    GoRoute(
+      path: '/settings/security',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: PinManagementScreen(),
+      ),
+    ),
+
+    // ─── Consent Templates ───────────────────────────────
+    GoRoute(
+      path: '/settings/consent-templates',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: ConsentTemplateScreen(),
+      ),
+    ),
+
     // ─── Audit Logs ───────────────────────────────────
     GoRoute(
       path: '/settings/audit-logs',
@@ -271,6 +299,66 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: AuditLogScreen(),
+      ),
+    ),
+
+    // ─── Clinic Info ───────────────────────────────────
+    GoRoute(
+      path: '/settings/clinic-info',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: ClinicInfoScreen(),
+      ),
+    ),
+
+    // ─── Staff Management ──────────────────────────────
+    GoRoute(
+      path: '/settings/staff',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: StaffManagementScreen(),
+      ),
+    ),
+
+    // ─── Treatment Rules ───────────────────────────────
+    GoRoute(
+      path: '/settings/treatment-rules',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: TreatmentRuleScreen(),
+      ),
+    ),
+
+    // ─── Course Overview ───────────────────────────────
+    GoRoute(
+      path: '/settings/course-overview',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.financial,
+        child: CourseOverviewScreen(),
+      ),
+    ),
+
+    // ─── Notification Settings ─────────────────────────
+    GoRoute(
+      path: '/settings/notifications',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: NotificationSettingsScreen(),
+      ),
+    ),
+
+    // ─── Messaging Config ──────────────────────────────
+    GoRoute(
+      path: '/settings/messaging',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: MessagingConfigScreen(),
       ),
     ),
   ],

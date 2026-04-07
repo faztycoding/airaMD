@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../config/theme.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Full-screen Before / After comparison with synchronized zoom/pan
 /// across up to 4 panels, plus one-click composite export.
@@ -44,11 +45,23 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
   final TransformationController _controller = TransformationController();
   final GlobalKey _repaintKey = GlobalKey();
   bool _exporting = false;
+  // Per-slot rotation in quarter turns (0, 1, 2, 3)
+  late final List<int> _rotations;
+
+  @override
+  void initState() {
+    super.initState();
+    _rotations = List.filled(widget.slots.length.clamp(0, 4), 0);
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _rotateSlot(int index) {
+    setState(() => _rotations[index] = (_rotations[index] + 1) % 4);
   }
 
   Future<void> _exportComposite() async {
@@ -76,7 +89,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ส่งออกไม่สำเร็จ: $e'), backgroundColor: AiraColors.terra),
+          SnackBar(content: Text(context.l10n.exportFailed('$e')), backgroundColor: AiraColors.terra),
         );
       }
     } finally {
@@ -136,7 +149,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'เปรียบเทียบ ${filledSlots.length} รูป — บีบเพื่อซูมพร้อมกัน',
+                        '${context.l10n.compare} ${filledSlots.length} — pinch to zoom',
                         style: GoogleFonts.plusJakartaSans(fontSize: 11, color: Colors.white60),
                       ),
                     ],
@@ -179,7 +192,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
                           const Icon(Icons.share_rounded, color: Colors.white, size: 16),
                         const SizedBox(width: 6),
                         Text(
-                          'ส่งออก',
+                          context.l10n.export_,
                           style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
                         ),
                       ],
@@ -241,7 +254,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
   /// Landscape: 4 panels side by side
   Widget _buildHorizontalLayout(List<ComparisonSlot> slots) {
     return Row(
-      children: slots.map((slot) => Expanded(child: _buildPanel(slot))).toList(),
+      children: slots.asMap().entries.map((e) => Expanded(child: _buildPanel(e.value, slotIndex: e.key))).toList(),
     );
   }
 
@@ -252,16 +265,16 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
         Expanded(
           child: Row(
             children: [
-              if (slots.isNotEmpty) Expanded(child: _buildPanel(slots[0])),
-              if (slots.length > 1) Expanded(child: _buildPanel(slots[1])),
+              if (slots.isNotEmpty) Expanded(child: _buildPanel(slots[0], slotIndex: 0)),
+              if (slots.length > 1) Expanded(child: _buildPanel(slots[1], slotIndex: 1)),
             ],
           ),
         ),
         Expanded(
           child: Row(
             children: [
-              if (slots.length > 2) Expanded(child: _buildPanel(slots[2])),
-              if (slots.length > 3) Expanded(child: _buildPanel(slots[3])),
+              if (slots.length > 2) Expanded(child: _buildPanel(slots[2], slotIndex: 2)),
+              if (slots.length > 3) Expanded(child: _buildPanel(slots[3], slotIndex: 3)),
               // Fill remaining space
               if (slots.length <= 2)
                 const Expanded(child: SizedBox())
@@ -274,7 +287,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
     );
   }
 
-  Widget _buildPanel(ComparisonSlot slot) {
+  Widget _buildPanel(ComparisonSlot slot, {int slotIndex = 0}) {
     return Container(
       margin: const EdgeInsets.all(2),
       child: Stack(
@@ -282,16 +295,38 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
         children: [
           // Image or placeholder
           if (slot.imageUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.network(
-                slot.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _emptyPanel(),
+            RotatedBox(
+              quarterTurns: slotIndex < _rotations.length ? _rotations[slotIndex] : 0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.network(
+                  slot.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _emptyPanel(),
+                ),
               ),
             )
           else
             _emptyPanel(),
+
+          // Rotate button (top-right)
+          if (slot.imageUrl != null)
+            Positioned(
+              top: 6,
+              right: 6,
+              child: AiraTapEffect(
+                onTap: () => _rotateSlot(slotIndex),
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.rotate_right_rounded, color: Colors.white, size: 16),
+                ),
+              ),
+            ),
 
           // Label overlay at bottom
           Positioned(

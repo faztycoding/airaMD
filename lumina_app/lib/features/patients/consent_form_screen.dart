@@ -12,6 +12,8 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../core/services/consent_pdf_service.dart';
 
 /// Consent Form screen — patient signs with finger/stylus on iPad.
 /// Saves signature image + form data to patient record.
@@ -128,26 +130,40 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
 
       await ref.read(consentFormRepoProvider).create(form);
 
-      // 6. Success feedback
+      // 6. Success feedback + offer PDF export
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'บันทึกใบยินยอมเรียบร้อย',
-              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: AiraColors.sage,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        final patient = await ref.read(patientByIdProvider(widget.patientId).future);
+        final exportPdf = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(context.l10n.consentSaved),
+            content: Text(context.l10n.isThai
+                ? 'ต้องการส่งออก PDF ใบยินยอมหรือไม่?'
+                : 'Export consent form as PDF?'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(context.l10n.cancel)),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(context.l10n.export_)),
+            ],
           ),
         );
-        context.pop();
+        if (exportPdf == true && patient != null && mounted) {
+          await ConsentPdfService.printOrShare(
+            form: form,
+            patient: patient,
+            signatureBytes: sigBytes,
+          );
+        }
+        if (mounted) context.pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
+            content: Text(context.l10n.errorMsg('$e')),
             backgroundColor: AiraColors.terra,
           ),
         );
@@ -168,17 +184,17 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
       body: Column(
         children: [
           AiraPremiumHeader(
-            title: isThai ? 'ใบยินยอมรับการรักษา' : 'Consent Form',
-            subtitle: isThai ? 'Informed Consent • ${DateFormat('dd/MM/yyyy').format(now)}' : 'Informed Consent • ${DateFormat('MMM d, yyyy').format(now)}',
+            title: context.l10n.consentFormTitle,
+            subtitle: context.l10n.consentSubtitle(DateFormat(context.l10n.isThai ? 'dd/MM/yyyy' : 'MMM d, yyyy', context.l10n.isThai ? 'th' : 'en').format(now)),
             loading: _isSaving,
             onBack: () => context.pop(),
             onSave: _canSave ? _save : null,
-            saveLabel: isThai ? 'บันทึก' : 'Save',
+            saveLabel: context.l10n.save,
             steps: premiumSteps([
-              (1, isThai ? 'ข้อมูล' : 'Info'),
-              (2, isThai ? 'หัตถการ' : 'Procedure'),
-              (3, isThai ? 'ยินยอม' : 'Consent'),
-              (4, isThai ? 'ลายเซ็น' : 'Signature'),
+              (1, context.l10n.info),
+              (2, context.l10n.procedure),
+              (3, context.l10n.consent),
+              (4, context.l10n.signature),
             ]),
           ),
           Expanded(
@@ -191,19 +207,19 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ─── Patient Info ───
-                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: isThai ? 'ข้อมูลผู้รับบริการ' : 'Patient Information'),
+                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: context.l10n.patientInformation),
                       patientAsync.when(
                         loading: () => const LinearProgressIndicator(),
                         error: (e, _) => Text('Error: $e'),
                         data: (p) {
                           if (p == null) return const Text('Patient not found');
-                          return _buildPatientInfo(p, isThai);
+                          return _buildPatientInfo(p);
                         },
                       ),
                       const SizedBox(height: 28),
 
                       // ─── Procedure Selection ───
-                      AiraSectionHeader(step: 2, icon: Icons.medical_services_rounded, title: isThai ? 'หัตถการที่จะทำ' : 'Procedure'),
+                      AiraSectionHeader(step: 2, icon: Icons.medical_services_rounded, title: context.l10n.procedureToPerformSection),
                       Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -236,35 +252,29 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       const SizedBox(height: 28),
 
                       // ─── Consent Clauses ───
-                      AiraSectionHeader(step: 3, icon: Icons.checklist_rounded, title: isThai ? 'ข้อตกลงยินยอม' : 'Consent Agreement'),
+                      AiraSectionHeader(step: 3, icon: Icons.checklist_rounded, title: context.l10n.consentAgreement),
                       _consentCheckbox(
                   value: _agreedGeneral,
                   onChanged: (v) => setState(() => _agreedGeneral = v ?? false),
-                  title: isThai
-                      ? 'ข้าพเจ้ายินยอมรับการรักษาตามหัตถการที่ระบุข้างต้น โดยได้รับคำอธิบายเกี่ยวกับขั้นตอน ความเสี่ยง ผลข้างเคียงที่อาจเกิดขึ้น และทางเลือกอื่นๆ เป็นที่เข้าใจดีแล้ว'
-                      : 'I consent to the procedure described above. Risks, benefits, and alternatives have been explained to me.',
+                  title: context.l10n.consentGeneral,
                   required: true,
                 ),
                 const SizedBox(height: 8),
                       _consentCheckbox(
                   value: _agreedPhoto,
                   onChanged: (v) => setState(() => _agreedPhoto = v ?? false),
-                  title: isThai
-                      ? 'ข้าพเจ้ายินยอมให้ถ่ายภาพก่อน-หลังการรักษา เพื่อใช้ในการติดตามผลการรักษา'
-                      : 'I consent to before/after photography for treatment documentation.',
+                  title: context.l10n.consentPhoto,
                 ),
                 const SizedBox(height: 8),
                       _consentCheckbox(
                   value: _agreedAnesthesia,
                   onChanged: (v) => setState(() => _agreedAnesthesia = v ?? false),
-                  title: isThai
-                      ? 'ข้าพเจ้ายินยอมรับยาชาเฉพาะที่ (ถ้าจำเป็น)'
-                      : 'I consent to local anesthesia if required.',
+                  title: context.l10n.consentAnesthesia,
                 ),
                       const SizedBox(height: 28),
 
                       // ─── Additional Notes ───
-                      AiraSectionHeader(step: 0, icon: Icons.note_rounded, title: isThai ? 'หมายเหตุเพิ่มเติม' : 'Additional Notes'),
+                      AiraSectionHeader(step: 0, icon: Icons.note_rounded, title: context.l10n.additionalNotes),
                       AiraPremiumCard(
                         accentColor: AiraColors.muted,
                         children: [
@@ -273,8 +283,8 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                             maxLines: 3,
                             style: airaFieldTextStyle,
                             decoration: airaFieldDecoration(
-                              label: isThai ? 'หมายเหตุ' : 'Notes',
-                              hint: isThai ? 'บันทึกเพิ่มเติม (ถ้ามี)' : 'Additional notes (optional)',
+                              label: context.l10n.notes,
+                              hint: context.l10n.notesHint,
                               prefixIcon: Icons.notes_rounded,
                             ),
                           ),
@@ -284,9 +294,9 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       const SizedBox(height: 28),
 
                       // ─── Signature ───
-                      AiraSectionHeader(step: 4, icon: Icons.draw_rounded, title: isThai ? 'ลายเซ็นผู้รับบริการ' : 'Patient Signature'),
+                      AiraSectionHeader(step: 4, icon: Icons.draw_rounded, title: context.l10n.patientSignature),
                       Text(
-                  isThai ? 'ใช้นิ้วหรือปากกาเซ็นด้านล่าง' : 'Sign below with finger or stylus',
+                  context.l10n.signBelowInstruction,
                   style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
                 ),
                 const SizedBox(height: 12),
@@ -320,7 +330,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                           child: Row(
                             children: [
                               Text(
-                                isThai ? 'ลายเซ็น' : 'Signature',
+                                context.l10n.signature,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   color: AiraColors.muted,
@@ -344,7 +354,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                                       Icon(Icons.refresh_rounded, size: 16, color: AiraColors.muted),
                                       const SizedBox(width: 4),
                                       Text(
-                                        isThai ? 'ล้าง' : 'Clear',
+                                        context.l10n.clear,
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -365,7 +375,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       const SizedBox(height: 20),
 
                       // ─── Witness ───
-                      AiraSectionHeader(step: 0, icon: Icons.person_outline_rounded, title: isThai ? 'ชื่อพยาน' : 'Witness Name'),
+                      AiraSectionHeader(step: 0, icon: Icons.person_outline_rounded, title: context.l10n.witnessName),
                       AiraPremiumCard(
                         accentColor: AiraColors.woodLt,
                         children: [
@@ -373,8 +383,8 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                             controller: _witnessCtrl,
                             style: airaFieldTextStyle,
                             decoration: airaFieldDecoration(
-                              label: isThai ? 'ชื่อพยาน' : 'Witness',
-                              hint: isThai ? 'ชื่อพยาน (ถ้ามี)' : 'Witness name (optional)',
+                              label: context.l10n.witness,
+                              hint: context.l10n.witnessNameOptional,
                               prefixIcon: Icons.person_outline_rounded,
                             ),
                           ),
@@ -396,7 +406,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                             Icon(Icons.access_time_rounded, size: 18, color: AiraColors.muted),
                             const SizedBox(width: 8),
                             Text(
-                              '${isThai ? "วันที่เซ็น:" : "Signed:"} ${DateFormat(isThai ? 'd MMM yyyy HH:mm' : 'MMM d, yyyy HH:mm', isThai ? 'th' : 'en').format(now)}',
+                              '${context.l10n.signedDate} ${DateFormat(context.l10n.isThai ? 'd MMM yyyy HH:mm' : 'MMM d, yyyy HH:mm', context.l10n.isThai ? 'th' : 'en').format(now)}',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14,
                                 color: AiraColors.charcoal,
@@ -420,7 +430,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
     );
   }
 
-  Widget _buildPatientInfo(dynamic patient, bool isThai) {
+  Widget _buildPatientInfo(dynamic patient) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -430,12 +440,12 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
       ),
       child: Column(
         children: [
-          _infoRow(isThai ? 'ชื่อ-สกุล' : 'Name', '${patient.firstName} ${patient.lastName}'),
-          _infoRow(isThai ? 'ชื่อเล่น' : 'Nickname', patient.nickname ?? '-'),
+          _infoRow(context.l10n.fullName, '${patient.firstName} ${patient.lastName}'),
+          _infoRow(context.l10n.nickname, patient.nickname ?? '-'),
           _infoRow('HN', patient.hn ?? '-'),
           if (patient.drugAllergies.isNotEmpty)
             _infoRow(
-              isThai ? '⚠️ แพ้ยา' : '⚠️ Allergies',
+              context.l10n.allergiesWarning,
               patient.drugAllergies.join(', '),
               isWarning: true,
             ),

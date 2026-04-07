@@ -37,6 +37,8 @@ class SafetyCheckService {
     warnings.addAll(_checkContraindications(treatmentName, rules));
     warnings.addAll(_checkMedicalConditions(patient, category));
     warnings.addAll(_checkPregnancyAge(patient));
+    warnings.addAll(_checkKeloidHistory(patient, category));
+    warnings.addAll(_checkSkinSensitivity(patient, category));
 
     return warnings;
   }
@@ -232,5 +234,68 @@ class SafetyCheckService {
         message: 'ผู้รับบริการเพศหญิงวัยเจริญพันธุ์ — ควรสอบถามเรื่องการตั้งครรภ์/ให้นมบุตรก่อนทำหัตถการ',
       ),
     ];
+  }
+
+  /// Check for keloid/scarring history.
+  static List<SafetyWarning> _checkKeloidHistory(
+    Patient patient,
+    TreatmentCategory category,
+  ) {
+    final conditions = patient.medicalConditions
+        .map((c) => c.toLowerCase())
+        .toList();
+
+    if (conditions.any((c) =>
+        c.contains('keloid') || c.contains('คีลอยด์') || c.contains('แผลเป็นนูน'))) {
+      if (category == TreatmentCategory.injectable ||
+          category == TreatmentCategory.laser) {
+        return [
+          const SafetyWarning(
+            level: WarningLevel.caution,
+            title: '🩹 ประวัติคีลอยด์ / แผลเป็นนูน',
+            message:
+                'ผู้รับบริการมีประวัติแผลเป็นนูน/คีลอยด์ — หัตถการอาจกระตุ้นการเกิดแผลเป็นนูน ควรปรึกษาแพทย์ก่อน',
+          ),
+        ];
+      }
+    }
+    return [];
+  }
+
+  /// Check skin sensitivity — recent sun exposure, active skin conditions.
+  static List<SafetyWarning> _checkSkinSensitivity(
+    Patient patient,
+    TreatmentCategory category,
+  ) {
+    if (category != TreatmentCategory.laser) return [];
+
+    final conditions = patient.medicalConditions
+        .map((c) => c.toLowerCase())
+        .toList();
+    final notes = (patient.notes ?? '').toLowerCase();
+
+    final warnings = <SafetyWarning>[];
+
+    if (conditions.any((c) =>
+        c.contains('eczema') || c.contains('ผื่นคัน') ||
+        c.contains('psoriasis') || c.contains('สะเก็ดเงิน'))) {
+      warnings.add(const SafetyWarning(
+        level: WarningLevel.caution,
+        title: '🪨 โรคผิวหนัง',
+        message:
+            'ผู้รับบริการมีโรคผิวหนังเรื้อรัง — Laser อาจกระตุ้นให้อาการกำเริบ ควรปรึกษาแพทย์ก่อน',
+      ));
+    }
+
+    if (notes.contains('tan') || notes.contains('แดด') || notes.contains('ตากแดด')) {
+      warnings.add(const SafetyWarning(
+        level: WarningLevel.info,
+        title: '☀️ ผิวคล้ำ/ตากแดด',
+        message:
+            'หมายเหตุระบุว่าผิวอาจคล้ำ/ตากแดด — ควรปรับพลังงาน Laser เพื่อลดความเสี่ยง PIH',
+      ));
+    }
+
+    return warnings;
   }
 }

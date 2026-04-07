@@ -8,6 +8,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/localization/app_localizations.dart';
 
 /// Shared state: currently selected date on calendar.
 final _selectedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
@@ -62,7 +63,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(_selectedDateProvider);
-    final isThai = ref.watch(isThaiProvider);
+    final isThai = context.l10n.isThai;
     final locale = isThai ? 'th' : 'en';
     final staffRosterAsync = ref.watch(_staffRosterProvider(DateTime(selectedDate.year, selectedDate.month, selectedDate.day)));
     final monthApptsAsync = ref.watch(
@@ -100,7 +101,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      isThai ? 'ปฏิทินนัดหมาย' : 'Appointments',
+                      context.l10n.calendarTitle,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 26, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
                       ),
@@ -509,7 +510,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   const Icon(Icons.today_rounded, size: 20, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
-                    isThai ? 'วันนี้' : 'Today',
+                    context.l10n.today,
                     style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ],
@@ -542,7 +543,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   Icon(Icons.add_circle_outline_rounded, size: 20, color: AiraColors.woodDk),
                   const SizedBox(width: 8),
                   Text(
-                    isThai ? 'นัดหมายใหม่' : 'New Appointment',
+                    context.l10n.newAppointment,
                     style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.woodDk),
                   ),
                 ],
@@ -647,7 +648,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      isThai ? '${appts.length} นัด' : '${appts.length} Appts',
+                      context.l10n.apptCount(appts.length),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -671,7 +672,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Center(
                   child: Text(
-                    isThai ? 'เกิดข้อผิดพลาด: $e' : 'Error: $e',
+                    '${context.l10n.error}: $e',
                     style: TextStyle(color: AiraColors.terra, fontSize: 15),
                   ),
                 ),
@@ -695,12 +696,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          isThai ? 'ไม่มีนัดหมายในวันนี้' : 'No appointments',
+                          context.l10n.noAppointmentsToday,
                           style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w600, color: AiraColors.muted),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          isThai ? 'แตะ "นัดหมายใหม่" เพื่อเพิ่ม' : 'Tap "New Appointment" to add',
+                          context.l10n.tapNewAppt,
                           style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted.withValues(alpha: 0.7)),
                         ),
                         const SizedBox(height: 16),
@@ -725,7 +726,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                 const Icon(Icons.add_rounded, size: 18, color: Colors.white),
                                 const SizedBox(width: 6),
                                 Text(
-                                  isThai ? 'เพิ่มนัดหมาย' : 'Add Appointment',
+                                  context.l10n.addAppointment,
                                   style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
                                 ),
                               ],
@@ -779,7 +780,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           error: (e, s) => Center(
             child: Text(
-              isThai ? 'โหลดตารางพนักงานไม่สำเร็จ' : 'Failed to load staff roster',
+              context.l10n.failedLoadRoster,
               style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.terra),
             ),
           ),
@@ -808,14 +809,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isThai ? 'ตารางเวรทีมงาน' : 'Staff Roster',
+                            context.l10n.staffRoster,
                             style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isThai
-                                ? 'สถานะพนักงานประจำวันที่ ${DateFormat('d/M/y').format(selectedDate)}'
-                                : 'Team status for ${DateFormat('MMM d, y').format(selectedDate)}',
+                            context.l10n.staffStatusForDate(DateFormat(context.l10n.isThai ? 'd/M/y' : 'MMM d, y', context.l10n.isThai ? 'th' : 'en').format(selectedDate)),
                             style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
                           ),
                         ],
@@ -830,9 +829,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _RosterStatChip(label: isThai ? 'เข้าเวร $onDutyCount' : 'On duty $onDutyCount', color: AiraColors.sage),
-                      _RosterStatChip(label: isThai ? 'ลา $leaveCount' : 'Leave $leaveCount', color: AiraColors.terra),
-                      _RosterStatChip(label: isThai ? 'ครึ่งวัน $halfDayCount' : 'Half day $halfDayCount', color: AiraColors.gold),
+                      _RosterStatChip(label: context.l10n.onDutyCount(onDutyCount), color: AiraColors.sage),
+                      _RosterStatChip(label: context.l10n.leaveCount(leaveCount), color: AiraColors.terra),
+                      _RosterStatChip(label: context.l10n.halfDayCount(halfDayCount), color: AiraColors.gold),
                     ],
                   ),
                 ),
@@ -846,7 +845,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           Icon(Icons.people_outline_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.3)),
                           const SizedBox(height: 8),
                           Text(
-                            isThai ? 'ยังไม่มีข้อมูลพนักงานในคลินิก' : 'No active staff found for this clinic.',
+                            context.l10n.noStaffFound,
                             style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
                             textAlign: TextAlign.center,
                           ),
@@ -856,7 +855,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                 ...entries.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _RosterRow(entry: e.value, isThai: isThai, doctorIndex: e.key),
+                      child: _RosterRow(entry: e.value, doctorIndex: e.key),
                     )),
               ],
             );
@@ -925,9 +924,8 @@ Color _doctorColor(int index) => _doctorColors[index % _doctorColors.length];
 
 class _RosterRow extends StatelessWidget {
   final _StaffRosterEntry entry;
-  final bool isThai;
   final int doctorIndex;
-  const _RosterRow({required this.entry, required this.isThai, this.doctorIndex = 0});
+  const _RosterRow({required this.entry, this.doctorIndex = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -941,18 +939,18 @@ class _RosterRow extends StatelessWidget {
       null => AiraColors.muted,
     };
     final statusLabel = switch (status) {
-      ScheduleStatus.onDuty => isThai ? 'เข้าเวร' : 'On duty',
-      ScheduleStatus.leave => isThai ? 'ลา' : 'Leave',
-      ScheduleStatus.halfDay => isThai ? 'ครึ่งวัน' : 'Half day',
-      null => isThai ? 'ยังไม่ลงตาราง' : 'No schedule',
+      ScheduleStatus.onDuty => context.l10n.onDuty,
+      ScheduleStatus.leave => context.l10n.leave,
+      ScheduleStatus.halfDay => context.l10n.halfDay,
+      null => context.l10n.noSchedule,
     };
     final roleLabel = switch (entry.staff.role) {
-      StaffRole.owner => isThai ? 'เจ้าของระบบ' : 'Owner',
-      StaffRole.doctor => isThai ? 'แพทย์' : 'Doctor',
-      StaffRole.receptionist => isThai ? 'พนักงาน' : 'Staff',
+      StaffRole.owner => context.l10n.ownerRole,
+      StaffRole.doctor => context.l10n.doctorRole,
+      StaffRole.receptionist => context.l10n.staffRole,
     };
     final timeLabel = entry.schedule == null
-        ? (isThai ? 'ไม่มีเวลาเข้าเวร' : 'No shift time')
+        ? context.l10n.noShiftTime
         : '${entry.schedule?.startTime ?? '--:--'} - ${entry.schedule?.endTime ?? '--:--'}';
 
     return Container(
@@ -1241,7 +1239,7 @@ class _AppointmentTimelineRow extends ConsumerWidget {
                                   data: (p) => Text(
                                     p != null
                                         ? '${p.firstName} ${p.lastName}${p.nickname != null ? ' (${p.nickname})' : ''}'
-                                        : (isThai ? 'ไม่พบข้อมูล' : 'Not found'),
+                                        : context.l10n.notFoundShort,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
                                     ),
@@ -1267,7 +1265,7 @@ class _AppointmentTimelineRow extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            appt.treatmentType ?? (isThai ? 'ไม่ระบุหัตถการ' : 'No treatment specified'),
+                            appt.treatmentType ?? context.l10n.noTreatmentSpecified,
                             style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
                           ),
                         ],

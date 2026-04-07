@@ -58,6 +58,13 @@ dependencies:
   # Offline
   connectivity_plus: ^6.1.4
 
+  # PDF
+  pdf: ^3.11.1
+  printing: ^5.13.3
+
+  # Timezone (for scheduled notifications)
+  timezone: ^0.9.4
+
   # Utilities
   intl: ^0.19.0
   uuid: ^4.5.1

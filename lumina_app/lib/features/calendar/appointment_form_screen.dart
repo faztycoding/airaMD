@@ -10,6 +10,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
+import '../../core/localization/app_localizations.dart';
 
 class AppointmentFormScreen extends ConsumerStatefulWidget {
   final String? appointmentId;
@@ -81,7 +82,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPatientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเลือกผู้รับบริการ')),
+        SnackBar(content: Text(context.l10n.selectPatient)),
       );
       return;
     }
@@ -130,7 +131,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.isEdit ? 'แก้ไขนัดหมายสำเร็จ' : 'สร้างนัดหมายสำเร็จ'),
+            content: Text(widget.isEdit ? context.l10n.appointmentEditSuccess : context.l10n.appointmentSaveSuccess),
             backgroundColor: AiraColors.sage,
           ),
         );
@@ -139,7 +140,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกไม่สำเร็จ: $e'), backgroundColor: AiraColors.terra),
+          SnackBar(content: Text(context.l10n.saveFailed('$e')), backgroundColor: AiraColors.terra),
         );
       }
     } finally {
@@ -158,17 +159,17 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
         children: [
           AiraPremiumHeader(
             title: widget.isEdit
-                ? (isThai ? 'แก้ไขนัดหมาย' : 'Edit Appointment')
-                : (isThai ? 'นัดหมายใหม่' : 'New Appointment'),
-            subtitle: isThai ? 'จัดการตารางนัดหมาย' : 'Manage appointment schedule',
+                ? context.l10n.editAppointment
+                : context.l10n.newAppointment,
+            subtitle: context.l10n.manageSchedule,
             loading: _loading,
             onBack: () => context.pop(),
             onSave: _loading ? null : _save,
-            saveLabel: isThai ? 'บันทึก' : 'Save',
+            saveLabel: context.l10n.save,
             steps: premiumSteps([
-              (1, isThai ? 'ผู้รับบริการ' : 'Patient'),
-              (2, isThai ? 'วัน-เวลา' : 'DateTime'),
-              (3, isThai ? 'สถานะ' : 'Status'),
+              (1, context.l10n.patient),
+              (2, context.l10n.dateTime),
+              (3, context.l10n.status),
             ]),
           ),
           Expanded(
@@ -181,29 +182,29 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
                       // ─── Patient selection ───
-                      const AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: 'ผู้รับบริการ', subtitle: 'เลือกผู้รับบริการสำหรับนัดหมาย'),
+                      AiraSectionHeader(step: 1, icon: Icons.person_rounded, title: context.l10n.patient, subtitle: context.l10n.selectPatientForAppt),
                       _buildPatientSelector(patientsAsync),
                       const SizedBox(height: 28),
 
                       // ─── Date & Time ───
-                      const AiraSectionHeader(step: 2, icon: Icons.schedule_rounded, title: 'วัน-เวลา', subtitle: 'วันที่, เวลาเริ่ม, เวลาสิ้นสุด'),
+                      AiraSectionHeader(step: 2, icon: Icons.schedule_rounded, title: context.l10n.dateTime, subtitle: context.l10n.dateTimeSubtitle),
                       _buildDateTimeSection(),
                       const SizedBox(height: 28),
 
                       // ─── Treatment info ───
-                      const AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: 'ข้อมูลนัดหมาย', subtitle: 'ประเภทหัตถการ, หมายเหตุ'),
+                      AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: context.l10n.appointmentInfo, subtitle: context.l10n.appointmentInfoSubtitle),
                       _buildTreatmentSection(),
                       const SizedBox(height: 28),
 
                       // ─── Status ───
-                      const AiraSectionHeader(step: 3, icon: Icons.flag_rounded, title: 'สถานะ', subtitle: 'เลือกสถานะนัดหมาย'),
+                      AiraSectionHeader(step: 3, icon: Icons.flag_rounded, title: context.l10n.status, subtitle: context.l10n.selectApptStatus),
                       _buildStatusSection(),
                       const SizedBox(height: 32),
 
                       AiraPremiumSaveButton(
                         label: _loading
-                            ? (isThai ? 'กำลังบันทึก...' : 'Saving...')
-                            : (isThai ? 'บันทึกนัดหมาย' : 'Save Appointment'),
+                            ? context.l10n.saving
+                            : context.l10n.saveAppointment,
                         loading: _loading,
                         onTap: _save,
                       ),
@@ -247,7 +248,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
             if (filtered.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('ไม่พบผู้รับบริการ', style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+                child: Text(context.l10n.patientNotFound, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
               );
             }
             return SizedBox(
