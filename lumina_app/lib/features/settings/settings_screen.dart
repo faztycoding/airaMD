@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../core/widgets/aira_tap_effect.dart';
+import '../../core/widgets/offline_banner.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -104,7 +105,10 @@ class _Sidebar extends StatelessWidget {
             _Item(Icons.shield_rounded, 'ความปลอดภัย', 'PIN, Auto-lock'),
             _Item(Icons.cloud_sync_rounded, 'ข้อมูลคลาวด์', 'Backup, Sync'),
             _Item(Icons.privacy_tip_rounded, 'PDPA', 'นโยบายความเป็นส่วนตัว', route: '/settings/privacy'),
+            _Item(Icons.history_rounded, 'Audit Logs', 'ประวัติการใช้งานระบบ', route: '/settings/audit-logs'),
           ]),
+          const SizedBox(height: 16),
+          const SyncStatusCard(),
           const SizedBox(height: 20),
           // Version
           Text(

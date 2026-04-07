@@ -8,6 +8,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/services/audit_service.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 final _invProductIdProvider = StateProvider<String?>((ref) => null);
@@ -647,6 +648,14 @@ class _TransactionPanel extends ConsumerWidget {
                   ref.invalidate(_inventoryTxProvider(product.id));
                   ref.invalidate(productListProvider);
                   ref.invalidate(lowStockAlertsProvider);
+
+                  // Audit log
+                  ref.read(auditServiceProvider).log(
+                    action: 'STOCK_${type.dbValue}',
+                    entityType: 'products',
+                    entityId: product.id,
+                    newData: {'quantity': qty, 'product': product.name, 'new_stock': newStock},
+                  );
 
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

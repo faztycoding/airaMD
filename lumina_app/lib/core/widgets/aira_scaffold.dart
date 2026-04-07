@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../providers/providers.dart';
 import 'aira_tap_effect.dart';
 import '../localization/app_localizations.dart';
+import 'offline_banner.dart';
 
 
 /// Main scaffold with luxury bottom navigation bar
@@ -72,7 +73,12 @@ class AiraScaffold extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AiraColors.cream,
-      body: child,
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: child),
+        ],
+      ),
       extendBody: false,
       bottomNavigationBar: Container(
             decoration: BoxDecoration(

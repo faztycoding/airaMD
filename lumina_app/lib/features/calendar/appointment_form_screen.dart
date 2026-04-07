@@ -9,6 +9,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/services/audit_service.dart';
 
 class AppointmentFormScreen extends ConsumerStatefulWidget {
   final String? appointmentId;
@@ -117,6 +118,14 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       ref.invalidate(appointmentsByDateProvider(_date));
       ref.invalidate(todayAppointmentCountProvider);
       ref.invalidate(dashboardStatsProvider);
+
+      // Audit log
+      ref.read(auditServiceProvider).log(
+        action: widget.isEdit ? 'UPDATE_APPOINTMENT' : 'CREATE_APPOINTMENT',
+        entityType: 'appointments',
+        entityId: appt.id,
+        newData: {'patient_id': appt.patientId, 'date': appt.date.toIso8601String()},
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

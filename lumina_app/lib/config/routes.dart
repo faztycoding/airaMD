@@ -11,6 +11,7 @@ import '../features/settings/product_library_screen.dart';
 import '../features/settings/service_library_screen.dart';
 import '../features/settings/privacy_policy_screen.dart';
 import '../features/settings/inventory_screen.dart';
+import '../features/settings/audit_log_screen.dart';
 import '../features/treatments/treatment_form_screen.dart';
 import '../core/models/models.dart';
 import '../features/courses/course_list_screen.dart';
@@ -260,6 +261,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: InventoryScreen(),
+      ),
+    ),
+
+    // ─── Audit Logs ───────────────────────────────────
+    GoRoute(
+      path: '/settings/audit-logs',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: AuditLogScreen(),
       ),
     ),
   ],

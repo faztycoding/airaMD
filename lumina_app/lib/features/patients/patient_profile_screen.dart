@@ -12,6 +12,7 @@ import '../../core/widgets/access_guard.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import 'digital_notepad_screen.dart';
 import 'photo_comparison_screen.dart';
+import 'message_history_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 // PATIENT PROFILE SCREEN — Full-screen with gradient header + tabs
@@ -42,6 +43,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     _TabDef(Icons.medication_rounded, isThai ? 'อาหารเสริม' : 'Supplements'),
     _TabDef(Icons.favorite_rounded, isThai ? 'ศัลยกรรม' : 'Surgery'),
     _TabDef(Icons.account_balance_wallet_rounded, 'Spending'),
+    _TabDef(Icons.message_rounded, isThai ? 'ข้อความ' : 'Messages'),
     _TabDef(Icons.star_rounded, isThai ? 'สถานะคนไข้' : 'Patient Status'),
   ];
 
@@ -373,7 +375,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return const InlineAccessGuard(permission: AiraPermission.financial);
         }
         return _FinanceTab(patientId: patient.id);
-      case 13: // Patient Status (hidden from patients)
+      case 13: // Messages
+        return MessageHistoryTab(patientId: patient.id, patient: patient);
+      case 14: // Patient Status (hidden from patients)
         return _PatientStatusTab(patient: patient);
       default:
         return _InfoTab(patient: patient);

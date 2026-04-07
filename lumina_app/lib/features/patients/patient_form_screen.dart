@@ -7,6 +7,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
+import '../../core/services/audit_service.dart';
 
 class PatientFormScreen extends ConsumerStatefulWidget {
   final String? patientId;
@@ -155,6 +156,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         await ref.read(patientListProvider.notifier).addPatient(patient);
       }
       ref.invalidate(patientCountProvider);
+
+      // Audit log
+      ref.read(auditServiceProvider).log(
+        action: widget.isEdit ? 'UPDATE_PATIENT' : 'CREATE_PATIENT',
+        entityType: 'patients',
+        entityId: patient.id,
+        newData: {'name': '${patient.firstName} ${patient.lastName}'},
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

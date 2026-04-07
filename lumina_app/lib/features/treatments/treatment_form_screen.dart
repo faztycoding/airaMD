@@ -8,6 +8,7 @@ import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/services/safety_check_service.dart';
+import '../../core/services/audit_service.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 
@@ -316,6 +317,14 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       ref.invalidate(dashboardStatsProvider);
       ref.invalidate(productListProvider);
       ref.invalidate(lowStockAlertsProvider);
+
+      // Audit log
+      ref.read(auditServiceProvider).log(
+        action: widget.isEdit ? 'UPDATE_TREATMENT' : 'CREATE_TREATMENT',
+        entityType: 'treatment_records',
+        entityId: record.id,
+        newData: {'treatment_name': record.treatmentName, 'patient_id': record.patientId, 'category': record.category.dbValue},
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
