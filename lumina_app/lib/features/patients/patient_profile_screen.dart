@@ -913,7 +913,7 @@ class _TreatmentListTab extends ConsumerWidget {
         padding: const EdgeInsets.all(20),
         children: [
           AiraTapEffect(
-            onTap: () => context.push('/patients/$patientId/treatments/new'),
+            onTap: () => context.push('/patients/$patientId/treatments/new?category=$category'),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1803,7 +1803,7 @@ class _AntiAgingTab extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         AiraTapEffect(
-          onTap: () => context.push('/patients/$patientId/treatments/new'),
+          onTap: () => context.push('/patients/$patientId/treatments/new?category=OTHER'),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1870,7 +1870,7 @@ class _AntiAgingItemState extends State<_AntiAgingItem> {
             const SizedBox(width: 6),
             Expanded(child: Text(widget.name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal))),
             AiraTapEffect(
-              onTap: () => context.push('/patients/${widget.patientId}/treatments/new'),
+              onTap: () => context.push('/patients/${widget.patientId}/treatments/new?category=OTHER'),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(

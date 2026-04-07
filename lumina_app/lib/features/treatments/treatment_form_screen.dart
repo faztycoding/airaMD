@@ -14,11 +14,13 @@ import '../../core/widgets/aira_premium_form.dart';
 class TreatmentFormScreen extends ConsumerStatefulWidget {
   final String patientId;
   final String? treatmentId; // null = new
+  final TreatmentCategory? initialCategory;
 
   const TreatmentFormScreen({
     super.key,
     required this.patientId,
     this.treatmentId,
+    this.initialCategory,
   });
 
   bool get isEdit => treatmentId != null && treatmentId != 'new';
@@ -54,7 +56,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   DateTime? _followUpDate;
 
   // Dropdowns
-  TreatmentCategory _category = TreatmentCategory.injectable;
+  late TreatmentCategory _category;
   TreatmentResponse _response = TreatmentResponse.notApplicable;
 
   // Products used — list of {name, quantity}
@@ -88,6 +90,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   @override
   void initState() {
     super.initState();
+    _category = widget.initialCategory ?? TreatmentCategory.injectable;
     if (widget.isEdit) {
       _loadExisting();
     }
@@ -314,14 +317,15 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isThai = ref.watch(isThaiProvider);
+    final catLabel = _categoryLabel(_category);
     return Scaffold(
       backgroundColor: AiraColors.cream,
       body: Column(
         children: [
           AiraPremiumHeader(
             title: widget.isEdit
-                ? (isThai ? 'แก้ไขบันทึกการรักษา' : 'Edit Treatment')
-                : (isThai ? 'บันทึกการรักษาใหม่' : 'New Treatment Record'),
+                ? (isThai ? 'แก้ไขบันทึก $catLabel' : 'Edit $catLabel')
+                : (isThai ? 'บันทึก $catLabel ใหม่' : 'New $catLabel Record'),
             subtitle: isThai ? 'บันทึก SOAP Notes + ผลิตภัณฑ์' : 'SOAP Notes + Products Used',
             loading: _loading,
             onBack: () => context.pop(),

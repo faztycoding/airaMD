@@ -10,6 +10,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/settings/product_library_screen.dart';
 import '../features/settings/service_library_screen.dart';
 import '../features/treatments/treatment_form_screen.dart';
+import '../core/models/models.dart';
 import '../features/courses/course_list_screen.dart';
 import '../features/courses/course_form_screen.dart';
 import '../features/financial/financial_screen.dart';
@@ -89,12 +90,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/patients/:pid/treatments/new',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => AccessGuard(
-        permission: AiraPermission.clinical,
-        child: TreatmentFormScreen(
-          patientId: state.pathParameters['pid']!,
-        ),
-      ),
+      builder: (context, state) {
+        final catStr = state.uri.queryParameters['category'];
+        final category = catStr != null ? TreatmentCategory.fromDb(catStr) : null;
+        return AccessGuard(
+          permission: AiraPermission.clinical,
+          child: TreatmentFormScreen(
+            patientId: state.pathParameters['pid']!,
+            initialCategory: category,
+          ),
+        );
+      },
     ),
     GoRoute(
       path: '/patients/:pid/treatments/:tid/edit',
