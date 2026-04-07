@@ -80,9 +80,9 @@ class SettingsScreen extends ConsumerWidget {
 // ═══════════════════════════════════════════════════════════════════
 // Sidebar
 // ═══════════════════════════════════════════════════════════════════
-class _Sidebar extends StatelessWidget {
+class _Sidebar extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
       child: Column(
         children: [

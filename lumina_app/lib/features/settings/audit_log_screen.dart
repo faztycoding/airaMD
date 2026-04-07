@@ -266,7 +266,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/audit_logs_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv');
       await file.writeAsString(buffer.toString());
-      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+      await Share.shareXFiles([XFile(file.path)]);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

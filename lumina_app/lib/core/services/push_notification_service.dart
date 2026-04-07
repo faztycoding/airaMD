@@ -299,6 +299,7 @@ class PushNotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         payload: jsonEncode({
           'type': 'appointment_reminder',
           'appointment_id': appointmentId,
@@ -349,6 +350,7 @@ class PushNotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         payload: jsonEncode({
           'type': 'follow_up',
           'patient_id': patientId,
