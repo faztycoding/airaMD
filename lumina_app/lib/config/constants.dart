@@ -5,10 +5,17 @@ class AppConstants {
   static const String appName = 'airaMD';
   static const String appVersion = '1.0.0';
 
-  // Supabase
-  static const String supabaseUrl = 'https://pzqjqqaekxmfdlrxbgmk.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6cWpxcWFla3htZmRscnhiZ21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTUzNTAsImV4cCI6MjA4OTg3MTM1MH0.-1GEjKobBky0psImnCkhBZcaFzO3RQZ4gDyQV0MOUeM';
+  // ─── Environment (injected via --dart-define) ──────────────
+  static const String environment = String.fromEnvironment(
+    'ENV',
+    defaultValue: 'dev',
+  );
+  static bool get isProduction => environment == 'prod';
+  static bool get isStaging => environment == 'staging';
+
+  // Supabase — injected via --dart-define, never hardcoded
+  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
   // Storage bucket names
   static const String bucketPatientPhotos = 'patient-photos';

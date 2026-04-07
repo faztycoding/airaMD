@@ -44,13 +44,14 @@ class BaseRepository {
   }
 
   /// Count rows for a clinic with optional filters.
+  /// Uses Postgres `count(*)` — efficient even on large tables.
   Future<int> count({
     required String clinicId,
     Map<String, dynamic>? filters,
   }) async {
     var query = _client
         .from(tableName)
-        .select('id')
+        .select()
         .eq('clinic_id', clinicId);
 
     if (filters != null) {
@@ -59,8 +60,8 @@ class BaseRepository {
       }
     }
 
-    final result = await query;
-    return (result as List).length;
+    final result = await query.count(CountOption.exact);
+    return result.count;
   }
 
   // ─── CREATE ──────────────────────────────────────────────────

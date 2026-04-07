@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Session;
 import 'package:go_router/go_router.dart';
 import 'package:airamd/config/theme.dart';
 import 'package:airamd/features/dashboard/dashboard_screen.dart';
