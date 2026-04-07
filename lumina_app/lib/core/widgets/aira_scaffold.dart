@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../providers/providers.dart';
 import 'aira_tap_effect.dart';
+import '../localization/app_localizations.dart';
 
 
 /// Main scaffold with luxury bottom navigation bar
@@ -48,16 +49,16 @@ class AiraScaffold extends ConsumerWidget {
     }
   }
 
-  List<_NavItem> _tabs(bool isThai, bool canAccessSettings) => [
-    _NavItem(Icons.dashboard_outlined, Icons.dashboard_rounded, isThai ? 'แดชบอร์ด' : 'Dashboard'),
-    _NavItem(Icons.people_outline_rounded, Icons.people_rounded, isThai ? 'ผู้รับบริการ' : 'Patients'),
-    _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, isThai ? 'ปฏิทิน' : 'Calendar'),
+  List<_NavItem> _tabs(AppL10n l10n, bool canAccessSettings) => [
+    _NavItem(Icons.dashboard_outlined, Icons.dashboard_rounded, l10n.dashboard),
+    _NavItem(Icons.people_outline_rounded, Icons.people_rounded, l10n.patients),
+    _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, l10n.calendar),
     _NavItem(
       canAccessSettings ? Icons.settings_outlined : Icons.lock_outline_rounded,
       canAccessSettings ? Icons.settings_rounded : Icons.lock_rounded,
       canAccessSettings
-          ? (isThai ? 'ตั้งค่า' : 'Settings')
-          : (isThai ? 'จำกัด' : 'Restricted'),
+          ? l10n.settings
+          : (l10n.isThai ? 'จำกัด' : 'Restricted'),
     ),
   ];
 
@@ -66,7 +67,8 @@ class AiraScaffold extends ConsumerWidget {
     final currentIndex = _currentIndex(context);
     final isThai = ref.watch(isThaiProvider);
     final canAccessSettings = ref.watch(canAccessSettingsProvider);
-    final tabs = _tabs(isThai, canAccessSettings);
+    final l10n = AppL10n.of(context);
+    final tabs = _tabs(l10n, canAccessSettings);
 
     return Scaffold(
       backgroundColor: AiraColors.cream,

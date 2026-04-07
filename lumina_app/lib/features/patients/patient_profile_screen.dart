@@ -11,6 +11,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/access_guard.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import 'digital_notepad_screen.dart';
+import 'photo_comparison_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 // PATIENT PROFILE SCREEN — Full-screen with gradient header + tabs
@@ -1710,6 +1711,25 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
                                 '${photos.where((p) => p.storagePath.isNotEmpty).length}/10',
                                 style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid),
                               ),
+                              const SizedBox(width: 8),
+                              AiraTapEffect(
+                                onTap: () => _openComparison(setLabel, photos, isThai),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.compare_rounded, size: 14, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(isThai ? 'เปรียบเทียบ' : 'Compare', style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 14),
@@ -1759,6 +1779,50 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
         child: Icon(icon, size: 24, color: AiraColors.muted.withValues(alpha: 0.4)),
       ),
     );
+  }
+
+  void _openComparison(String setLabel, List<PatientPhoto> photos, bool isThai) {
+    // Build comparison slots: Before + After for the front angle,
+    // then Before + After for other angles that have photos
+    final slots = <ComparisonSlot>[];
+    for (final pt in _photoTypes) {
+      final before = _findByType(photos, pt.type);
+      if (before != null && before.storagePath.isNotEmpty) {
+        slots.add(ComparisonSlot(
+          label: '${isThai ? pt.thLabel : pt.label} — BEFORE',
+          imageUrl: _photoUrl(before),
+          dateLabel: before.treatmentDate != null ? '${before.treatmentDate!.day}/${before.treatmentDate!.month}/${before.treatmentDate!.year}' : null,
+        ));
+      }
+      // Check for after photo
+      final afterDesc = '${setLabel}_after_${pt.type.name}';
+      final afterPhoto = photos.where((p) => p.description == afterDesc && p.storagePath.isNotEmpty).isEmpty
+          ? null
+          : photos.firstWhere((p) => p.description == afterDesc && p.storagePath.isNotEmpty);
+      if (afterPhoto != null) {
+        slots.add(ComparisonSlot(
+          label: '${isThai ? pt.thLabel : pt.label} — AFTER',
+          imageUrl: _photoUrl(afterPhoto),
+          dateLabel: afterPhoto.treatmentDate != null ? '${afterPhoto.treatmentDate!.day}/${afterPhoto.treatmentDate!.month}/${afterPhoto.treatmentDate!.year}' : null,
+        ));
+      }
+    }
+    // Take up to 4 slots for comparison
+    if (slots.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isThai ? 'ยังไม่มีรูปให้เปรียบเทียบ' : 'No photos to compare'),
+          backgroundColor: AiraColors.terra,
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PhotoComparisonScreen(
+        setLabel: setLabel,
+        slots: slots.take(4).toList(),
+      ),
+    ));
   }
 
   void _showFullPhoto(BuildContext context, String url) {

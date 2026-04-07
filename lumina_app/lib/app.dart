@@ -6,6 +6,7 @@ import 'config/theme.dart';
 import 'config/routes.dart';
 import 'features/auth/pin_lock_screen.dart';
 import 'core/providers/locale_provider.dart';
+import 'core/localization/app_localizations.dart';
 
 /// Whether the app has been unlocked in this session.
 /// Auto-unlock on web so we skip the PIN screen during dev.
@@ -32,6 +33,7 @@ class AiraApp extends ConsumerWidget {
           Locale('en', 'US'),
         ],
         localizationsDelegates: const [
+          AppL10n.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
@@ -55,6 +57,7 @@ class AiraApp extends ConsumerWidget {
         Locale('en', 'US'),
       ],
       localizationsDelegates: const [
+        AppL10n.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

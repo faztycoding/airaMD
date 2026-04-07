@@ -102,7 +102,7 @@ class _Sidebar extends StatelessWidget {
             _Item(Icons.language_rounded, 'ภาษา', 'ไทย / English'),
             _Item(Icons.shield_rounded, 'ความปลอดภัย', 'PIN, Auto-lock'),
             _Item(Icons.cloud_sync_rounded, 'ข้อมูลคลาวด์', 'Backup, Sync'),
-            _Item(Icons.privacy_tip_rounded, 'PDPA', 'นโยบายความเป็นส่วนตัว'),
+            _Item(Icons.privacy_tip_rounded, 'PDPA', 'นโยบายความเป็นส่วนตัว', route: '/settings/privacy'),
           ]),
           const SizedBox(height: 20),
           // Version
