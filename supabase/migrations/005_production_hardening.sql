@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_products_low_stock
 
 -- Helper: check if user belongs to a clinic that owns the file path
 -- Storage paths follow: {clinic_id}/{patient_id}/...
-CREATE OR REPLACE FUNCTION storage.is_own_clinic_path(bucket TEXT, path TEXT)
+CREATE OR REPLACE FUNCTION public.is_own_clinic_path(bucket TEXT, path TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -90,21 +90,21 @@ CREATE POLICY "Clinic staff can read patient photos"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'patient-photos'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can upload patient photos"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'patient-photos'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can delete patient photos"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'patient-photos'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 -- face-diagrams bucket
@@ -116,21 +116,21 @@ CREATE POLICY "Clinic staff can read face diagrams"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'face-diagrams'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can upload face diagrams"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'face-diagrams'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can delete face diagrams"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'face-diagrams'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 -- consent-signatures bucket
@@ -142,14 +142,14 @@ CREATE POLICY "Clinic staff can read consent signatures"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'consent-signatures'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can upload consent signatures"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'consent-signatures'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 -- consent-pdfs bucket
@@ -161,14 +161,14 @@ CREATE POLICY "Clinic staff can read consent pdfs"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'consent-pdfs'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can upload consent pdfs"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'consent-pdfs'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 -- notepads bucket
@@ -180,14 +180,14 @@ CREATE POLICY "Clinic staff can read notepads"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'notepads'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 CREATE POLICY "Clinic staff can upload notepads"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'notepads'
-    AND storage.is_own_clinic_path(bucket_id, name)
+    AND public.is_own_clinic_path(bucket_id, name)
   );
 
 -- ============================================================
