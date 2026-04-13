@@ -226,7 +226,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
         final pngBytes = await _renderToPng();
         final ts = DateTime.now().millisecondsSinceEpoch;
         final storagePath = '$clinicId/${widget.patientId}/notepad_$ts.png';
-        await Supabase.instance.client.storage
+        await ref.read(supabaseClientProvider).storage
             .from(AppConstants.bucketNotepads)
             .uploadBinary(
               storagePath,

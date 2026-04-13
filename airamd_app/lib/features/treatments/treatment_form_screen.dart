@@ -13,6 +13,7 @@ import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+import 'treatment_post_save_service.dart';
 
 final _availableDoctorsProvider = FutureProvider<List<_DoctorOption>>((ref) async {
   final clinicId = ref.watch(currentClinicIdProvider);
@@ -386,39 +387,29 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         await repo.updateRecord(record);
       } else {
         await repo.create(record);
-
-        if (widget.appointmentId != null && widget.appointmentId!.isNotEmpty) {
-          await ref.read(appointmentRepoProvider).updateStatus(
-                widget.appointmentId!,
-                AppointmentStatus.completed,
-              );
-        }
-
-        // ─── Auto-deduct stock for products with product_id ───
-        final prodRepo = ref.read(productRepoProvider);
-        final invRepo = ref.read(inventoryRepoProvider);
-        for (final p in _productsUsed) {
-          final productId = p['product_id'] as String?;
-          final qty = (p['quantity'] as num?)?.toDouble() ?? 0;
-          if (productId != null && qty > 0) {
-            try {
-              await prodRepo.deductStock(productId, qty);
-              await invRepo.create(InventoryTransaction(
-                id: const Uuid().v4(),
-                clinicId: clinicId,
-                productId: productId,
-                treatmentRecordId: record.id,
-                patientId: widget.patientId,
-                transactionType: InventoryTransactionType.used,
-                quantity: qty,
-                unit: p['unit'] as String? ?? 'U',
-                notes: 'Auto-deduct: ${record.treatmentName}',
-              ));
-            } catch (_) {
-              stockSyncFailures.add(p['name']?.toString() ?? productId);
-            }
-          }
-        }
+        stockSyncFailures.addAll(
+          await const TreatmentPostSaveService().handleNewTreatmentSave(
+            clinicId: clinicId,
+            patientId: widget.patientId,
+            record: record,
+            productsUsed: _productsUsed,
+            updateAppointmentStatus: (appointmentId, status) async {
+              await ref.read(appointmentRepoProvider).updateStatus(
+                    appointmentId,
+                    status,
+                  );
+            },
+            deductStock: (productId, quantity) async {
+              await ref.read(productRepoProvider).deductStock(
+                    productId,
+                    quantity,
+                  );
+            },
+            createInventoryTransaction: (transaction) async {
+              await ref.read(inventoryRepoProvider).create(transaction);
+            },
+          ),
+        );
 
         if (mounted && stockSyncFailures.isNotEmpty) {
           AiraFeedback.warning(

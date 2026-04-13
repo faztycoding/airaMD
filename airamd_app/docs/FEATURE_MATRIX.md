@@ -20,6 +20,11 @@
 | Digital Notepad | กระดานบันทึก clinical note | พร้อมใช้ | route ด้าน clinical ถูกป้องกันด้วยสิทธิ์ |
 | Settings Readiness | หน้า settings ที่ใช้ข้อมูลพนักงานจริงและคัดเมนูที่พร้อมใช้ | พร้อมใช้ | ลบ placeholder ของ cloud item แล้ว |
 | Auditability | audit log ครอบคลุม flow หลัก | พร้อมใช้ | appointment, patient, treatment, inventory ดีขึ้นชัดเจน |
+| RBAC Deny-by-Default | fallback role = receptionist (สิทธิ์ต่ำสุด) เมื่อไม่มีข้อมูลพนักงาน | พร้อมใช้ | ป้องกันการเข้าถึงข้อมูลที่ไม่ควรเห็นกรณี loading/error |
+| Financial Validation | ตรวจสอบจำนวนเงินทั้ง empty, invalid, ≤0 และ >10M | พร้อมใช้ | ใช้ helper แยก testable |
+| Inventory Validation | ตรวจสอบจำนวนสต็อกและป้องกัน overstock deduction | พร้อมใช้ | ครอบคลุม used, wastage, stock-in, adjustment |
+| Supabase DI | inject SupabaseClient ผ่าน provider แทน Supabase.instance ตรง | พร้อมใช้ | เหลือเฉพาะ infrastructure (push notification, config) |
+| Treatment Post-Save | orchestrate appointment completion + stock sync ผ่าน service | พร้อมใช้ | testable, collect failures แทน throw |
 
 ## ตารางสิทธิ์การมองเห็นตามบทบาท
 
@@ -43,6 +48,9 @@
 - financial logging พร้อม visibility ตามสิทธิ์
 - เครื่องมือเอกสารทาง clinical
 - settings และ feedback states พร้อมสำหรับเดโม
+- RBAC deny-by-default + Supabase dependency injection ครอบคลุม
+- financial / inventory input validation มี upper-bound + semantic checks
+- treatment post-save orchestration แยก test ได้
 
 ### สิ่งที่ต่อยอดได้ในอนาคต
 - การตัดสต็อกตาม lot จริงในระดับ batch

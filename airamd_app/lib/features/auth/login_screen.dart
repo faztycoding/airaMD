@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/theme.dart';
+import '../../core/providers/repository_providers.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 
@@ -97,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     setState(() { _loading = true; _errorMessage = null; });
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await ref.read(supabaseClientProvider).auth.signInWithPassword(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
@@ -120,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     setState(() { _loading = true; _errorMessage = null; });
 
     try {
-      final res = await Supabase.instance.client.auth.signUp(
+      final res = await ref.read(supabaseClientProvider).auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         emailRedirectTo: 'https://pzqjqqaekxmfdlrxbgmk.supabase.co/auth/v1/verify',
@@ -149,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _createClinicAndStaff(User user) async {
-    final client = Supabase.instance.client;
+    final client = ref.read(supabaseClientProvider);
     // Create clinic
     final clinicData = await client.from('clinics').insert({
       'name': _clinicCtrl.text.trim().isEmpty
@@ -175,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     setState(() { _loading = true; _errorMessage = null; });
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(
+      await ref.read(supabaseClientProvider).auth.resetPasswordForEmail(
         _emailCtrl.text.trim(),
       );
       if (mounted) {

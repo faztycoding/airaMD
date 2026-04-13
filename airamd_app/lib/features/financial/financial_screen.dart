@@ -12,9 +12,15 @@ import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+import 'financial_validation.dart';
 
 /// Active tab for financial screen.
 final _finTabProvider = StateProvider<int>((ref) => 0);
+final createFinancialRecordActionProvider =
+    Provider<Future<FinancialRecord> Function(FinancialRecord)>((ref) {
+  final repo = ref.watch(financialRepoProvider);
+  return repo.create;
+});
 
 class FinancialScreen extends ConsumerWidget {
   const FinancialScreen({super.key});
@@ -74,181 +80,203 @@ class FinancialScreen extends ConsumerWidget {
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String? selectedPatientId;
-    final patients = ref.read(patientListProvider).valueOrNull ?? [];
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => Dialog(
-          backgroundColor: AiraColors.cream,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Premium dialog header
-                Container(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF3D2517), Color(0xFF5A3E2B), Color(0xFF7B5840)]),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.account_balance_wallet_rounded, size: 22, color: Colors.white.withValues(alpha: 0.8)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(
-                      'บันทึกรายการเงิน',
-                      style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
-                    )),
-                    AiraTapEffect(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Icon(Icons.close_rounded, size: 20, color: Colors.white.withValues(alpha: 0.6)),
+      builder: (ctx) => Consumer(
+        builder: (ctx, dialogRef, _) {
+          final patients = dialogRef.watch(patientListProvider).valueOrNull ?? [];
+          return StatefulBuilder(
+            builder: (ctx, setDialogState) => Dialog(
+              backgroundColor: AiraColors.cream,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Premium dialog header
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF3D2517), Color(0xFF5A3E2B), Color(0xFF7B5840)]),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.account_balance_wallet_rounded, size: 22, color: Colors.white.withValues(alpha: 0.8)),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(
+                          'บันทึกรายการเงิน',
+                          style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                        )),
+                        AiraTapEffect(
+                          onTap: () => Navigator.pop(ctx),
+                          child: Icon(Icons.close_rounded, size: 20, color: Colors.white.withValues(alpha: 0.6)),
+                        ),
+                      ]),
                     ),
-                  ]),
-                ),
-                // Form content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Patient dropdown
-                        DropdownButtonFormField<String>(
-                          value: selectedPatientId,
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'ผู้รับบริการ *', prefixIcon: Icons.person_rounded),
-                          items: patients.map((p) => DropdownMenuItem(
-                            value: p.id,
-                            child: Text('${p.firstName} ${p.lastName}', overflow: TextOverflow.ellipsis, style: airaFieldTextStyle),
-                          )).toList(),
-                          onChanged: (v) => setDialogState(() => selectedPatientId = v),
-                        ),
-                        const SizedBox(height: 14),
-                        // Type
-                        ValueListenableBuilder<FinancialType>(
-                          valueListenable: typeNotifier,
-                          builder: (_, type, child) => DropdownButtonFormField<FinancialType>(
-                            value: type,
-                            style: airaFieldTextStyle,
-                            decoration: airaFieldDecoration(label: 'ประเภท', prefixIcon: Icons.receipt_long_rounded),
-                            items: FinancialType.values.map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(_typeLabel(t), style: airaFieldTextStyle),
-                            )).toList(),
-                            onChanged: (v) { if (v != null) typeNotifier.value = v; },
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Amount
-                        TextField(
-                          controller: amountCtrl,
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'จำนวนเงิน (฿) *', hint: '0.00', prefixIcon: Icons.payments_rounded),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 14),
-                        // Payment method
-                        ValueListenableBuilder<PaymentMethod>(
-                          valueListenable: methodNotifier,
-                          builder: (_, method, child) => DropdownButtonFormField<PaymentMethod>(
-                            value: method,
-                            style: airaFieldTextStyle,
-                            decoration: airaFieldDecoration(label: 'วิธีชำระ', prefixIcon: Icons.credit_card_rounded),
-                            items: PaymentMethod.values.map((m) => DropdownMenuItem(
-                              value: m,
-                              child: Text(_methodLabel(m), style: airaFieldTextStyle),
-                            )).toList(),
-                            onChanged: (v) { if (v != null) methodNotifier.value = v; },
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Description
-                        TextField(
-                          controller: descCtrl,
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'รายละเอียด', hint: 'เช่น ค่า Botox Forehead', prefixIcon: Icons.notes_rounded),
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Actions
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-                  child: Row(children: [
-                    Expanded(
-                      child: AiraTapEffect(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(color: AiraColors.creamDk, borderRadius: BorderRadius.circular(14)),
-                          child: Center(child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
+                    // Form content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Patient dropdown
+                            DropdownButtonFormField<String>(
+                              value: selectedPatientId,
+                              style: airaFieldTextStyle,
+                              decoration: airaFieldDecoration(label: 'ผู้รับบริการ *', prefixIcon: Icons.person_rounded),
+                              items: patients.map((p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text('${p.firstName} ${p.lastName}', overflow: TextOverflow.ellipsis, style: airaFieldTextStyle),
+                              )).toList(),
+                              onChanged: (v) => setDialogState(() => selectedPatientId = v),
+                            ),
+                            const SizedBox(height: 14),
+                            // Type
+                            ValueListenableBuilder<FinancialType>(
+                              valueListenable: typeNotifier,
+                              builder: (_, type, child) => DropdownButtonFormField<FinancialType>(
+                                value: type,
+                                style: airaFieldTextStyle,
+                                decoration: airaFieldDecoration(label: 'ประเภท', prefixIcon: Icons.receipt_long_rounded),
+                                items: FinancialType.values.map((t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(_typeLabel(t), style: airaFieldTextStyle),
+                                )).toList(),
+                                onChanged: (v) { if (v != null) typeNotifier.value = v; },
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            // Amount
+                            TextField(
+                              controller: amountCtrl,
+                              style: airaFieldTextStyle,
+                              decoration: airaFieldDecoration(label: 'จำนวนเงิน (฿) *', hint: '0.00', prefixIcon: Icons.payments_rounded),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 14),
+                            // Payment method
+                            ValueListenableBuilder<PaymentMethod>(
+                              valueListenable: methodNotifier,
+                              builder: (_, method, child) => DropdownButtonFormField<PaymentMethod>(
+                                value: method,
+                                style: airaFieldTextStyle,
+                                decoration: airaFieldDecoration(label: 'วิธีชำระ', prefixIcon: Icons.credit_card_rounded),
+                                items: PaymentMethod.values.map((m) => DropdownMenuItem(
+                                  value: m,
+                                  child: Text(_methodLabel(m), style: airaFieldTextStyle),
+                                )).toList(),
+                                onChanged: (v) { if (v != null) methodNotifier.value = v; },
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            // Description
+                            TextField(
+                              controller: descCtrl,
+                              style: airaFieldTextStyle,
+                              decoration: airaFieldDecoration(label: 'รายละเอียด', hint: 'เช่น ค่า Botox Forehead', prefixIcon: Icons.notes_rounded),
+                              maxLines: 2,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: AiraTapEffect(
-                        onTap: () async {
-                          if (selectedPatientId == null || amountCtrl.text.trim().isEmpty) {
-                            AiraFeedback.warning(context, context.l10n.pleaseFillRequired);
-                            return;
-                          }
-                          final clinicId = ref.read(currentClinicIdProvider);
-                          if (clinicId == null) return;
-
-                          final record = FinancialRecord(
-                            id: const Uuid().v4(),
-                            clinicId: clinicId,
-                            patientId: selectedPatientId!,
-                            type: typeNotifier.value,
-                            amount: double.tryParse(amountCtrl.text.trim()) ?? 0,
-                            paymentMethod: methodNotifier.value,
-                            description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                            isOutstanding: typeNotifier.value == FinancialType.charge,
-                          );
-
-                          try {
-                            await ref.read(financialRepoProvider).create(record);
-                            ref.invalidate(financialListProvider);
-                            ref.invalidate(outstandingRecordsProvider);
-                            ref.invalidate(todayRevenueAmountProvider);
-                            ref.invalidate(dashboardStatsProvider);
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            if (context.mounted) {
-                              AiraFeedback.success(context, context.l10n.saveSuccess);
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              AiraFeedback.error(context, context.l10n.errorMsg('$e'));
-                            }
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [Color(0xFF3D2517), Color(0xFF6B4F3A), Color(0xFF8B6650)]),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                    // Actions
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                      child: Row(children: [
+                        Expanded(
+                          child: AiraTapEffect(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(color: AiraColors.creamDk, borderRadius: BorderRadius.circular(14)),
+                              child: Center(child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.muted))),
+                            ),
                           ),
-                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(context.l10n.save, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-                          ]),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: AiraTapEffect(
+                            onTap: () async {
+                              if (selectedPatientId == null) {
+                                AiraFeedback.warning(context, context.l10n.pleaseFillRequired);
+                                return;
+                              }
+                              final amountIssue = validateFinancialAmount(amountCtrl.text);
+                              if (amountIssue != null) {
+                                final message = switch (amountIssue) {
+                                  FinancialAmountValidationIssue.empty => context.l10n.pleaseFillRequired,
+                                  FinancialAmountValidationIssue.invalid => context.l10n.isThai
+                                      ? 'จำนวนเงินต้องเป็นตัวเลขที่ถูกต้อง'
+                                      : 'Amount must be a valid number.',
+                                  FinancialAmountValidationIssue.nonPositive => context.l10n.isThai
+                                      ? 'จำนวนเงินต้องมากกว่า 0'
+                                      : 'Amount must be greater than 0.',
+                                  FinancialAmountValidationIssue.exceedsLimit => context.l10n.isThai
+                                      ? 'จำนวนเงินต้องไม่เกิน 10,000,000'
+                                      : 'Amount must not exceed 10,000,000.',
+                                };
+                                AiraFeedback.warning(context, message);
+                                return;
+                              }
+                              final clinicId = dialogRef.read(currentClinicIdProvider);
+                              if (clinicId == null) return;
+                              final amount = parseFinancialAmount(amountCtrl.text);
+
+                              final record = FinancialRecord(
+                                id: const Uuid().v4(),
+                                clinicId: clinicId,
+                                patientId: selectedPatientId!,
+                                type: typeNotifier.value,
+                                amount: amount,
+                                paymentMethod: methodNotifier.value,
+                                description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                                isOutstanding: typeNotifier.value == FinancialType.charge,
+                              );
+
+                              try {
+                                await dialogRef.read(createFinancialRecordActionProvider)(record);
+                                dialogRef.invalidate(financialListProvider);
+                                dialogRef.invalidate(outstandingRecordsProvider);
+                                dialogRef.invalidate(todayRevenueAmountProvider);
+                                dialogRef.invalidate(dashboardStatsProvider);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (context.mounted) {
+                                  AiraFeedback.success(context, context.l10n.saveSuccess);
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  AiraFeedback.error(context, context.l10n.errorMsg('$e'));
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFF3D2517), Color(0xFF6B4F3A), Color(0xFF8B6650)]),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                              ),
+                              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                const Icon(Icons.check_circle_rounded, size: 18, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(context.l10n.save, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ]),
                     ),
-                  ]),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

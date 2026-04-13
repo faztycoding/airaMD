@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
@@ -259,11 +258,11 @@ class _ProfileCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final staff = ref.watch(currentStaffProvider).valueOrNull;
-    final user = Supabase.instance.client.auth.currentUser;
-    final displayName = staff?.fullName ?? user?.email ?? 'airaMD';
+    final authEmail = ref.watch(currentAuthEmailProvider);
+    final displayName = staff?.fullName ?? authEmail ?? 'airaMD';
     final subtitle = staff != null
         ? _roleLabel(staff.role, context.l10n)
-        : (user?.email ?? (context.l10n.isThai ? 'ยังไม่พบข้อมูลพนักงาน' : 'Staff profile unavailable'));
+        : (authEmail ?? (context.l10n.isThai ? 'ยังไม่พบข้อมูลพนักงาน' : 'Staff profile unavailable'));
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -566,7 +565,7 @@ class _LogoutButton extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await Supabase.instance.client.auth.signOut();
+              await ref.read(authSignOutActionProvider)();
               ref.read(appUnlockedProvider.notifier).state = false;
             },
             child: Text(

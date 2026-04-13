@@ -42,6 +42,15 @@
 - empty states และ save feedback ดูสะอาดและพรีเมียมขึ้น
 - inventory มี traceability ดีขึ้นโดยไม่ต้องเพิ่มความเสี่ยงจากการรื้อ schema ใหญ่
 
+### Audit Hardening (รอบล่าสุด)
+- RBAC fallback เปลี่ยนเป็น deny-by-default (receptionist) ป้องกันการเข้าถึงข้อมูลความลับกรณี staff ยังโหลดไม่เสร็จ
+- PatientForm null clinicId safety แสดง feedback แทน crash
+- Financial validation ครอบคลุม empty, invalid, non-positive, >10M
+- Inventory validation ครอบคลุม stock deduction guard + wastage
+- SettingsScreen inject auth providers แทน Supabase.instance ตรง
+- ลด Supabase.instance ใน auth gate, login, storage screens, services เหลือ 5 จุด (infrastructure)
+- Treatment post-save แยกเป็น TreatmentPostSaveService ที่ test ได้
+
 ## แนวทางการสื่อสารกับลูกค้า
 
 ### ควรวาง positioning ของระบบว่าเป็น
@@ -72,7 +81,8 @@
 - ตรวจสอบบัญชีเดโมสำหรับ owner, doctor และ limited role
 - ตรวจสอบว่ามีอย่างน้อย 1 ผู้รับบริการ, 1 appointment, 1 product และ 1 inventory item สำหรับเดโมจริง
 - ตรวจสอบว่าการเปิด deep link ของ messaging เหมาะกับอุปกรณ์ที่ใช้เดโม
-- รัน `flutter analyze`
+- รัน `flutter analyze` (ตรวจสอบ — 0 issues)
+- รัน `flutter test` (ตรวจสอบ — 158+ tests)
 
 ## กรอบการยอมรับงาน
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:airamd/core/models/models.dart';
@@ -6,8 +7,6 @@ import '../helpers/test_fixtures.dart';
 
 void main() {
   group('Auth Providers — RBAC logic', () {
-    // ─── Helper: Create a container with a pre-set staff ───
-
     ProviderContainer createContainer(Staff? staff) {
       final container = ProviderContainer(
         overrides: [
@@ -20,58 +19,74 @@ void main() {
       return container;
     }
 
-    // ─── currentClinicIdProvider ────────────────────────────
-
     group('currentClinicIdProvider', () {
       test('should return clinic ID when staff is loaded', () async {
         final container = createContainer(TestFixtures.ownerStaff());
-        // Wait for the future to resolve
         await container.read(currentStaffProvider.future);
-        final clinicId = container.read(currentClinicIdProvider);
-        expect(clinicId, TestFixtures.clinicId);
+        expect(container.read(currentClinicIdProvider), TestFixtures.clinicId);
       });
 
       test('should return null when staff is null', () async {
         final container = createContainer(null);
         await container.read(currentStaffProvider.future);
-        final clinicId = container.read(currentClinicIdProvider);
-        expect(clinicId, isNull);
+        expect(container.read(currentClinicIdProvider), isNull);
       });
     });
-
-    // ─── effectiveStaffRoleProvider ─────────────────────────
 
     group('effectiveStaffRoleProvider', () {
       test('should return owner role for owner staff', () async {
         final container = createContainer(TestFixtures.ownerStaff());
         await container.read(currentStaffProvider.future);
-        final role = container.read(effectiveStaffRoleProvider);
-        expect(role, StaffRole.owner);
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.owner);
       });
 
       test('should return doctor role for doctor staff', () async {
         final container = createContainer(TestFixtures.doctorStaff());
         await container.read(currentStaffProvider.future);
-        final role = container.read(effectiveStaffRoleProvider);
-        expect(role, StaffRole.doctor);
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.doctor);
       });
 
       test('should return receptionist role for receptionist staff', () async {
         final container = createContainer(TestFixtures.receptionistStaff());
         await container.read(currentStaffProvider.future);
-        final role = container.read(effectiveStaffRoleProvider);
-        expect(role, StaffRole.receptionist);
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.receptionist);
       });
 
-      test('should default to owner when staff is null', () async {
+      test('should default to receptionist when staff is null', () async {
         final container = createContainer(null);
         await container.read(currentStaffProvider.future);
-        final role = container.read(effectiveStaffRoleProvider);
-        expect(role, StaffRole.owner); // fallback
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.receptionist);
+      });
+
+      test('should default to receptionist while staff is loading', () {
+        final completer = Completer<Staff?>();
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith((ref) => completer.future),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.receptionist);
+      });
+
+      test('should default to receptionist when staff loading fails', () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith(
+              (ref) => Future<Staff?>.error(Exception('staff lookup failed')),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        try {
+          await container.read(currentStaffProvider.future);
+        } catch (_) {}
+
+        expect(container.read(effectiveStaffRoleProvider), StaffRole.receptionist);
       });
     });
-
-    // ─── canManageClinicalDataProvider ──────────────────────
 
     group('canManageClinicalDataProvider', () {
       test('should be true for owner', () async {
@@ -91,9 +106,42 @@ void main() {
         await container.read(currentStaffProvider.future);
         expect(container.read(canManageClinicalDataProvider), isFalse);
       });
-    });
 
-    // ─── canAccessFinancialDataProvider ─────────────────────
+      test('should be false while staff is loading', () {
+        final completer = Completer<Staff?>();
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith((ref) => completer.future),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        expect(container.read(canManageClinicalDataProvider), isFalse);
+      });
+
+      test('should be false when staff is null', () async {
+        final container = createContainer(null);
+        await container.read(currentStaffProvider.future);
+        expect(container.read(canManageClinicalDataProvider), isFalse);
+      });
+
+      test('should be false when staff loading fails', () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith(
+              (ref) => Future<Staff?>.error(Exception('staff lookup failed')),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        try {
+          await container.read(currentStaffProvider.future);
+        } catch (_) {}
+
+        expect(container.read(canManageClinicalDataProvider), isFalse);
+      });
+    });
 
     group('canAccessFinancialDataProvider', () {
       test('should be true for owner', () async {
@@ -113,9 +161,30 @@ void main() {
         await container.read(currentStaffProvider.future);
         expect(container.read(canAccessFinancialDataProvider), isFalse);
       });
-    });
 
-    // ─── canAccessSettingsProvider ──────────────────────────
+      test('should be false when staff is null', () async {
+        final container = createContainer(null);
+        await container.read(currentStaffProvider.future);
+        expect(container.read(canAccessFinancialDataProvider), isFalse);
+      });
+
+      test('should be false when staff loading fails', () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith(
+              (ref) => Future<Staff?>.error(Exception('staff lookup failed')),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        try {
+          await container.read(currentStaffProvider.future);
+        } catch (_) {}
+
+        expect(container.read(canAccessFinancialDataProvider), isFalse);
+      });
+    });
 
     group('canAccessSettingsProvider', () {
       test('should be true for owner', () async {
@@ -129,9 +198,30 @@ void main() {
         await container.read(currentStaffProvider.future);
         expect(container.read(canAccessSettingsProvider), isFalse);
       });
-    });
 
-    // ─── isLimitedStaffProvider ─────────────────────────────
+      test('should be false when staff is null', () async {
+        final container = createContainer(null);
+        await container.read(currentStaffProvider.future);
+        expect(container.read(canAccessSettingsProvider), isFalse);
+      });
+
+      test('should be false when staff loading fails', () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith(
+              (ref) => Future<Staff?>.error(Exception('staff lookup failed')),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        try {
+          await container.read(currentStaffProvider.future);
+        } catch (_) {}
+
+        expect(container.read(canAccessSettingsProvider), isFalse);
+      });
+    });
 
     group('isLimitedStaffProvider', () {
       test('should be false for owner', () async {
@@ -149,6 +239,29 @@ void main() {
       test('should be true for receptionist', () async {
         final container = createContainer(TestFixtures.receptionistStaff());
         await container.read(currentStaffProvider.future);
+        expect(container.read(isLimitedStaffProvider), isTrue);
+      });
+
+      test('should be true when staff is null', () async {
+        final container = createContainer(null);
+        await container.read(currentStaffProvider.future);
+        expect(container.read(isLimitedStaffProvider), isTrue);
+      });
+
+      test('should be true when staff loading fails', () async {
+        final container = ProviderContainer(
+          overrides: [
+            currentStaffProvider.overrideWith(
+              (ref) => Future<Staff?>.error(Exception('staff lookup failed')),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        try {
+          await container.read(currentStaffProvider.future);
+        } catch (_) {}
+
         expect(container.read(isLimitedStaffProvider), isTrue);
       });
     });

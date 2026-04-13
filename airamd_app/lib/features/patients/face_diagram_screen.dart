@@ -310,7 +310,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
       if (clinicId == null) throw Exception('No clinic ID');
       final now = DateTime.now();
       final ts = now.millisecondsSinceEpoch;
-      final storage = Supabase.instance.client.storage;
+      final storage = ref.read(supabaseClientProvider).storage;
       final diagramRepo = ref.read(diagramRepoProvider);
 
       // Collect views that have strokes

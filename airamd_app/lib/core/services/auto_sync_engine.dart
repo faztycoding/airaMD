@@ -6,6 +6,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
+import '../providers/repository_providers.dart';
 import 'offline_sync_service.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -30,6 +31,7 @@ class AutoSyncEngine {
 
   AutoSyncEngine._();
 
+  SupabaseClient? _client;
   StreamSubscription? _connectivitySub;
   bool _isSyncing = false;
   Timer? _retryTimer;
@@ -39,7 +41,8 @@ class AutoSyncEngine {
   Stream<SyncState> get syncStateStream => _syncStateController.stream;
 
   /// Start listening for connectivity changes.
-  void start() {
+  void start({SupabaseClient? client}) {
+    _client = client;
     _connectivitySub?.cancel();
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final isOnline = results.any((r) =>
@@ -83,7 +86,7 @@ class AutoSyncEngine {
       }
 
       debugPrint('[AutoSync] Processing ${queue.length} pending operations...');
-      final client = Supabase.instance.client;
+      final client = _client ?? Supabase.instance.client;
 
       for (final op in queue) {
         try {
@@ -391,7 +394,7 @@ class OfflineAwareRepository {
 /// Auto-sync engine singleton provider.
 final autoSyncEngineProvider = Provider<AutoSyncEngine>((ref) {
   final engine = AutoSyncEngine.instance;
-  engine.start();
+  engine.start(client: ref.read(supabaseClientProvider));
   ref.onDispose(() => engine.stop());
   return engine;
 });
@@ -404,5 +407,5 @@ final syncStateProvider = StreamProvider<SyncState>((ref) {
 
 /// Offline-aware repository provider.
 final offlineAwareRepoProvider = Provider<OfflineAwareRepository>((ref) {
-  return OfflineAwareRepository(Supabase.instance.client);
+  return OfflineAwareRepository(ref.watch(supabaseClientProvider));
 });

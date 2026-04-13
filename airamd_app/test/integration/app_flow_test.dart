@@ -72,6 +72,8 @@ Widget buildTestApp({List<Override> overrides = const []}) {
       // Auth — logged in
       authSessionProvider.overrideWith((ref) => Stream.value(null)),
       isAuthenticatedProvider.overrideWithValue(true),
+      currentAuthEmailProvider.overrideWithValue('owner@aira.test'),
+      authSignOutActionProvider.overrideWithValue(() async {}),
       currentStaffProvider.overrideWith(
         (ref) => Future.value(TestFixtures.ownerStaff()),
       ),

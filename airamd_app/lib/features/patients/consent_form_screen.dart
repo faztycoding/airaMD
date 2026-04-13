@@ -92,7 +92,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
       final storagePath = '$clinicId/${widget.patientId}/sig_$ts.png';
 
       // 3. Upload signature PNG to Supabase Storage
-      await Supabase.instance.client.storage
+      await ref.read(supabaseClientProvider).storage
           .from(AppConstants.bucketConsentSignatures)
           .uploadBinary(
             storagePath,

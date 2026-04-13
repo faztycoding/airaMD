@@ -114,7 +114,19 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     }
     setState(() => _loading = true);
 
-    final clinicId = ref.read(currentClinicIdProvider)!;
+    final clinicId = ref.read(currentClinicIdProvider);
+    if (clinicId == null) {
+      if (mounted) {
+        AiraFeedback.error(
+          context,
+          context.l10n.isThai
+              ? 'ไม่พบข้อมูลคลินิกสำหรับบัญชีนี้ กรุณาเข้าสู่ระบบใหม่อีกครั้ง'
+              : 'Clinic context is unavailable for this account. Please sign in again.',
+        );
+      }
+      setState(() => _loading = false);
+      return;
+    }
     final allergies = _allergyCtrl.text.trim().isEmpty
         ? <String>[]
         : _allergyCtrl.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();

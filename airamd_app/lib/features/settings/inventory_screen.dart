@@ -12,6 +12,7 @@ import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
 import '../../core/localization/app_localizations.dart';
+import 'inventory_validation.dart';
 
 // ─── Providers ────────────────────────────────────────────────
 final _invProductIdProvider = StateProvider<String?>((ref) => null);
@@ -687,14 +688,25 @@ class _TransactionPanel extends ConsumerWidget {
               ),
               onPressed: () async {
                 final qty = double.tryParse(qtyCtrl.text.trim());
-                if (qty == null || qty <= 0) return;
+                final quantityIssue = validateInventoryQuantity(
+                  quantity: qty,
+                  type: type,
+                  availableStock: product.stockQuantity,
+                );
+                if (quantityIssue == InventoryQuantityValidationIssue.invalidQuantity) {
+                  AiraFeedback.error(
+                    context,
+                    context.l10n.isThai
+                        ? 'จำนวนต้องมากกว่า 0'
+                        : 'Quantity must be greater than 0.',
+                  );
+                  return;
+                }
 
                 final clinicId = ref.read(currentClinicIdProvider);
                 if (clinicId == null) return;
 
-                if ((type == InventoryTransactionType.used ||
-                        type == InventoryTransactionType.wastage) &&
-                    qty > product.stockQuantity) {
+                if (quantityIssue == InventoryQuantityValidationIssue.insufficientStock) {
                   AiraFeedback.error(
                     context,
                     context.l10n.isThai
@@ -703,6 +715,7 @@ class _TransactionPanel extends ConsumerWidget {
                   );
                   return;
                 }
+                final validQty = qty!;
 
                 Navigator.pop(ctx);
 
@@ -715,12 +728,12 @@ class _TransactionPanel extends ConsumerWidget {
                   // Calculate new stock quantity
                   double newStock;
                   if (type == InventoryTransactionType.adjustment) {
-                    newStock = qty; // Adjustment sets absolute value
+                    newStock = validQty; // Adjustment sets absolute value
                   } else if (type == InventoryTransactionType.stockIn) {
-                    newStock = product.stockQuantity + qty;
+                    newStock = product.stockQuantity + validQty;
                   } else {
                     // used or wastage
-                    newStock = product.stockQuantity - qty;
+                    newStock = product.stockQuantity - validQty;
                   }
 
                   final noteSegments = <String>[];
@@ -741,7 +754,7 @@ class _TransactionPanel extends ConsumerWidget {
                     clinicId: clinicId,
                     productId: product.id,
                     transactionType: type,
-                    quantity: qty,
+                    quantity: validQty,
                     unit: product.unit,
                     batchNo: batchCtrl.text.trim().isEmpty
                         ? null

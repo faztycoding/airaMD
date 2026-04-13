@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/providers/repository_providers.dart';
 import 'login_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -9,7 +10,7 @@ import 'login_screen.dart';
 
 /// Watches Supabase auth state and returns the current session.
 final authSessionProvider = StreamProvider<Session?>((ref) {
-  return Supabase.instance.client.auth.onAuthStateChange.map(
+  return ref.watch(supabaseClientProvider).auth.onAuthStateChange.map(
     (event) => event.session,
   );
 });

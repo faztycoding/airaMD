@@ -47,7 +47,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
   String _photoUrl(PatientPhoto photo) {
     final path = (photo.thumbnailPath?.isNotEmpty ?? false) ? photo.thumbnailPath! : photo.storagePath;
     if (path.startsWith('http')) return path;
-    return Supabase.instance.client.storage.from(AppConstants.bucketPatientPhotos).getPublicUrl(path);
+    return ref.read(supabaseClientProvider).storage.from(AppConstants.bucketPatientPhotos).getPublicUrl(path);
   }
 
   // ─── Create new comparison set ───
@@ -141,7 +141,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
       final ext = picked.name.split('.').last;
       final storagePath = '$clinicId/${widget.patientId}/ba_${ts}_${type.dbValue}.$ext';
 
-      await Supabase.instance.client.storage
+      await ref.read(supabaseClientProvider).storage
           .from(AppConstants.bucketPatientPhotos)
           .uploadBinary(storagePath, bytes, fileOptions: FileOptions(contentType: 'image/$ext', upsert: true));
 

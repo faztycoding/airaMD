@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import '../models/models.dart';
 import '../providers/repository_providers.dart';
 import '../providers/auth_providers.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MESSAGING SERVICE — LINE OA API + WhatsApp + SMS + Deep Links
@@ -62,7 +61,7 @@ class MessagingService {
 
     try {
       // Call LINE Messaging API via Supabase Edge Function
-      final response = await Supabase.instance.client.functions.invoke(
+      final response = await _ref.read(supabaseClientProvider).functions.invoke(
         'send-line-message',
         body: {
           'to': lineUserId,
