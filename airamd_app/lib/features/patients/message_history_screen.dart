@@ -110,13 +110,14 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
 
   void _showSendDialog() {
     final contentCtrl = TextEditingController();
-    var channel = MessageChannel.line;
-    var templateType = MessageTemplateType.custom;
-
     final l = context.l10n;
     final patient = widget.patient;
     final hasLine = patient?.lineId != null && patient!.lineId!.isNotEmpty;
     final hasPhone = patient?.phone != null && patient!.phone!.isNotEmpty;
+    if (!hasLine && !hasPhone) return;
+
+    var channel = hasLine ? MessageChannel.line : MessageChannel.whatsapp;
+    var templateType = MessageTemplateType.custom;
 
     showDialog(
       context: context,
@@ -242,6 +243,11 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
     final l = context.l10n;
     final msgsAsync = ref.watch(_messagesByPatientProvider(widget.patientId));
     final patient = widget.patient;
+    final hasLine = patient?.lineId != null && patient!.lineId!.isNotEmpty;
+    final hasPhone = patient?.phone != null && patient!.phone!.isNotEmpty;
+    final hasMessagingChannel = hasLine || hasPhone;
+    final lineId = patient?.lineId ?? '';
+    final phone = patient?.phone ?? '';
 
     return Stack(
       children: [
@@ -249,65 +255,82 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
           padding: const EdgeInsets.all(20),
           children: [
             // Quick actions — deep links
-            Row(
-              children: [
-                if (patient?.lineId != null && patient!.lineId!.isNotEmpty)
-                  Expanded(
-                    child: _QuickLink(
-                      icon: Icons.chat_rounded,
-                      label: l.openLine,
-                      color: const Color(0xFF06C755),
-                      onTap: () => _openLine(patient.lineId!),
+            if (hasMessagingChannel)
+              Row(
+                children: [
+                  if (hasLine)
+                    Expanded(
+                      child: _QuickLink(
+                        icon: Icons.chat_rounded,
+                        label: l.openLine,
+                        color: const Color(0xFF06C755),
+                        onTap: () => _openLine(lineId),
+                      ),
                     ),
-                  ),
-                if (patient?.phone != null && patient!.phone!.isNotEmpty) ...[
-                  if (patient.lineId != null && patient.lineId!.isNotEmpty) const SizedBox(width: 10),
-                  Expanded(
-                    child: _QuickLink(
-                      icon: Icons.phone_android_rounded,
-                      label: 'WhatsApp',
-                      color: const Color(0xFF25D366),
-                      onTap: () => _openWhatsApp(patient.phone!),
+                  if (hasPhone) ...[
+                    if (hasLine) const SizedBox(width: 10),
+                    Expanded(
+                      child: _QuickLink(
+                        icon: Icons.phone_android_rounded,
+                        label: 'WhatsApp',
+                        color: const Color(0xFF25D366),
+                        onTap: () => _openWhatsApp(phone),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _QuickLink(
-                      icon: Icons.phone_rounded,
-                      label: l.call,
-                      color: AiraColors.woodMid,
-                      onTap: () => _openPhone(patient.phone!),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _QuickLink(
+                        icon: Icons.phone_rounded,
+                        label: l.call,
+                        color: AiraColors.woodMid,
+                        onTap: () => _openPhone(phone),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
-            ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AiraColors.creamDk.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  l.isThai ? 'ยังไม่มีช่องทางติดต่อสำหรับการส่งข้อความ' : 'No messaging channel is available for this patient.',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+                ),
+              ),
             const SizedBox(height: 16),
 
             // Send new message button
-            AiraTapEffect(
-              onTap: _showSendDialog,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.send_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      l.sendMessageAndLog,
-                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-                    ),
-                  ],
+            if (hasMessagingChannel)
+              AiraTapEffect(
+                onTap: _showSendDialog,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.send_rounded, size: 18, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(
+                        l.sendMessageAndLog,
+                        style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            if (!hasMessagingChannel)
+              const SizedBox(height: 4),
             const SizedBox(height: 20),
 
             // History

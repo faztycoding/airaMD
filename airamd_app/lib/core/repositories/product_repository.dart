@@ -89,12 +89,26 @@ class ProductRepository extends BaseRepository {
     return data.map(Product.fromJson).toList();
   }
 
+  double _normalizeQuantity(double value) {
+    return double.parse(value.toStringAsFixed(3));
+  }
+
   /// Deduct stock after treatment usage.
   Future<Product> deductStock(String productId, double quantity) async {
+    if (quantity <= 0) {
+      throw Exception('Quantity must be greater than zero');
+    }
+
     final product = await get(productId);
     if (product == null) throw Exception('Product not found');
 
-    final newQty = product.stockQuantity - quantity;
+    final normalizedQuantity = _normalizeQuantity(quantity);
+    final availableQuantity = _normalizeQuantity(product.stockQuantity);
+    if (normalizedQuantity > availableQuantity) {
+      throw Exception('Insufficient stock for ${product.name}');
+    }
+
+    final newQty = _normalizeQuantity(availableQuantity - normalizedQuantity);
     final data = await update(productId, {'stock_quantity': newQty});
     return Product.fromJson(data);
   }

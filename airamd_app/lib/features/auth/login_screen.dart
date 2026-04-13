@@ -123,6 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       final res = await Supabase.instance.client.auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
+        emailRedirectTo: 'https://pzqjqqaekxmfdlrxbgmk.supabase.co/auth/v1/verify',
         data: {
           'full_name': _nameCtrl.text.trim(),
           'clinic_name': _clinicCtrl.text.trim(),
@@ -135,12 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         _switchMode(_AuthMode.login);
         setState(() => _errorMessage = null);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.signupSuccess),
-              backgroundColor: AiraColors.sage,
-            ),
-          );
+          _showSignupSuccessDialog();
         }
       }
     } on AuthException catch (e) {
@@ -198,6 +194,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _showSignupSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7A9B6D), Color(0xFF5A8A4A)],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7A9B6D).withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.mark_email_read_rounded, color: Colors.white, size: 32),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                context.l10n.signupSuccessTitle,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AiraColors.charcoal,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.signupSuccessBody,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  color: AiraColors.muted,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(context.l10n.understood),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _mapAuthError(String message) {

@@ -69,6 +69,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     final patientsAsync = ref.watch(_filteredPatientsProvider);
     final countAsync = ref.watch(patientCountProvider);
     final activeFilter = ref.watch(_activeFilterProvider);
+    final canManageClinicalData = ref.watch(canManageClinicalDataProvider);
+    final effectiveRole = ref.watch(effectiveStaffRoleProvider);
     final l = context.l10n;
 
     return Stack(
@@ -126,23 +128,24 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                 error: (e, s) => const SizedBox.shrink(),
                               ),
                               const Spacer(),
-                              AiraTapEffect(
-                                onTap: () => context.push('/patients/new'),
-                                child: Container(
-                                  height: 44,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [BoxShadow(color: const Color(0xFF6B4F3A).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
-                                    ],
+                              if (canManageClinicalData)
+                                AiraTapEffect(
+                                  onTap: () => context.push('/patients/new'),
+                                  child: Container(
+                                    height: 44,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [BoxShadow(color: const Color(0xFF6B4F3A).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -249,25 +252,26 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     ),
                     const SizedBox(width: 12),
                     // Add patient button
-                    AiraTapEffect(
-                      onTap: () => context.push('/patients/new'),
-                      child: Container(
-                        height: 44,
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(color: const Color(0xFF6B4F3A).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(l.addPatient, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
-                          ],
+                    if (canManageClinicalData)
+                      AiraTapEffect(
+                        onTap: () => context.push('/patients/new'),
+                        child: Container(
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [BoxShadow(color: const Color(0xFF6B4F3A).withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Text(l.addPatient, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -330,7 +334,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           return _PatientCard(
                             patient: patients[index],
                             onTap: () => context.push('/patients/${patients[index].id}'),
-                            onDelete: () => _confirmDelete(context, ref, patients[index]),
+                            onDelete: effectiveRole == StaffRole.owner
+                                ? () => _confirmDelete(context, ref, patients[index])
+                                : null,
                           );
                         },
                       ),
@@ -429,7 +435,7 @@ class _FilterChip extends StatelessWidget {
 class _PatientCard extends StatelessWidget {
   final Patient patient;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   const _PatientCard({required this.patient, required this.onTap, required this.onDelete});
 
   Color get _accentColor {

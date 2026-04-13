@@ -9,7 +9,12 @@ class _ProfileHeader extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  const _ProfileHeader({required this.patient, required this.onBack, required this.onEdit, required this.onDelete});
+  final VoidCallback? onOpenMessages;
+  final bool canEdit;
+  final bool canDelete;
+  final bool showLineAction;
+  final bool showMessageAction;
+  const _ProfileHeader({required this.patient, required this.onBack, required this.onEdit, required this.onDelete, this.onOpenMessages, this.canEdit = true, this.canDelete = true, this.showLineAction = true, this.showMessageAction = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -115,38 +120,51 @@ class _ProfileHeader extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _HeaderActionBtn(
-                icon: Icons.chat_rounded,
-                label: 'LINE',
-                color: const Color(0xFF06C755),
-              ),
-              const SizedBox(width: 10),
-              _HeaderActionBtn(
-                icon: Icons.message_rounded,
-                label: l.message,
-                color: Colors.white.withValues(alpha: 0.15),
-                textColor: Colors.white,
-              ),
-              const SizedBox(width: 10),
-              AiraTapEffect(
-                onTap: onEdit,
-                child: _HeaderActionBtn(
-                  icon: Icons.edit_rounded,
-                  label: l.edit,
-                  color: Colors.white.withValues(alpha: 0.15),
-                  textColor: Colors.white,
+              if (showLineAction) ...[
+                AiraTapEffect(
+                  onTap: onOpenMessages,
+                  child: _HeaderActionBtn(
+                    icon: Icons.chat_rounded,
+                    label: 'LINE',
+                    color: const Color(0xFF06C755),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              AiraTapEffect(
-                onTap: onDelete,
-                child: _HeaderActionBtn(
-                  icon: Icons.delete_outline_rounded,
-                  label: l.delete,
-                  color: const Color(0xFFD32F2F).withValues(alpha: 0.25),
-                  textColor: Colors.white,
+              ],
+              if (showLineAction && showMessageAction) const SizedBox(width: 10),
+              if (showMessageAction)
+                AiraTapEffect(
+                  onTap: onOpenMessages,
+                  child: _HeaderActionBtn(
+                    icon: Icons.message_rounded,
+                    label: l.message,
+                    color: Colors.white.withValues(alpha: 0.15),
+                    textColor: Colors.white,
+                  ),
                 ),
-              ),
+              if (canEdit) ...[
+                const SizedBox(width: 10),
+                AiraTapEffect(
+                  onTap: onEdit,
+                  child: _HeaderActionBtn(
+                    icon: Icons.edit_rounded,
+                    label: l.edit,
+                    color: Colors.white.withValues(alpha: 0.15),
+                    textColor: Colors.white,
+                  ),
+                ),
+              ],
+              if (canDelete) ...[
+                const SizedBox(width: 10),
+                AiraTapEffect(
+                  onTap: onDelete,
+                  child: _HeaderActionBtn(
+                    icon: Icons.delete_outline_rounded,
+                    label: l.delete,
+                    color: const Color(0xFFD32F2F).withValues(alpha: 0.25),
+                    textColor: Colors.white,
+                  ),
+                ),
+              ],
             ],
           ),
         ],

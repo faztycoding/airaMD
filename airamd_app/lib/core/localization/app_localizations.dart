@@ -26,6 +26,9 @@ class AppL10n {
   String get signupDesc => isThai ? 'ลงทะเบียนคลินิกใหม่เพื่อเริ่มต้นใช้งาน' : 'Register a new clinic to get started';
   String get signupButton => isThai ? 'ลงทะเบียน' : 'Sign Up';
   String get signupSuccess => isThai ? 'ลงทะเบียนสำเร็จ! กรุณาเข้าสู่ระบบ' : 'Registration successful! Please sign in.';
+  String get signupSuccessTitle => isThai ? 'ลงทะเบียนสำเร็จ!' : 'Registration Successful!';
+  String get signupSuccessBody => isThai ? 'กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันบัญชี\nจากนั้นกลับมาเข้าสู่ระบบได้ทันที' : 'Please check your email to confirm your account.\nThen come back and sign in.';
+  String get understood => isThai ? 'เข้าใจแล้ว' : 'Got it';
   String get forgotPasswordTitle => isThai ? 'ลืมรหัสผ่าน' : 'Forgot Password';
   String get forgotPasswordDesc => isThai ? 'กรอกอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน' : 'Enter your email to receive a reset link';
   String get sendResetLink => isThai ? 'ส่งลิงก์รีเซ็ต' : 'Send Reset Link';

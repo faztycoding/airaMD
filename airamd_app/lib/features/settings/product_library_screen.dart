@@ -32,66 +32,77 @@ class ProductLibraryScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Category filter chips
-          SizedBox(
-            height: 50,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              children: [
-                _CatChip('ทั้งหมด', null, catFilter, ref),
-                const SizedBox(width: 8),
-                ...ProductCategory.values.map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _CatChip(_catLabel(c), c, catFilter, ref),
-                )),
-              ],
-            ),
-          ),
-          // Product list
-          Expanded(
-            child: productsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text(context.l10n.errorMsg('$e'))),
-              data: (products) {
-                var filtered = products;
-                if (catFilter != null) {
-                  filtered = products.where((p) => p.category == catFilter).toList();
-                }
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inventory_2_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
-                        const SizedBox(height: 12),
-                        Text(context.l10n.noProductsInLibrary, style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () => _showProductForm(context, ref, null),
-                          icon: const Icon(Icons.add_rounded),
-                          label: Text(context.l10n.addProduct),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              // Category filter chips
+              SizedBox(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  children: [
+                    _CatChip('ทั้งหมด', null, catFilter, ref),
+                    const SizedBox(width: 8),
+                    ...ProductCategory.values.map((c) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _CatChip(_catLabel(c), c, catFilter, ref),
+                    )),
+                  ],
+                ),
+              ),
+              // Product list
+              Expanded(
+                child: productsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, s) => Center(child: Text(context.l10n.errorMsg('$e'))),
+                  data: (products) {
+                    var filtered = products;
+                    if (catFilter != null) {
+                      filtered = products.where((p) => p.category == catFilter).toList();
+                    }
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inventory_2_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
+                              const SizedBox(height: 12),
+                              Text(context.l10n.noProductsInLibrary, style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _showProductForm(context, ref, null),
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: Text(context.l10n.addProduct),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  );
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, i2) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _ProductCard(
-                    product: filtered[i],
-                    onEdit: () => _showProductForm(context, ref, filtered[i]),
-                    onDelete: () => _deleteProduct(context, ref, filtered[i]),
-                  ),
-                );
-              },
-            ),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, i2) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _ProductCard(
+                        product: filtered[i],
+                        onEdit: () => _showProductForm(context, ref, filtered[i]),
+                        onDelete: () => _deleteProduct(context, ref, filtered[i]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -102,7 +113,8 @@ class ProductLibraryScreen extends ConsumerWidget {
     final unitCtrl = TextEditingController(text: existing?.unit ?? 'U');
     final unitCostCtrl = TextEditingController(text: existing?.unitCost?.toStringAsFixed(0) ?? '');
     final priceCtrl = TextEditingController(text: existing?.defaultPrice?.toStringAsFixed(0) ?? '');
-    final stockCtrl = TextEditingController(text: existing?.stockQuantity.toStringAsFixed(0) ?? '0');
+    final stockCtrl = TextEditingController(text: existing?.stockQuantity.toString() ?? '0');
+    final stockPerContainerCtrl = TextEditingController(text: existing?.stockPerContainer?.toString() ?? '');
     final minAlertCtrl = TextEditingController(text: existing?.minStockAlert?.toString() ?? '');
     var category = existing?.category ?? ProductCategory.botox;
 
@@ -158,14 +170,16 @@ class ProductLibraryScreen extends ConsumerWidget {
                         Row(children: [
                           Expanded(child: TextField(controller: unitCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'หน่วย', prefixIcon: Icons.straighten_rounded))),
                           const SizedBox(width: 12),
-                          Expanded(child: TextField(controller: unitCostCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'ต้นทุน/หน่วย', prefixIcon: Icons.calculate_rounded), keyboardType: TextInputType.number)),
+                          Expanded(child: TextField(controller: unitCostCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'ต้นทุน/หน่วย', prefixIcon: Icons.calculate_rounded), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                         ]),
                         const SizedBox(height: 14),
                         Row(children: [
-                          Expanded(child: TextField(controller: priceCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'ราคาขาย', prefixIcon: Icons.payments_rounded), keyboardType: TextInputType.number)),
+                          Expanded(child: TextField(controller: priceCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'ราคาขาย', prefixIcon: Icons.payments_rounded), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                           const SizedBox(width: 12),
-                          Expanded(child: TextField(controller: stockCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'สต็อก', prefixIcon: Icons.inventory_rounded), keyboardType: TextInputType.number)),
+                          Expanded(child: TextField(controller: stockCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'สต็อก', prefixIcon: Icons.inventory_rounded), keyboardType: const TextInputType.numberWithOptions(decimal: true))),
                         ]),
+                        const SizedBox(height: 14),
+                        TextField(controller: stockPerContainerCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'จำนวนหน่วยต่อขวด/กล่อง', hint: 'เช่น 50', prefixIcon: Icons.science_outlined), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                         const SizedBox(height: 14),
                         TextField(controller: minAlertCtrl, style: airaFieldTextStyle, decoration: airaFieldDecoration(label: 'แจ้งเตือนเมื่อเหลือ (หน่วย)', prefixIcon: Icons.notification_important_rounded), keyboardType: TextInputType.number),
                       ],
@@ -210,6 +224,7 @@ class ProductLibraryScreen extends ConsumerWidget {
                             unitCost: double.tryParse(unitCostCtrl.text.trim()),
                             defaultPrice: double.tryParse(priceCtrl.text.trim()),
                             stockQuantity: double.tryParse(stockCtrl.text.trim()) ?? 0,
+                            stockPerContainer: double.tryParse(stockPerContainerCtrl.text.trim()),
                             minStockAlert: int.tryParse(minAlertCtrl.text.trim()),
                           );
 
@@ -374,6 +389,13 @@ class _ProductCard extends StatelessWidget {
                     Text('฿${NumberFormat('#,##0').format(product.defaultPrice)}', style: AiraFonts.numeric(fontSize: 12, color: AiraColors.woodMid, fontWeight: FontWeight.w600)),
                   ],
                 ]),
+                if (product.stockPerContainer != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'ต่อขวด/กล่อง: ${NumberFormat('#,##0.###').format(product.stockPerContainer)} ${product.unit}',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted),
+                  ),
+                ],
               ],
             ),
           ),

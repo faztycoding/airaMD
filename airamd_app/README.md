@@ -1,17 +1,35 @@
 # airaMD
 
-A new Flutter project.
+airaMD is a Flutter clinic operations app focused on patient intake, appointments, treatments, messaging, financial visibility, and inventory tracking.
 
-## Getting Started
+## Current delivery highlights
 
-This project is a starting point for a Flutter application.
+- doctor ownership across appointments and treatment records
+- appointment-to-treatment completion workflow
+- role-aware patient, clinical, and financial visibility
+- inventory stock-in, usage, wastage, adjustment, batch, and expiry context
+- consent and digital notepad tools for clinical documentation
+- settings and audit workflows prepared for client presentation
 
-A few resources to get you started if this is your first Flutter project:
+## Project docs
+
+- `docs/DEMO_WALKTHROUGH.md`
+- `docs/FEATURE_MATRIX.md`
+- `docs/CLIENT_HANDOFF.md`
+
+## Workflow
+
+- `.windsurf/workflows/client-demo-handoff.md`
+
+## Development check
+
+Run:
+
+```bash
+flutter analyze --no-fatal-infos --no-fatal-warnings
+```
+
+## Flutter resources
 
 - [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- [Flutter documentation](https://docs.flutter.dev/)

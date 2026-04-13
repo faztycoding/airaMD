@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>airaMD — ยืนยันอีเมลเรียบร้อย</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F7F0E8;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Background decorative circles */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -20vw;
+      right: -15vw;
+      width: 60vw;
+      height: 60vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(168,128,106,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      bottom: -25vw;
+      left: -20vw;
+      width: 70vw;
+      height: 70vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,178,160,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: rgba(255,255,255,0.85);
+      border: 1px solid rgba(200,178,160,0.4);
+      border-radius: 28px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(90,63,44,0.08);
+      animation: fadeUp 0.6s ease-out;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #5A3F2C, #7A5840, #A8806A);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 24px rgba(90,63,44,0.3);
+    }
+
+    .logo span {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1.5px;
+    }
+
+    .brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #2E2E2E;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .check-circle {
+      width: 64px;
+      height: 64px;
+      margin: 24px auto;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7A9B6D, #5A8A4A);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(122,155,109,0.35);
+      animation: scaleIn 0.5s ease-out 0.3s both;
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .check-circle svg {
+      width: 32px;
+      height: 32px;
+      stroke: #fff;
+      stroke-width: 3;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #2E2E2E;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #8C7B6B;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 36px;
+      background: linear-gradient(135deg, #5A3F2C, #7A5840);
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 14px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(90,63,44,0.25);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(90,63,44,0.35);
+    }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: rgba(140,123,107,0.5);
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 36px 24px; border-radius: 20px; }
+      .logo { width: 64px; height: 64px; border-radius: 20px; }
+      .logo span { font-size: 18px; }
+      .brand { font-size: 24px; }
+      .check-circle { width: 52px; height: 52px; }
+      .check-circle svg { width: 26px; height: 26px; }
+      h1 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo"><span>aira</span></div>
+    <div class="brand">airaMD</div>
+
+    <div class="check-circle">
+      <svg viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+
+    <h1>ยืนยันอีเมลเรียบร้อยแล้ว!</h1>
+    <p class="subtitle">
+      บัญชีของคุณได้รับการยืนยันแล้ว<br>
+      คุณสามารถเข้าสู่ระบบ airaMD ได้ทันที
+    </p>
+
+    <a href="#" class="btn" onclick="window.close(); return false;">เปิดแอป airaMD</a>
+
+    <div class="footer">Powered by airaMD v1.0</div>
+  </div>
+</body>
+</html>

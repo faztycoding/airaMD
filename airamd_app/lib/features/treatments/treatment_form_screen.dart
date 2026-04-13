@@ -9,20 +9,96 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/services/safety_check_service.dart';
 import '../../core/services/audit_service.dart';
+import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+
+final _availableDoctorsProvider = FutureProvider<List<_DoctorOption>>((ref) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return const [];
+
+  final staffRepo = ref.watch(staffRepoProvider);
+  final scheduleRepo = ref.watch(scheduleRepoProvider);
+  final today = DateTime.now();
+  final dateOnly = DateTime(today.year, today.month, today.day);
+
+  final doctors = await staffRepo.getDoctors(clinicId);
+  final schedules = await scheduleRepo.getByDate(clinicId: clinicId, date: dateOnly);
+  final scheduleByStaffId = <String, StaffSchedule>{
+    for (final schedule in schedules) schedule.staffId: schedule,
+  };
+
+  final options = doctors
+      .map((doctor) => _DoctorOption(
+            staff: doctor,
+            schedule: scheduleByStaffId[doctor.id],
+          ))
+      .toList();
+
+  options.sort((a, b) {
+    final availabilityCompare = b.sortPriority.compareTo(a.sortPriority);
+    if (availabilityCompare != 0) return availabilityCompare;
+    return a.staff.fullName.compareTo(b.staff.fullName);
+  });
+  return options;
+});
+
+final _preferredAppointmentProvider = FutureProvider.family<Appointment?, ({String patientId, String? appointmentId})>((ref, params) async {
+  final repo = ref.watch(appointmentRepoProvider);
+  final appointmentId = params.appointmentId;
+  if (appointmentId != null && appointmentId.isNotEmpty) {
+    return repo.get(appointmentId);
+  }
+
+  final appointments = await repo.getByPatient(patientId: params.patientId, limit: 20);
+  final today = DateTime.now();
+  final todayDate = DateTime(today.year, today.month, today.day);
+
+  Appointment? fallback;
+  for (final appointment in appointments) {
+    if (appointment.doctorId == null || appointment.doctorId!.isEmpty) continue;
+    if (appointment.status == AppointmentStatus.cancelled || appointment.status == AppointmentStatus.noShow) {
+      continue;
+    }
+
+    final appointmentDate = DateTime(appointment.date.year, appointment.date.month, appointment.date.day);
+    if (appointmentDate == todayDate) {
+      return appointment;
+    }
+    fallback ??= appointment;
+  }
+  return fallback;
+});
+
+class _DoctorOption {
+  final Staff staff;
+  final StaffSchedule? schedule;
+
+  const _DoctorOption({required this.staff, this.schedule});
+
+  bool get isOnDuty => schedule?.status == ScheduleStatus.onDuty;
+
+  int get sortPriority => switch (schedule?.status) {
+        ScheduleStatus.onDuty => 3,
+        ScheduleStatus.halfDay => 2,
+        ScheduleStatus.leave => 1,
+        null => 0,
+      };
+}
 
 class TreatmentFormScreen extends ConsumerStatefulWidget {
   final String patientId;
   final String? treatmentId; // null = new
   final TreatmentCategory? initialCategory;
+  final String? appointmentId;
 
   const TreatmentFormScreen({
     super.key,
     required this.patientId,
     this.treatmentId,
     this.initialCategory,
+    this.appointmentId,
   });
 
   bool get isEdit => treatmentId != null && treatmentId != 'new';
@@ -60,6 +136,8 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   // Dropdowns
   late TreatmentCategory _category;
   TreatmentResponse _response = TreatmentResponse.notApplicable;
+  String? _selectedDoctorId;
+  bool _doctorSelectionPrimed = false;
 
   // Products used — list of {name, quantity}
   final List<Map<String, dynamic>> _productsUsed = [];
@@ -119,6 +197,8 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       _followUpDate = record.followUpDate;
       _followUpTimeCtrl.text = record.followUpTime ?? '';
       _category = record.category;
+      _selectedDoctorId = record.doctorId;
+      _doctorSelectionPrimed = true;
       _response = record.responseToPrevious;
       _adverseEvents.addAll(record.adverseEvents);
       _instructions.addAll(record.instructions);
@@ -238,10 +318,21 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       return;
     }
 
+    final stockValidationError = await _validateProductUsage();
+    if (stockValidationError != null) {
+      if (mounted) {
+        AiraFeedback.error(context, stockValidationError);
+      }
+      setState(() => _loading = false);
+      return;
+    }
+
     final record = TreatmentRecord(
       id: widget.isEdit ? widget.treatmentId! : const Uuid().v4(),
       clinicId: clinicId,
       patientId: widget.patientId,
+      doctorId: _selectedDoctorId,
+      appointmentId: widget.appointmentId,
       date: DateTime.now(),
       category: _category,
       treatmentName: _treatmentNameCtrl.text.trim(),
@@ -282,10 +373,26 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
 
     try {
       final repo = ref.read(treatmentRepoProvider);
+      final stockSyncFailures = <String>[];
+      final linkedAppointment = widget.appointmentId != null && widget.appointmentId!.isNotEmpty
+          ? await ref.read(
+              _preferredAppointmentProvider((
+                patientId: widget.patientId,
+                appointmentId: widget.appointmentId,
+              )).future,
+            )
+          : null;
       if (widget.isEdit) {
         await repo.updateRecord(record);
       } else {
         await repo.create(record);
+
+        if (widget.appointmentId != null && widget.appointmentId!.isNotEmpty) {
+          await ref.read(appointmentRepoProvider).updateStatus(
+                widget.appointmentId!,
+                AppointmentStatus.completed,
+              );
+        }
 
         // ─── Auto-deduct stock for products with product_id ───
         final prodRepo = ref.read(productRepoProvider);
@@ -308,9 +415,18 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                 notes: 'Auto-deduct: ${record.treatmentName}',
               ));
             } catch (_) {
-              // Non-blocking: stock deduction failure shouldn't block treatment save
+              stockSyncFailures.add(p['name']?.toString() ?? productId);
             }
           }
+        }
+
+        if (mounted && stockSyncFailures.isNotEmpty) {
+          AiraFeedback.warning(
+            context,
+            context.l10n.isThai
+                ? 'บันทึกการรักษาสำเร็จ แต่ซิงค์สต็อกไม่ครบ: ${stockSyncFailures.join(', ')}'
+                : 'Treatment saved, but stock sync failed for: ${stockSyncFailures.join(', ')}',
+          );
         }
       }
       ref.invalidate(treatmentsByPatientProvider(widget.patientId));
@@ -318,34 +434,41 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       ref.invalidate(dashboardStatsProvider);
       ref.invalidate(productListProvider);
       ref.invalidate(lowStockAlertsProvider);
+      ref.invalidate(appointmentsByPatientProvider(widget.patientId));
+      ref.invalidate(todayAppointmentsProvider);
+      ref.invalidate(todayAppointmentCountProvider);
+      if (linkedAppointment != null) {
+        ref.invalidate(
+          appointmentsByDateProvider(
+            DateTime(
+              linkedAppointment.date.year,
+              linkedAppointment.date.month,
+              linkedAppointment.date.day,
+            ),
+          ),
+        );
+      }
 
       // Audit log
       ref.read(auditServiceProvider).log(
         action: widget.isEdit ? 'UPDATE_TREATMENT' : 'CREATE_TREATMENT',
         entityType: 'treatment_records',
         entityId: record.id,
-        newData: {'treatment_name': record.treatmentName, 'patient_id': record.patientId, 'category': record.category.dbValue},
+        newData: {'treatment_name': record.treatmentName, 'patient_id': record.patientId, 'category': record.category.dbValue, 'doctor_id': record.doctorId, 'appointment_id': record.appointmentId},
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.isEdit
-                ? 'แก้ไขบันทึกการรักษาสำเร็จ'
-                : 'บันทึกการรักษาสำเร็จ'),
-            backgroundColor: AiraColors.sage,
-          ),
+        AiraFeedback.success(
+          context,
+          widget.isEdit
+              ? (context.l10n.isThai ? 'อัปเดตบันทึกการรักษาเรียบร้อยแล้ว' : 'Treatment record updated successfully')
+              : (context.l10n.isThai ? 'บันทึกการรักษาเรียบร้อยแล้ว' : 'Treatment record saved successfully'),
         );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.saveFailed('$e')),
-            backgroundColor: AiraColors.terra,
-          ),
-        );
+        AiraFeedback.error(context, context.l10n.saveFailed('$e'));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -355,7 +478,13 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   @override
   Widget build(BuildContext context) {
     final _ = ref.watch(isThaiProvider); // keep provider active for l10n rebuild
+    final doctorsAsync = ref.watch(_availableDoctorsProvider);
+    final currentStaff = ref.watch(currentStaffProvider).valueOrNull;
+    final preferredAppointment = ref.watch(
+      _preferredAppointmentProvider((patientId: widget.patientId, appointmentId: widget.appointmentId)),
+    ).valueOrNull;
     final catLabel = _categoryLabel(_category);
+    _primeDoctorSelection(doctorsAsync.valueOrNull ?? const [], currentStaff, preferredAppointment);
     return Scaffold(
       backgroundColor: AiraColors.cream,
       body: Column(
@@ -393,9 +522,9 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                         step: 1,
                         icon: Icons.medical_services_rounded,
                         title: 'ข้อมูลการรักษา',
-                        subtitle: 'ชื่อหัตถการ, หมวดหมู่',
+                        subtitle: 'ชื่อหัตถการ, หมวดหมู่, แพทย์ผู้รับผิดชอบ',
                       ),
-                      _buildTreatmentInfoSection(),
+                      _buildTreatmentInfoSection(doctorsAsync, preferredAppointment),
                       const SizedBox(height: 28),
 
                       // ─── Section 2: SOAP Notes ───
@@ -587,7 +716,96 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     );
   }
 
-  Widget _buildTreatmentInfoSection() {
+  double? _parseQuantity(dynamic raw) {
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw?.toString() ?? '');
+  }
+
+  Future<String?> _validateProductUsage() async {
+    final isThai = context.l10n.isThai;
+    final products = await ref.read(productListProvider.future);
+    final productById = <String, Product>{
+      for (final product in products) product.id: product,
+    };
+
+    for (final productUsage in _productsUsed) {
+      final name = productUsage['name']?.toString() ?? (isThai ? 'สินค้า' : 'Product');
+      final quantity = _parseQuantity(productUsage['quantity']) ?? 0;
+      if (quantity <= 0) {
+        return isThai
+            ? 'กรุณาระบุจำนวนที่ใช้ของ $name ให้มากกว่า 0'
+            : 'Please enter a quantity greater than 0 for $name';
+      }
+
+      final productId = productUsage['product_id'] as String?;
+      if (productId == null) continue;
+
+      final product = productById[productId];
+      if (product == null) {
+        return isThai
+            ? 'ไม่พบข้อมูลสินค้า $name ในคลัง'
+            : 'Product $name was not found in inventory';
+      }
+
+      if (quantity > product.stockQuantity) {
+        return isThai
+            ? '$name มีสต็อกไม่พอ (${NumberFormat('#,##0.###').format(product.stockQuantity)} ${product.unit} คงเหลือ)'
+            : '$name does not have enough stock (${NumberFormat('#,##0.###').format(product.stockQuantity)} ${product.unit} remaining)';
+      }
+    }
+
+    return null;
+  }
+
+  void _primeDoctorSelection(List<_DoctorOption> doctors, Staff? currentStaff, Appointment? preferredAppointment) {
+    if (_doctorSelectionPrimed || doctors.isEmpty) return;
+
+    _DoctorOption? preferred;
+    final appointmentDoctorId = preferredAppointment?.doctorId;
+    if (appointmentDoctorId != null && appointmentDoctorId.isNotEmpty) {
+      for (final option in doctors) {
+        if (option.staff.id == appointmentDoctorId) {
+          preferred = option;
+          break;
+        }
+      }
+    }
+
+    preferred ??= doctors.cast<_DoctorOption?>().firstWhere(
+          (option) => option?.staff.id == currentStaff?.id,
+          orElse: () => doctors.where((option) => option.isOnDuty).cast<_DoctorOption?>().firstWhere(
+                (option) => option != null,
+                orElse: () => doctors.first,
+              ),
+        );
+
+    if (preferred == null) return;
+    final selectedDoctorId = preferred.staff.id;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _doctorSelectionPrimed) return;
+      setState(() {
+        _selectedDoctorId = selectedDoctorId;
+        _doctorSelectionPrimed = true;
+      });
+    });
+  }
+
+  String _doctorStatusLabel(ScheduleStatus? status) {
+    switch (status) {
+      case ScheduleStatus.onDuty:
+        return context.l10n.onDuty;
+      case ScheduleStatus.leave:
+        return context.l10n.leave;
+      case ScheduleStatus.halfDay:
+        return context.l10n.halfDay;
+      case null:
+        return context.l10n.noSchedule;
+    }
+  }
+
+  Widget _buildTreatmentInfoSection(AsyncValue<List<_DoctorOption>> doctorsAsync, Appointment? preferredAppointment) {
+    final preferredAppointmentDate = preferredAppointment?.date;
     return AiraPremiumCard(
       accentColor: AiraColors.woodMid,
       children: [
@@ -605,6 +823,84 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           decoration: airaFieldDecoration(label: 'หมวดหมู่', prefixIcon: Icons.category_rounded),
           items: TreatmentCategory.values.map((c) => DropdownMenuItem(value: c, child: Text(_categoryLabel(c), style: airaFieldTextStyle))).toList(),
           onChanged: (v) { if (v != null) setState(() => _category = v); },
+        ),
+        if ((preferredAppointment?.doctorId ?? '').isNotEmpty && preferredAppointmentDate != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AiraColors.sage.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AiraColors.sage.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              context.l10n.isThai
+                  ? 'อ้างอิงแพทย์จากนัดหมายวันที่ ${DateFormat('d/M/y').format(preferredAppointmentDate)}'
+                  : 'Doctor suggested from appointment on ${DateFormat('d/M/y').format(preferredAppointmentDate)}',
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.sage),
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
+        doctorsAsync.when(
+          data: (doctors) => DropdownButtonFormField<String>(
+            value: doctors.any((option) => option.staff.id == _selectedDoctorId)
+                ? _selectedDoctorId
+                : null,
+            style: airaFieldTextStyle,
+            decoration: airaFieldDecoration(
+              label: context.l10n.responsibleDoctor,
+              hint: context.l10n.doctorHint,
+              prefixIcon: Icons.person_rounded,
+            ),
+            items: doctors
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option.staff.id,
+                    child: Text(
+                      '${option.staff.fullName} • ${_doctorStatusLabel(option.schedule?.status)}',
+                      style: airaFieldTextStyle,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: doctors.isEmpty
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedDoctorId = value;
+                      _doctorSelectionPrimed = true;
+                    });
+                  },
+            validator: (_) {
+              if (doctors.isEmpty) {
+                return 'ยังไม่มีข้อมูลแพทย์ในระบบ';
+              }
+              if (_selectedDoctorId == null || _selectedDoctorId!.isEmpty) {
+                return 'กรุณาเลือกแพทย์ผู้รับผิดชอบ';
+              }
+              return null;
+            },
+          ),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
+          ),
+          error: (e, _) => Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AiraColors.terra.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AiraColors.terra.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              'โหลดรายชื่อแพทย์ไม่สำเร็จ: $e',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.terra),
+            ),
+          ),
         ),
         const SizedBox(height: 8),
       ],
@@ -691,7 +987,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
             ),
           );
         }),
-        _premiumField('จำนวนหน่วยรวมที่ใช้ (Units)', _unitsUsedCtrl, hint: 'เช่น 20', icon: Icons.straighten_rounded, keyboard: TextInputType.number),
+        _premiumField('จำนวนหน่วยรวมที่ใช้ (Units)', _unitsUsedCtrl, hint: 'เช่น 20 หรือ 2.5', icon: Icons.straighten_rounded, keyboard: const TextInputType.numberWithOptions(decimal: true)),
         AiraTapEffect(
           onTap: _showAddProductDialog,
           child: Container(
@@ -752,7 +1048,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                     ),
                     items: products.map((p) => DropdownMenuItem(
                       value: p,
-                      child: Text('${p.name} (สต็อก: ${p.stockQuantity.toStringAsFixed(0)} ${p.unit})', overflow: TextOverflow.ellipsis),
+                      child: Text('${p.name} (สต็อก: ${NumberFormat('#,##0.###').format(p.stockQuantity)} ${p.unit})', overflow: TextOverflow.ellipsis),
                     )).toList(),
                     onChanged: (v) {
                       setDlgState(() {
@@ -761,6 +1057,15 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                       });
                     },
                   ),
+                  if (selectedProduct?.stockPerContainer != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      context.l10n.isThai
+                          ? '1 ขวด/กล่อง = ${NumberFormat('#,##0.###').format(selectedProduct!.stockPerContainer)} ${selectedProduct!.unit}'
+                          : '1 container = ${NumberFormat('#,##0.###').format(selectedProduct!.stockPerContainer)} ${selectedProduct!.unit}',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   AiraTapEffect(
                     onTap: () => setDlgState(() => manualMode = true),
@@ -814,11 +1119,37 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
               style: ElevatedButton.styleFrom(backgroundColor: AiraColors.woodMid, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () {
                 final name = selectedProduct?.name ?? nameCtrl.text.trim();
-                if (name.isEmpty) return;
+                final quantity = double.tryParse(qtyCtrl.text.trim()) ?? 0;
+                if (name.isEmpty || quantity <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        context.l10n.isThai
+                            ? 'กรุณาเลือกสินค้าและระบุจำนวนที่มากกว่า 0'
+                            : 'Please choose a product and enter a quantity greater than 0',
+                      ),
+                      backgroundColor: AiraColors.terra,
+                    ),
+                  );
+                  return;
+                }
+                if (selectedProduct != null && quantity > selectedProduct!.stockQuantity) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        context.l10n.isThai
+                            ? 'สต็อกของ ${selectedProduct!.name} ไม่พอ'
+                            : 'Not enough stock for ${selectedProduct!.name}',
+                      ),
+                      backgroundColor: AiraColors.terra,
+                    ),
+                  );
+                  return;
+                }
                 setState(() {
                   _productsUsed.add({
                     'name': name,
-                    'quantity': double.tryParse(qtyCtrl.text.trim()) ?? 0,
+                    'quantity': quantity,
                     'unit': unitCtrl.text.trim(),
                     if (selectedProduct != null) 'product_id': selectedProduct!.id,
                   });

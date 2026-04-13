@@ -73,10 +73,7 @@ class _AiraTapEffectState extends State<AiraTapEffect>
 
   void _onTapDown(TapDownDetails _) => _ctrl.forward();
 
-  void _onTapUp(TapUpDetails _) {
-    _ctrl.reverse();
-    widget.onTap?.call();
-  }
+  void _onTapUp(TapUpDetails _) => _ctrl.reverse();
 
   void _onTapCancel() => _ctrl.reverse();
 
@@ -87,6 +84,7 @@ class _AiraTapEffectState extends State<AiraTapEffect>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
+      onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       child: AnimatedBuilder(
         animation: _ctrl,

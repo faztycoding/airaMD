@@ -6,6 +6,9 @@ import 'package:uuid/uuid.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/access_guard.dart';
+import '../../core/widgets/aira_empty_state.dart';
+import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
@@ -19,45 +22,49 @@ class FinancialScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(_finTabProvider);
+    final canAccessFinancialData = ref.watch(canAccessFinancialDataProvider);
 
     return Scaffold(
       backgroundColor: AiraColors.cream,
       appBar: AppBar(
         title: Builder(builder: (ctx) => Text(ctx.l10n.financial)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'บันทึกรายการใหม่',
-            onPressed: () => _showAddRecordDialog(context, ref),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Summary cards
-          _SummaryCards(),
-          // Tabs
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                _TabChip('ทั้งหมด', 0, tab, ref),
-                const SizedBox(width: 8),
-                _TabChip('ค้างชำระ', 1, tab, ref),
-                const SizedBox(width: 8),
-                _TabChip('วันนี้', 2, tab, ref),
-              ],
+          if (canAccessFinancialData)
+            IconButton(
+              icon: const Icon(Icons.add_rounded),
+              tooltip: 'บันทึกรายการใหม่',
+              onPressed: () => _showAddRecordDialog(context, ref),
             ),
-          ),
-          const SizedBox(height: 12),
-          // List
-          Expanded(
-            child: tab == 1
-                ? _OutstandingList()
-                : _AllRecordsList(todayOnly: tab == 2),
-          ),
         ],
       ),
+      body: canAccessFinancialData
+          ? Column(
+              children: [
+                // Summary cards
+                _SummaryCards(),
+                // Tabs
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      _TabChip('ทั้งหมด', 0, tab, ref),
+                      const SizedBox(width: 8),
+                      _TabChip('ค้างชำระ', 1, tab, ref),
+                      const SizedBox(width: 8),
+                      _TabChip('วันนี้', 2, tab, ref),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // List
+                Expanded(
+                  child: tab == 1
+                      ? _OutstandingList()
+                      : _AllRecordsList(todayOnly: tab == 2),
+                ),
+              ],
+            )
+          : const InlineAccessGuard(permission: AiraPermission.financial),
     );
   }
 
@@ -188,9 +195,7 @@ class FinancialScreen extends ConsumerWidget {
                       child: AiraTapEffect(
                         onTap: () async {
                           if (selectedPatientId == null || amountCtrl.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(context.l10n.pleaseFillRequired)),
-                            );
+                            AiraFeedback.warning(context, context.l10n.pleaseFillRequired);
                             return;
                           }
                           final clinicId = ref.read(currentClinicIdProvider);
@@ -215,15 +220,11 @@ class FinancialScreen extends ConsumerWidget {
                             ref.invalidate(dashboardStatsProvider);
                             if (ctx.mounted) Navigator.pop(ctx);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(context.l10n.saveSuccess), backgroundColor: AiraColors.sage),
-                              );
+                              AiraFeedback.success(context, context.l10n.saveSuccess);
                             }
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(context.l10n.errorMsg('$e')), backgroundColor: AiraColors.terra),
-                              );
+                              AiraFeedback.error(context, context.l10n.errorMsg('$e'));
                             }
                           }
                         },
@@ -407,13 +408,20 @@ class _AllRecordsList extends ConsumerWidget {
 
         if (filtered.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.receipt_long_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
-                const SizedBox(height: 12),
-                Text(context.l10n.noTransactions, style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: AiraEmptyState(
+                icon: Icons.receipt_long_rounded,
+                title: context.l10n.noTransactions,
+                subtitle: todayOnly
+                    ? (context.l10n.isThai
+                        ? 'วันนี้ยังไม่มีรายการการเงินใหม่ในระบบ'
+                        : 'There are no new financial transactions recorded today.')
+                    : (context.l10n.isThai
+                        ? 'เริ่มบันทึกรับชำระ ค่าใช้จ่าย หรือรายการค้างชำระเพื่อให้รายงานการเงินแสดงผล'
+                        : 'Start recording payments, charges, or outstanding items to populate the financial overview.'),
+                accentColor: AiraColors.woodMid,
+              ),
             ),
           );
         }
@@ -440,13 +448,16 @@ class _OutstandingList extends ConsumerWidget {
       data: (records) {
         if (records.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle_outline_rounded, size: 48, color: AiraColors.sage.withValues(alpha: 0.5)),
-                const SizedBox(height: 12),
-                Text(context.l10n.noOutstanding, style: GoogleFonts.plusJakartaSans(fontSize: 15, color: AiraColors.muted)),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: AiraEmptyState(
+                icon: Icons.check_circle_outline_rounded,
+                title: context.l10n.noOutstanding,
+                subtitle: context.l10n.isThai
+                    ? 'ยอดค้างชำระทั้งหมดถูกเคลียร์แล้ว สามารถใช้หน้านี้ติดตามเฉพาะเคสที่ยังต้องเก็บเงินต่อได้'
+                    : 'All outstanding balances have been cleared. Use this tab to follow only the cases that still require payment collection.',
+                accentColor: AiraColors.sage,
+              ),
             ),
           );
         }

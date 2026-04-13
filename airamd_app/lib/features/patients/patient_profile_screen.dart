@@ -36,29 +36,52 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   int _selectedSection = 0;
 
-  List<_TabDef> _tabs(AppL10n l) => [
-    _TabDef(Icons.person_rounded, l.personalInfo),
-    _TabDef(Icons.healing_rounded, l.healthHistory),
-    _TabDef(Icons.draw_rounded, l.faceDiagram),
-    _TabDef(Icons.colorize_rounded, 'Injectables'),
-    _TabDef(Icons.flash_on_rounded, l.laser),
-    _TabDef(Icons.science_rounded, l.treatment),
-    _TabDef(Icons.spa_rounded, l.antiAging),
-    _TabDef(Icons.table_chart_rounded, l.courseTable),
-    _TabDef(Icons.photo_library_rounded, l.beforeAfter),
-    _TabDef(Icons.description_rounded, l.consentForm),
-    _TabDef(Icons.medication_rounded, l.supplements),
-    _TabDef(Icons.favorite_rounded, l.surgery),
-    _TabDef(Icons.account_balance_wallet_rounded, l.spending),
-    _TabDef(Icons.message_rounded, l.messages),
-    _TabDef(Icons.star_rounded, l.patientStatus),
-  ];
+  List<_TabDef> _tabs(
+    AppL10n l, {
+    required bool canManageClinicalData,
+    required bool canAccessFinancialData,
+  }) {
+    return [
+      _TabDef(0, Icons.person_rounded, l.personalInfo),
+      _TabDef(1, Icons.healing_rounded, l.healthHistory),
+      if (canManageClinicalData) ...[
+        _TabDef(2, Icons.draw_rounded, l.faceDiagram),
+        _TabDef(3, Icons.colorize_rounded, 'Injectables'),
+        _TabDef(4, Icons.flash_on_rounded, l.laser),
+        _TabDef(5, Icons.science_rounded, l.treatment),
+        _TabDef(6, Icons.spa_rounded, l.antiAging),
+      ],
+      if (canAccessFinancialData) _TabDef(7, Icons.table_chart_rounded, l.courseTable),
+      if (canManageClinicalData) ...[
+        _TabDef(8, Icons.photo_library_rounded, l.beforeAfter),
+        _TabDef(9, Icons.description_rounded, l.consentForm),
+        _TabDef(10, Icons.medication_rounded, l.supplements),
+        _TabDef(11, Icons.favorite_rounded, l.surgery),
+      ],
+      if (canAccessFinancialData) _TabDef(12, Icons.account_balance_wallet_rounded, l.spending),
+      _TabDef(13, Icons.message_rounded, l.messages),
+      if (canManageClinicalData) _TabDef(14, Icons.star_rounded, l.patientStatus),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
     final l = context.l10n;
-    final tabs = _tabs(l);
+    final canManageClinicalData = ref.watch(canManageClinicalDataProvider);
+    final canAccessFinancialData = ref.watch(canAccessFinancialDataProvider);
+    final effectiveRole = ref.watch(effectiveStaffRoleProvider);
+    final tabs = _tabs(
+      l,
+      canManageClinicalData: canManageClinicalData,
+      canAccessFinancialData: canAccessFinancialData,
+    );
+    if (tabs.isNotEmpty && !tabs.any((tab) => tab.sectionId == _selectedSection)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _selectedSection = tabs.first.sectionId);
+      });
+    }
 
     return patientAsync.when(
       data: (patient) {
@@ -68,6 +91,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
             body: Center(child: Text(l.patientNotFound, style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
           );
         }
+        final hasLineContact = patient.lineId != null && patient.lineId!.isNotEmpty;
+        final hasMessagingContact = hasLineContact || (patient.phone != null && patient.phone!.isNotEmpty);
         return Scaffold(
           backgroundColor: AiraColors.cream,
           body: Column(
@@ -77,6 +102,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 onBack: () => context.pop(),
                 onEdit: () => context.push('/patients/${patient.id}/edit'),
                 onDelete: () => _confirmDeletePatient(context, ref, patient),
+                onOpenMessages: hasMessagingContact ? () => setState(() => _selectedSection = 13) : null,
+                canEdit: canManageClinicalData,
+                canDelete: effectiveRole == StaffRole.owner,
+                showLineAction: hasLineContact,
+                showMessageAction: hasMessagingContact,
               ),
               Expanded(
                 child: LayoutBuilder(
@@ -248,8 +278,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return _ProfileSectionNavItem(
             icon: tab.icon,
             label: tab.label,
-            selected: index == _selectedSection,
-            onTap: () => setState(() => _selectedSection = index),
+            selected: tab.sectionId == _selectedSection,
+            onTap: () => setState(() => _selectedSection = tab.sectionId),
           );
         },
       ),
@@ -264,11 +294,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         child: Row(
           children: List.generate(tabs.length, (index) {
             final tab = tabs[index];
-            final selected = index == _selectedSection;
+            final selected = tab.sectionId == _selectedSection;
             return Padding(
               padding: EdgeInsets.only(right: index == tabs.length - 1 ? 0 : 8),
               child: AiraTapEffect(
-                onTap: () => setState(() => _selectedSection = index),
+                onTap: () => setState(() => _selectedSection = tab.sectionId),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -394,9 +424,10 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 }
 
 class _TabDef {
+  final int sectionId;
   final IconData icon;
   final String label;
-  const _TabDef(this.icon, this.label);
+  const _TabDef(this.sectionId, this.icon, this.label);
 }
 
 class _ProfileSectionNavItem extends StatelessWidget {

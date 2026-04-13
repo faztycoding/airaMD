@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/theme.dart';
+import '../../core/models/models.dart';
+import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/localization/app_localizations.dart';
@@ -112,9 +114,8 @@ class _Sidebar extends ConsumerWidget {
                 _SettingsGroup(l.system, [
                   _Item(Icons.notifications_rounded, l.notificationSettings, l.notificationSettingsSubtitle, route: '/settings/notifications'),
                   _Item(Icons.chat_rounded, l.messagingConfig, l.messagingConfigSubtitle, route: '/settings/messaging'),
-                  _Item(Icons.language_rounded, l.language, l.languageSubtitle),
+                  _Item(Icons.language_rounded, l.language, l.languageSubtitle, onTap: () => _showLanguagePicker(context, ref)),
                   _Item(Icons.shield_rounded, l.security, l.securitySubtitle, route: '/settings/security'),
-                  _Item(Icons.cloud_sync_rounded, l.cloudData, l.cloudDataSubtitle),
                   _Item(Icons.privacy_tip_rounded, 'PDPA', l.privacyPolicy, route: '/settings/privacy'),
                   _Item(Icons.history_rounded, l.auditLogs, l.auditLogTitle, route: '/settings/audit-logs'),
                 ]),
@@ -139,9 +140,130 @@ class _Sidebar extends ConsumerWidget {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
+void _showLanguagePicker(BuildContext context, WidgetRef ref) {
+  final isThai = ref.read(isThaiProvider);
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AiraColors.creamDk,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              context.l10n.language,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _LangOption(
+              flag: '🇹🇭',
+              label: 'ภาษาไทย',
+              subtitle: 'Thai',
+              selected: isThai,
+              onTap: () {
+                ref.read(localeProvider.notifier).state = const Locale('th', 'TH');
+                Navigator.pop(ctx);
+              },
+            ),
+            const SizedBox(height: 8),
+            _LangOption(
+              flag: '🇺🇸',
+              label: 'English',
+              subtitle: 'อังกฤษ',
+              selected: !isThai,
+              onTap: () {
+                ref.read(localeProvider.notifier).state = const Locale('en', 'US');
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _LangOption extends StatelessWidget {
+  final String flag, label, subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+  const _LangOption({
+    required this.flag, required this.label, required this.subtitle,
+    required this.selected, required this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
+    return AiraTapEffect(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? AiraColors.woodWash.withValues(alpha: 0.3) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AiraColors.woodMid : AiraColors.creamDk,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
+                  Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle_rounded, color: AiraColors.woodMid, size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileCard extends ConsumerWidget {
+  const _ProfileCard();
+
+  String _roleLabel(StaffRole role, AppL10n l) {
+    return switch (role) {
+      StaffRole.owner => l.ownerRole,
+      StaffRole.doctor => l.doctorRole,
+      StaffRole.receptionist => l.staffRole,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final staff = ref.watch(currentStaffProvider).valueOrNull;
+    final user = Supabase.instance.client.auth.currentUser;
+    final displayName = staff?.fullName ?? user?.email ?? 'airaMD';
+    final subtitle = staff != null
+        ? _roleLabel(staff.role, context.l10n)
+        : (user?.email ?? (context.l10n.isThai ? 'ยังไม่พบข้อมูลพนักงาน' : 'Staff profile unavailable'));
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -170,8 +292,11 @@ class _ProfileCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
             ),
-            child: const Center(
-              child: Icon(Icons.medical_services_rounded, color: Colors.white, size: 24),
+            child: Center(
+              child: Text(
+                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
+                style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -180,7 +305,7 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dr. Pammy',
+                  displayName,
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -189,7 +314,7 @@ class _ProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Admin',
+                  subtitle,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.7),
@@ -197,15 +322,6 @@ class _ProfileCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.edit_rounded, size: 16, color: Colors.white.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -217,7 +333,8 @@ class _Item {
   final IconData icon;
   final String label, subtitle;
   final String? route;
-  const _Item(this.icon, this.label, this.subtitle, {this.route});
+  final VoidCallback? onTap;
+  const _Item(this.icon, this.label, this.subtitle, {this.route, this.onTap});
 }
 
 class _SettingsGroup extends StatelessWidget {
@@ -263,7 +380,7 @@ class _SettingsGroup extends StatelessWidget {
               return Column(
                 children: [
                   AiraTapEffect(
-                    onTap: item.route != null ? () => context.push(item.route!) : null,
+                    onTap: item.route != null ? () => context.push(item.route!) : item.onTap,
                     child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(

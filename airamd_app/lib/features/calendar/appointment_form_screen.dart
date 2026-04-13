@@ -12,6 +12,49 @@ import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
 import '../../core/localization/app_localizations.dart';
 
+final _appointmentDoctorsProvider = FutureProvider.family<List<_AppointmentDoctorOption>, DateTime>((ref, date) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return const [];
+
+  final staffRepo = ref.watch(staffRepoProvider);
+  final scheduleRepo = ref.watch(scheduleRepoProvider);
+  final dateOnly = DateTime(date.year, date.month, date.day);
+
+  final doctors = await staffRepo.getDoctors(clinicId);
+  final schedules = await scheduleRepo.getByDate(clinicId: clinicId, date: dateOnly);
+  final scheduleByStaffId = <String, StaffSchedule>{
+    for (final schedule in schedules) schedule.staffId: schedule,
+  };
+
+  final options = doctors
+      .map((doctor) => _AppointmentDoctorOption(
+            staff: doctor,
+            schedule: scheduleByStaffId[doctor.id],
+          ))
+      .toList();
+
+  options.sort((a, b) {
+    final availabilityCompare = b.sortPriority.compareTo(a.sortPriority);
+    if (availabilityCompare != 0) return availabilityCompare;
+    return a.staff.fullName.compareTo(b.staff.fullName);
+  });
+  return options;
+});
+
+class _AppointmentDoctorOption {
+  final Staff staff;
+  final StaffSchedule? schedule;
+
+  const _AppointmentDoctorOption({required this.staff, this.schedule});
+
+  int get sortPriority => switch (schedule?.status) {
+        ScheduleStatus.onDuty => 3,
+        ScheduleStatus.halfDay => 2,
+        ScheduleStatus.leave => 1,
+        null => 0,
+      };
+}
+
 class AppointmentFormScreen extends ConsumerStatefulWidget {
   final String? appointmentId;
   final DateTime? initialDate;
@@ -33,7 +76,9 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
   TimeOfDay? _endTime;
   AppointmentStatus _status = AppointmentStatus.newAppt;
   String? _selectedPatientId;
+  String? _selectedDoctorId;
   String _patientSearch = '';
+  bool _doctorSelectionPrimed = false;
 
   final _treatmentTypeCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -62,6 +107,8 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       _endTime = appt.endTime != null ? _parseTime(appt.endTime!) : null;
       _status = appt.status;
       _selectedPatientId = appt.patientId;
+      _selectedDoctorId = appt.doctorId;
+      _doctorSelectionPrimed = appt.doctorId != null && appt.doctorId!.isNotEmpty;
       _treatmentTypeCtrl.text = appt.treatmentType ?? '';
       _notesCtrl.text = appt.notes ?? '';
     });
@@ -98,6 +145,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
       id: widget.isEdit ? widget.appointmentId! : const Uuid().v4(),
       clinicId: clinicId,
       patientId: _selectedPatientId!,
+      doctorId: _selectedDoctorId,
       date: _date,
       startTime: _formatTime(_startTime),
       endTime: _endTime != null ? _formatTime(_endTime!) : null,
@@ -125,7 +173,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
         action: widget.isEdit ? 'UPDATE_APPOINTMENT' : 'CREATE_APPOINTMENT',
         entityType: 'appointments',
         entityId: appt.id,
-        newData: {'patient_id': appt.patientId, 'date': appt.date.toIso8601String()},
+        newData: {'patient_id': appt.patientId, 'doctor_id': appt.doctorId, 'date': appt.date.toIso8601String()},
       );
 
       if (mounted) {
@@ -148,10 +196,41 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     }
   }
 
+  void _primeDoctorSelection(List<_AppointmentDoctorOption> doctors, Staff? currentStaff) {
+    if (_doctorSelectionPrimed || doctors.isEmpty) return;
+
+    _AppointmentDoctorOption? preferred;
+    if (currentStaff != null) {
+      for (final option in doctors) {
+        if (option.staff.id == currentStaff.id) {
+          preferred = option;
+          break;
+        }
+      }
+    }
+
+    preferred ??= doctors.firstWhere(
+      (option) => option.schedule?.status == ScheduleStatus.onDuty,
+      orElse: () => doctors.first,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _doctorSelectionPrimed) return;
+      setState(() {
+        _selectedDoctorId = preferred?.staff.id;
+        _doctorSelectionPrimed = true;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientListProvider);
     final _ = ref.watch(isThaiProvider); // keep provider active for l10n rebuild
+    final doctorsAsync = ref.watch(_appointmentDoctorsProvider(_date));
+    final currentStaff = ref.watch(currentStaffProvider).valueOrNull;
+    final canManageClinicalData = ref.watch(canManageClinicalDataProvider);
+    _primeDoctorSelection(doctorsAsync.valueOrNull ?? const [], currentStaff);
 
     return Scaffold(
       backgroundColor: AiraColors.cream,
@@ -193,7 +272,7 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
 
                       // ─── Treatment info ───
                       AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: context.l10n.appointmentInfo, subtitle: context.l10n.appointmentInfoSubtitle),
-                      _buildTreatmentSection(),
+                      _buildTreatmentSection(doctorsAsync),
                       const SizedBox(height: 28),
 
                       // ─── Status ───
@@ -208,6 +287,27 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
                         loading: _loading,
                         onTap: _save,
                       ),
+                      if (widget.isEdit && canManageClinicalData && _selectedPatientId != null) ...[
+                        const SizedBox(height: 12),
+                        AiraTapEffect(
+                          onTap: () => context.push('/patients/${_selectedPatientId!}/treatments/new?appointmentId=${widget.appointmentId}'),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.5)),
+                            ),
+                            child: Center(
+                              child: Text(
+                                context.l10n.isThai ? 'เปิดบันทึกการรักษาจากนัดนี้' : 'Open treatment record from this appointment',
+                                style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.woodDk),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const AiraBrandingFooter(),
                       const SizedBox(height: 40),
@@ -363,7 +463,20 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     );
   }
 
-  Widget _buildTreatmentSection() {
+  String _doctorStatusLabel(ScheduleStatus? status) {
+    switch (status) {
+      case ScheduleStatus.onDuty:
+        return context.l10n.onDuty;
+      case ScheduleStatus.leave:
+        return context.l10n.leave;
+      case ScheduleStatus.halfDay:
+        return context.l10n.halfDay;
+      case null:
+        return context.l10n.noSchedule;
+    }
+  }
+
+  Widget _buildTreatmentSection(AsyncValue<List<_AppointmentDoctorOption>> doctorsAsync) {
     return AiraPremiumCard(
       accentColor: AiraColors.woodMid,
       children: [
@@ -371,6 +484,64 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
           controller: _treatmentTypeCtrl,
           style: airaFieldTextStyle,
           decoration: airaFieldDecoration(label: 'ประเภทหัตถการ', hint: 'เช่น Botox, Filler, Laser...', prefixIcon: Icons.medical_services_rounded),
+        ),
+        const SizedBox(height: 14),
+        doctorsAsync.when(
+          data: (doctors) => DropdownButtonFormField<String>(
+            value: doctors.any((option) => option.staff.id == _selectedDoctorId)
+                ? _selectedDoctorId
+                : null,
+            style: airaFieldTextStyle,
+            decoration: airaFieldDecoration(
+              label: context.l10n.responsibleDoctor,
+              hint: context.l10n.doctorHint,
+              prefixIcon: Icons.person_rounded,
+            ),
+            items: doctors
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option.staff.id,
+                    child: Text(
+                      '${option.staff.fullName} • ${_doctorStatusLabel(option.schedule?.status)}',
+                      style: airaFieldTextStyle,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: doctors.isEmpty
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedDoctorId = value;
+                      _doctorSelectionPrimed = true;
+                    });
+                  },
+            validator: (_) {
+              if (doctors.isEmpty) return null;
+              if (_selectedDoctorId == null || _selectedDoctorId!.isEmpty) {
+                return context.l10n.isThai ? 'กรุณาเลือกแพทย์ผู้รับผิดชอบ' : 'Please select a responsible doctor';
+              }
+              return null;
+            },
+          ),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
+          ),
+          error: (e, _) => Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AiraColors.terra.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AiraColors.terra.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              'โหลดรายชื่อแพทย์ไม่สำเร็จ: $e',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.terra),
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         TextFormField(

@@ -44,6 +44,11 @@ final _staffRosterProvider = FutureProvider.family<List<_StaffRosterEntry>, Date
   return entries;
 });
 
+final _calendarDoctorProvider = FutureProvider.family<Staff?, String>((ref, staffId) async {
+  final repo = ref.watch(staffRepoProvider);
+  return repo.get(staffId);
+});
+
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
@@ -1159,6 +1164,9 @@ class _AppointmentTimelineRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientAsync = ref.watch(patientByIdProvider(appt.patientId));
+    final doctorAsync = appt.doctorId != null && appt.doctorId!.isNotEmpty
+        ? ref.watch(_calendarDoctorProvider(appt.doctorId!))
+        : const AsyncValue<Staff?>.data(null);
 
     return IntrinsicHeight(
       child: Row(
@@ -1267,6 +1275,26 @@ class _AppointmentTimelineRow extends ConsumerWidget {
                           Text(
                             appt.treatmentType ?? context.l10n.noTreatmentSpecified,
                             style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
+                          ),
+                          doctorAsync.when(
+                            data: (doctor) => doctor != null
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      context.l10n.isThai
+                                          ? 'แพทย์: ${doctor.fullName}'
+                                          : 'Doctor: ${doctor.fullName}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AiraColors.woodMid,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
                           ),
                         ],
                       ),

@@ -80,7 +80,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/patients/new',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const PatientFormScreen(patientId: 'new'),
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.clinical,
+        child: PatientFormScreen(patientId: 'new'),
+      ),
     ),
     GoRoute(
       path: '/patients/:id',
@@ -92,8 +95,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/patients/:id/edit',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => PatientFormScreen(
-        patientId: state.pathParameters['id']!,
+      builder: (context, state) => AccessGuard(
+        permission: AiraPermission.clinical,
+        child: PatientFormScreen(
+          patientId: state.pathParameters['id']!,
+        ),
       ),
     ),
 
@@ -103,12 +109,14 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         final catStr = state.uri.queryParameters['category'];
+        final appointmentId = state.uri.queryParameters['appointmentId'];
         final category = catStr != null ? TreatmentCategory.fromDb(catStr) : null;
         return AccessGuard(
           permission: AiraPermission.clinical,
           child: TreatmentFormScreen(
             patientId: state.pathParameters['pid']!,
             initialCategory: category,
+            appointmentId: appointmentId,
           ),
         );
       },
@@ -296,9 +304,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/settings/audit-logs',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const AccessGuard(
-        permission: AiraPermission.settings,
-        child: AuditLogScreen(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: AccessGuard(
+          permission: AiraPermission.settings,
+          child: AuditLogScreen(),
+        ),
       ),
     ),
 

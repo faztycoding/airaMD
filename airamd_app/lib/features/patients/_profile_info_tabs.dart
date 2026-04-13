@@ -210,6 +210,11 @@ class _ConditionChip extends StatelessWidget {
 // TAB 3-5: Treatment List Tabs (Injectable / Laser / Treatment)
 // ═══════════════════════════════════════════════════════════════════
 
+final _staffByIdProvider = FutureProvider.family<Staff?, String>((ref, staffId) async {
+  final repo = ref.watch(staffRepoProvider);
+  return repo.get(staffId);
+});
+
 class _TreatmentListTab extends ConsumerWidget {
   final String patientId;
   final String category;
@@ -246,7 +251,23 @@ class _TreatmentListTab extends ConsumerWidget {
                   date: _formatDate(t.date),
                   title: '${_categoryIcon(category)} ${t.treatmentName}',
                   subtitle: t.chiefComplaint,
-                  products: [],
+                  doctorId: t.doctorId,
+                  products: t.productsUsed
+                      .map((product) {
+                        if (product is Map) {
+                          final map = Map<String, dynamic>.from(product);
+                          final name = map['name']?.toString().trim() ?? '';
+                          if (name.isEmpty) return null;
+                          final quantity = map['quantity'];
+                          final unit = map['unit']?.toString().trim() ?? '';
+                          if (quantity == null) return name;
+                          return '$name ${quantity.toString()} ${unit.isEmpty ? '' : unit}'.trim();
+                        }
+                        final text = product.toString().trim();
+                        return text.isEmpty ? null : text;
+                      })
+                      .whereType<String>()
+                      .toList(),
                   category: category,
                 ),
               )),
@@ -284,16 +305,18 @@ class _TreatmentListTab extends ConsumerWidget {
   }
 }
 
-class _TreatmentCard extends StatelessWidget {
+class _TreatmentCard extends ConsumerWidget {
   final String date;
   final String title;
   final String? subtitle;
+  final String? doctorId;
   final List<String> products;
   final String category;
   const _TreatmentCard({
     required this.date,
     required this.title,
     this.subtitle,
+    this.doctorId,
     required this.products,
     required this.category,
   });
@@ -307,7 +330,10 @@ class _TreatmentCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final doctorAsync = doctorId == null || doctorId!.isEmpty
+        ? null
+        : ref.watch(_staffByIdProvider(doctorId!));
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -345,6 +371,33 @@ class _TreatmentCard extends StatelessWidget {
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
+                ],
+                if (doctorAsync != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _accentColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _accentColor.withValues(alpha: 0.16)),
+                    ),
+                    child: doctorAsync.when(
+                      loading: () => Text(
+                        context.l10n.isThai ? 'แพทย์ผู้รับผิดชอบ: ...' : 'Doctor: ...',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _accentColor),
+                      ),
+                      error: (_, __) => Text(
+                        context.l10n.isThai ? 'แพทย์ผู้รับผิดชอบ: ไม่พบข้อมูล' : 'Doctor: not found',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _accentColor),
+                      ),
+                      data: (doctor) => Text(
+                        context.l10n.isThai
+                            ? 'แพทย์ผู้รับผิดชอบ: ${doctor?.fullName ?? context.l10n.notFoundShort}'
+                            : 'Doctor: ${doctor?.fullName ?? context.l10n.notFoundShort}',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _accentColor),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),

@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/aira_empty_state.dart';
+import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
@@ -106,17 +108,16 @@ class InventoryScreen extends ConsumerWidget {
               data: (products) {
                 if (products.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inventory_2_rounded,
-                            size: 48,
-                            color: AiraColors.muted.withValues(alpha: 0.3)),
-                        const SizedBox(height: 12),
-                        Text(context.l10n.noProductsYet,
-                            style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15, color: AiraColors.muted)),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: AiraEmptyState(
+                        icon: Icons.inventory_2_rounded,
+                        title: context.l10n.noProductsYet,
+                        subtitle: context.l10n.isThai
+                            ? 'เพิ่มสินค้าใน Product Library ก่อน แล้วจึงเริ่มรับเข้า เบิกใช้ และติดตามล็อตคงเหลือ'
+                            : 'Add products in the Product Library first, then start receiving, using, and tracking inventory lots.',
+                        accentColor: AiraColors.woodMid,
+                      ),
                     ),
                   );
                 }
@@ -139,9 +140,17 @@ class InventoryScreen extends ConsumerWidget {
                     Expanded(
                       child: selectedProductId == null
                           ? Center(
-                              child: Text(context.l10n.selectProductLeft,
-                                  style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 14, color: AiraColors.muted)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: AiraEmptyState(
+                                  icon: Icons.touch_app_rounded,
+                                  title: context.l10n.selectProductLeft,
+                                  subtitle: context.l10n.isThai
+                                      ? 'เลือกสินค้าทางด้านซ้ายเพื่อดูยอดคงเหลือ ประวัติธุรกรรม และข้อมูลล็อตล่าสุด'
+                                      : 'Select a product on the left to review on-hand stock, transaction history, and recent lot details.',
+                                  accentColor: AiraColors.gold,
+                                ),
+                              ),
                             )
                           : _TransactionPanel(
                               product: products.firstWhere(
@@ -296,6 +305,30 @@ class _TransactionPanel extends ConsumerWidget {
                       Text('${product.brand} · ${product.category.dbValue}',
                           style: GoogleFonts.plusJakartaSans(
                               fontSize: 12, color: AiraColors.muted)),
+                    if ((product.stockPerContainer ?? 0) > 0 || product.minStockAlert != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if ((product.stockPerContainer ?? 0) > 0)
+                              _MetaChip(
+                                label:
+                                    '1 ขวด/กล่อง = ${NumberFormat('#,##0.###').format(product.stockPerContainer ?? 0)} ${product.unit}',
+                                color: AiraColors.woodMid,
+                              ),
+                            if (product.minStockAlert != null)
+                              _MetaChip(
+                                label:
+                                    'Min ≤ ${product.minStockAlert} ${product.unit}',
+                                color: product.isLowStock
+                                    ? AiraColors.terra
+                                    : AiraColors.gold,
+                              ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -448,15 +481,51 @@ class _TransactionPanel extends ConsumerWidget {
             data: (txs) {
               if (txs.isEmpty) {
                 return Center(
-                  child: Text(context.l10n.noTransactionsYet,
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13, color: AiraColors.muted)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: AiraEmptyState(
+                      icon: Icons.receipt_long_rounded,
+                      title: context.l10n.noTransactionsYet,
+                      subtitle: context.l10n.isThai
+                          ? 'ยังไม่มีการรับเข้า เบิกใช้ ปรับยอด หรือบันทึก lot สำหรับสินค้านี้'
+                          : 'There are no stock-in, usage, adjustment, or lot transactions for this product yet.',
+                      accentColor: AiraColors.woodMid,
+                    ),
+                  ),
                 );
               }
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: txs.length,
-                itemBuilder: (_, i) => _TxCard(tx: txs[i], unit: product.unit),
+              final recentBatches = _recentBatchTransactions(txs);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (recentBatches.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: recentBatches
+                            .map(
+                              (tx) => _BatchChip(
+                                batchNo: tx.batchNo,
+                                expiryDate: tx.expiryDate,
+                                isExpired: tx.expiryDate != null &&
+                                    tx.expiryDate!.isBefore(DateTime.now()),
+                                isExpiringSoon: tx.expiryDate != null &&
+                                    _isExpiringSoon(tx.expiryDate!),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: txs.length,
+                      itemBuilder: (_, i) => _TxCard(tx: txs[i], unit: product.unit),
+                    ),
+                  ),
+                ],
               );
             },
             loading: () => const Center(
@@ -472,6 +541,23 @@ class _TransactionPanel extends ConsumerWidget {
   bool _isExpiringSoon(DateTime date) {
     return date.isBefore(DateTime.now().add(const Duration(days: 30))) &&
         date.isAfter(DateTime.now());
+  }
+
+  List<InventoryTransaction> _recentBatchTransactions(
+      List<InventoryTransaction> txs) {
+    final seen = <String>{};
+    final result = <InventoryTransaction>[];
+    for (final tx in txs) {
+      if (tx.transactionType != InventoryTransactionType.stockIn) continue;
+      final batchKey = tx.batchNo?.trim() ?? '';
+      final expiryKey = tx.expiryDate?.toIso8601String() ?? '';
+      if (batchKey.isEmpty && expiryKey.isEmpty) continue;
+      final key = '$batchKey|$expiryKey';
+      if (!seen.add(key)) continue;
+      result.add(tx);
+      if (result.length >= 3) break;
+    }
+    return result;
   }
 
   void _showTxDialog(
@@ -606,11 +692,25 @@ class _TransactionPanel extends ConsumerWidget {
                 final clinicId = ref.read(currentClinicIdProvider);
                 if (clinicId == null) return;
 
+                if ((type == InventoryTransactionType.used ||
+                        type == InventoryTransactionType.wastage) &&
+                    qty > product.stockQuantity) {
+                  AiraFeedback.error(
+                    context,
+                    context.l10n.isThai
+                        ? 'จำนวนที่เบิกออกมากกว่าสต็อกคงเหลือ'
+                        : 'The requested quantity is greater than the remaining stock.',
+                  );
+                  return;
+                }
+
                 Navigator.pop(ctx);
 
                 try {
                   final invRepo = ref.read(inventoryRepoProvider);
                   final prodRepo = ref.read(productRepoProvider);
+                  final currentStaff =
+                      ref.read(currentStaffProvider).valueOrNull;
 
                   // Calculate new stock quantity
                   double newStock;
@@ -621,6 +721,18 @@ class _TransactionPanel extends ConsumerWidget {
                   } else {
                     // used or wastage
                     newStock = product.stockQuantity - qty;
+                  }
+
+                  final noteSegments = <String>[];
+                  if (type == InventoryTransactionType.adjustment) {
+                    noteSegments.add(
+                      context.l10n.isThai
+                          ? 'ปรับยอดจาก ${NumberFormat('#,##0.##').format(product.stockQuantity)} เป็น ${NumberFormat('#,##0.##').format(newStock)} ${product.unit}'
+                          : 'Adjusted stock from ${NumberFormat('#,##0.##').format(product.stockQuantity)} to ${NumberFormat('#,##0.##').format(newStock)} ${product.unit}',
+                    );
+                  }
+                  if (notesCtrl.text.trim().isNotEmpty) {
+                    noteSegments.add(notesCtrl.text.trim());
                   }
 
                   // Create transaction record
@@ -635,15 +747,24 @@ class _TransactionPanel extends ConsumerWidget {
                         ? null
                         : batchCtrl.text.trim(),
                     expiryDate: expiryDate,
-                    notes: notesCtrl.text.trim().isEmpty
-                        ? null
-                        : notesCtrl.text.trim(),
+                    notes: noteSegments.isEmpty ? null : noteSegments.join(' • '),
+                    createdBy: currentStaff?.id,
                   );
                   await invRepo.create(tx);
 
                   // Update product stock
-                  await prodRepo.updateProduct(
-                      product.copyWith(stockQuantity: newStock));
+                  final selectedExpiryDate = expiryDate;
+                  final syncedExpiryDate =
+                      type == InventoryTransactionType.stockIn &&
+                              selectedExpiryDate != null &&
+                              (product.expiryDate == null ||
+                                  selectedExpiryDate.isBefore(product.expiryDate!))
+                          ? selectedExpiryDate
+                          : product.expiryDate;
+                  await prodRepo.updateProduct(product.copyWith(
+                    stockQuantity: newStock,
+                    expiryDate: syncedExpiryDate,
+                  ));
 
                   // Refresh
                   ref.invalidate(_inventoryTxProvider(product.id));
@@ -655,25 +776,22 @@ class _TransactionPanel extends ConsumerWidget {
                     action: 'STOCK_${type.dbValue}',
                     entityType: 'products',
                     entityId: product.id,
-                    newData: {'quantity': qty, 'product': product.name, 'new_stock': newStock},
+                    newData: {
+                      'quantity': qty,
+                      'product': product.name,
+                      'new_stock': newStock,
+                      'batch_no': tx.batchNo,
+                      'expiry_date': tx.expiryDate?.toIso8601String(),
+                      'created_by': tx.createdBy,
+                    },
                   );
 
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(context.l10n.transactionSaveSuccess),
-                        backgroundColor: AiraColors.sage,
-                      ),
-                    );
+                    AiraFeedback.success(context, context.l10n.transactionSaveSuccess);
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(context.l10n.errorMsg('$e')),
-                        backgroundColor: AiraColors.terra,
-                      ),
-                    );
+                    AiraFeedback.error(context, context.l10n.errorMsg('$e'));
                   }
                 }
               },
@@ -723,6 +841,90 @@ class _ActionBtn extends StatelessWidget {
                 textAlign: TextAlign.center),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _MetaChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _BatchChip extends StatelessWidget {
+  final String? batchNo;
+  final DateTime? expiryDate;
+  final bool isExpired;
+  final bool isExpiringSoon;
+
+  const _BatchChip({
+    required this.batchNo,
+    required this.expiryDate,
+    required this.isExpired,
+    required this.isExpiringSoon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isExpired
+        ? AiraColors.danger
+        : isExpiringSoon
+            ? AiraColors.gold
+            : AiraColors.sage;
+    final expiryLabel = expiryDate != null
+        ? DateFormat('d MMM yy').format(expiryDate!)
+        : (context.l10n.isThai ? 'ไม่ระบุวันหมดอายุ' : 'No expiry');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            (batchNo != null && batchNo!.trim().isNotEmpty)
+                ? 'Batch ${batchNo!.trim()}'
+                : (context.l10n.isThai ? 'ล็อตล่าสุด' : 'Recent lot'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            expiryLabel,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              color: AiraColors.charcoal,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -795,6 +997,12 @@ class _TxCard extends StatelessWidget {
                   Text('Batch: ${tx.batchNo}',
                       style: GoogleFonts.spaceGrotesk(
                           fontSize: 10, color: AiraColors.muted)),
+                if (tx.expiryDate != null)
+                  Text(
+                    'EXP: ${DateFormat('d MMM yyyy').format(tx.expiryDate!)}',
+                    style: GoogleFonts.spaceGrotesk(
+                        fontSize: 10, color: AiraColors.muted),
+                  ),
               ],
             ),
           ),

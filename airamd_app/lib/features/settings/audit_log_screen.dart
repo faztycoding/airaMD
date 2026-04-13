@@ -1,11 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
@@ -15,9 +16,13 @@ import '../../core/localization/app_localizations.dart';
 // ─── Providers ────────────────────────────────────────────────
 final _auditLogsProvider = FutureProvider<List<AuditLog>>((ref) async {
   final clinicId = ref.watch(currentClinicIdProvider);
-  if (clinicId == null) return [];
-  final repo = ref.watch(auditRepoProvider);
-  return repo.getRecent(clinicId: clinicId, limit: 200);
+  if (clinicId == null || clinicId.isEmpty) return [];
+  try {
+    final repo = ref.watch(auditRepoProvider);
+    return await repo.getRecent(clinicId: clinicId, limit: 200);
+  } catch (e) {
+    return [];
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -39,178 +44,386 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(_auditLogsProvider);
+    final l = context.l10n;
+    final previewLogs = logsAsync.valueOrNull ?? const <AuditLog>[];
+    final previewFiltered = _applyFilters(previewLogs);
 
     return Scaffold(
       backgroundColor: AiraColors.cream,
-      body: Column(
-        children: [
-          // ─── Header ───
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 12,
-              left: 20, right: 20, bottom: 16,
-            ),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6B4F3A), Color(0xFF8B6650)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [BoxShadow(color: const Color(0xFF6B4F3A).withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))],
-            ),
-            child: Row(
-              children: [
-                AiraTapEffect(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Audit Logs', style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
-                      Text(context.l10n.auditLogTitle, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
-                    ],
-                  ),
-                ),
-                AiraTapEffect(
-                  onTap: () => _exportCsv(),
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.file_download_rounded, color: Colors.white, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AiraTapEffect(
-                  onTap: () => ref.invalidate(_auditLogsProvider),
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
-                  ),
-                ),
-              ],
-            ),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: _handleBack,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: Text(l.auditLogs),
+        actions: [
+          IconButton(
+            onPressed: _handleExport,
+            icon: const Icon(Icons.file_download_rounded),
           ),
+          IconButton(
+            onPressed: _handleRefresh,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1040),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                children: [
+                  _AuditOverviewCard(
+                    totalCount: previewLogs.length,
+                    filteredCount: previewFiltered.length,
+                    activeFilterCount: _activeFilterCount,
+                    dateRangeLabel: _dateRangeLabel(context),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: AiraColors.cardGlow,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.16)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AiraColors.woodDk.withValues(alpha: 0.05),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: AiraColors.gold.withValues(alpha: 0.05),
+                          blurRadius: 28,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l.isThai ? 'ตัวกรองและการค้นหา' : 'Filters & Search',
+                                    style: AiraFonts.body(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    l.isThai
+                                        ? 'ค้นหาและโฟกัสรายการที่ต้องการตรวจสอบได้อย่างรวดเร็ว'
+                                        : 'Find the exact activity you want to review more quickly.',
+                                    style: AiraFonts.body(fontSize: 12, color: AiraColors.muted, height: 1.45),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_activeFilterCount > 0)
+                              TextButton.icon(
+                                onPressed: _clearFilters,
+                                icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                                label: Text(l.isThai ? 'ล้างตัวกรอง' : 'Reset filters'),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            SizedBox(
+                              width: 250,
+                              child: _FilterChip(
+                                label: _searchQuery.isEmpty
+                                    ? l.searchAuditLogs
+                                    : (l.isThai ? 'ค้นหา: $_searchQuery' : 'Search: $_searchQuery'),
+                                onTap: _openSearchDialog,
+                                leadingIcon: Icons.search_rounded,
+                                isActive: _searchQuery.isNotEmpty,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 170,
+                              child: _FilterChip(
+                                label: _filterAction == 'ALL' ? (l.isThai ? 'ทุก Action' : 'All actions') : _filterAction,
+                                onTap: () => _showFilterDialog('action'),
+                                leadingIcon: Icons.bolt_rounded,
+                                isActive: _filterAction != 'ALL',
+                              ),
+                            ),
+                            SizedBox(
+                              width: 170,
+                              child: _FilterChip(
+                                label: _filterEntity == 'ALL' ? (l.isThai ? 'ทุก Entity' : 'All entities') : _filterEntity,
+                                onTap: () => _showFilterDialog('entity'),
+                                leadingIcon: Icons.category_rounded,
+                                isActive: _filterEntity != 'ALL',
+                              ),
+                            ),
+                            SizedBox(
+                              width: 190,
+                              child: _FilterChip(
+                                label: _dateRange != null
+                                    ? '${DateFormat('d/M').format(_dateRange!.start)} - ${DateFormat('d/M').format(_dateRange!.end)}'
+                                    : (l.isThai ? 'ทุกช่วงเวลา' : 'All time'),
+                                onTap: _pickDateRange,
+                                leadingIcon: Icons.calendar_month_rounded,
+                                isActive: _dateRange != null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: logsAsync.when(
+                      data: (logs) {
+                        final filtered = _applyFilters(logs);
 
-          // ─── Filters ───
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                // Search
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: 36,
-                    child: TextField(
-                      onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
-                      style: GoogleFonts.plusJakartaSans(fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'ค้นหา...',
-                        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                        contentPadding: EdgeInsets.zero,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AiraColors.creamDk)),
+                        if (filtered.isEmpty) {
+                          return _AuditEmptyState(hasActiveFilters: _activeFilterCount > 0);
+                        }
+
+                        return Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.16)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AiraColors.woodDk.withValues(alpha: 0.05),
+                                blurRadius: 26,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            l.isThai ? 'รายการกิจกรรมล่าสุด' : 'Recent activity',
+                                            style: AiraFonts.body(fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l.isThai
+                                                ? 'แตะรายการเพื่อดูรายละเอียดการเปลี่ยนแปลง'
+                                                : 'Tap any entry to inspect its full change details.',
+                                            style: AiraFonts.body(fontSize: 12, color: AiraColors.muted),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: AiraColors.parchment,
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(color: AiraColors.creamDk),
+                                      ),
+                                      child: Text(
+                                        l.isThai ? '${filtered.length} รายการ' : '${filtered.length} entries',
+                                        style: AiraFonts.body(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.woodMid),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Divider(height: 1, color: AiraColors.creamDk.withValues(alpha: 0.9)),
+                              Expanded(
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                                  itemCount: filtered.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                  itemBuilder: (_, i) => AiraTapEffect(
+                                    onTap: () => _showLogDetail(filtered[i]),
+                                    child: _AuditLogCard(log: filtered[i]),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
+                      error: (e, _) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Error: $e',
+                            textAlign: TextAlign.center,
+                            style: AiraFonts.body(fontSize: 13, color: AiraColors.terra),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                // Action filter
-                Expanded(
-                  flex: 2,
-                  child: _FilterChip(
-                    label: _filterAction == 'ALL' ? 'ทุก Action' : _filterAction,
-                    onTap: () => _showFilterDialog('action'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Entity filter
-                Expanded(
-                  flex: 2,
-                  child: _FilterChip(
-                    label: _filterEntity == 'ALL' ? 'ทุก Entity' : _filterEntity,
-                    onTap: () => _showFilterDialog('entity'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Date range
-                _FilterChip(
-                  label: _dateRange != null
-                      ? '${DateFormat('d/M').format(_dateRange!.start)}-${DateFormat('d/M').format(_dateRange!.end)}'
-                      : '📅',
-                  onTap: _pickDateRange,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
+        ),
+      ),
+    );
+  }
 
-          // ─── Logs list ───
-          Expanded(
-            child: logsAsync.when(
-              data: (logs) {
-                var filtered = logs;
-                if (_filterAction != 'ALL') {
-                  filtered = filtered.where((l) => l.action == _filterAction).toList();
-                }
-                if (_filterEntity != 'ALL') {
-                  filtered = filtered.where((l) => l.entityType == _filterEntity).toList();
-                }
-                if (_searchQuery.isNotEmpty) {
-                  filtered = filtered.where((l) =>
-                    (l.action.toLowerCase().contains(_searchQuery)) ||
-                    (l.entityType?.toLowerCase().contains(_searchQuery) ?? false) ||
-                    (l.entityId?.toLowerCase().contains(_searchQuery) ?? false) ||
-                    (l.userId?.toLowerCase().contains(_searchQuery) ?? false)
-                  ).toList();
-                }
-                if (_dateRange != null) {
-                  filtered = filtered.where((l) {
-                    if (l.timestamp == null) return false;
-                    return l.timestamp!.isAfter(_dateRange!.start.subtract(const Duration(days: 1))) &&
-                           l.timestamp!.isBefore(_dateRange!.end.add(const Duration(days: 1)));
-                  }).toList();
-                }
+  List<AuditLog> _applyFilters(List<AuditLog> logs) {
+    var filtered = logs;
+    if (_filterAction != 'ALL') {
+      filtered = filtered.where((l) => l.action == _filterAction).toList();
+    }
+    if (_filterEntity != 'ALL') {
+      filtered = filtered.where((l) => l.entityType == _filterEntity).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((l) =>
+        (l.action.toLowerCase().contains(_searchQuery)) ||
+        (l.entityType?.toLowerCase().contains(_searchQuery) ?? false) ||
+        (l.entityId?.toLowerCase().contains(_searchQuery) ?? false) ||
+        (l.userId?.toLowerCase().contains(_searchQuery) ?? false)
+      ).toList();
+    }
+    if (_dateRange != null) {
+      filtered = filtered.where((l) {
+        if (l.timestamp == null) return false;
+        return l.timestamp!.isAfter(_dateRange!.start.subtract(const Duration(days: 1))) &&
+            l.timestamp!.isBefore(_dateRange!.end.add(const Duration(days: 1)));
+      }).toList();
+    }
+    return filtered;
+  }
 
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.history_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
-                        const SizedBox(height: 12),
-                        Text(context.l10n.noTransactions, style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
-                      ],
-                    ),
-                  );
-                }
+  int get _activeFilterCount {
+    var count = 0;
+    if (_searchQuery.isNotEmpty) count++;
+    if (_filterAction != 'ALL') count++;
+    if (_filterEntity != 'ALL') count++;
+    if (_dateRange != null) count++;
+    return count;
+  }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) => AiraTapEffect(
-                    onTap: () => _showLogDetail(filtered[i]),
-                    child: _AuditLogCard(log: filtered[i]),
-                  ),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
-              error: (e, _) => Center(child: Text('Error: $e')),
-            ),
+  String _dateRangeLabel(BuildContext context) {
+    if (_dateRange == null) {
+      return context.l10n.isThai ? 'ทุกช่วงเวลา' : 'All time';
+    }
+    return '${DateFormat('d MMM').format(_dateRange!.start)} - ${DateFormat('d MMM').format(_dateRange!.end)}';
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filterAction = 'ALL';
+      _filterEntity = 'ALL';
+      _searchQuery = '';
+      _dateRange = null;
+    });
+  }
+
+  void _handleBack() {
+    debugPrint('[AuditLogs] Back pressed');
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/settings');
+  }
+
+  Future<void> _handleRefresh() async {
+    debugPrint('[AuditLogs] Refresh pressed');
+    ref.invalidate(_auditLogsProvider);
+    try {
+      await ref.read(_auditLogsProvider.future).timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.isThai ? 'รีเฟรชข้อมูลเรียบร้อย' : 'Audit logs refreshed'),
+          backgroundColor: AiraColors.sage,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.isThai ? 'รีเฟรชข้อมูลไม่สำเร็จ' : 'Failed to refresh audit logs'),
+          backgroundColor: AiraColors.terra,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleExport() async {
+    debugPrint('[AuditLogs] Export pressed');
+    final exported = await _exportCsv();
+    if (!mounted) return;
+    if (exported == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.isThai ? 'ไม่มีข้อมูลสำหรับส่งออก' : 'No audit logs to export'),
+          backgroundColor: AiraColors.woodMid,
+        ),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.isThai ? 'เตรียมไฟล์ CSV เรียบร้อยแล้ว' : 'CSV file prepared successfully'),
+        backgroundColor: AiraColors.sage,
+      ),
+    );
+  }
+
+  Future<void> _openSearchDialog() async {
+    final controller = TextEditingController(text: _searchQuery);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          context.l10n.searchAuditLogs,
+          style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: context.l10n.searchAuditLogs,
+          ),
+          onSubmitted: (value) => Navigator.pop(ctx, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: Text(context.l10n.isThai ? 'ล้าง' : 'Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(context.l10n.isThai ? 'ค้นหา' : 'Search'),
           ),
         ],
       ),
     );
+    if (result == null) return;
+    setState(() => _searchQuery = result.trim().toLowerCase());
   }
 
   Future<void> _pickDateRange() async {
@@ -248,10 +461,10 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
     );
   }
 
-  Future<void> _exportCsv() async {
+  Future<String?> _exportCsv() async {
     final logsAsync = ref.read(_auditLogsProvider);
     final logs = logsAsync.valueOrNull ?? [];
-    if (logs.isEmpty) return;
+    if (logs.isEmpty) return null;
 
     final buffer = StringBuffer();
     buffer.writeln('Timestamp,Action,Entity Type,Entity ID,User ID,Old Data,New Data');
@@ -267,12 +480,14 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       final file = File('${dir.path}/audit_logs_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv');
       await file.writeAsString(buffer.toString());
       await Share.shareXFiles([XFile(file.path)]);
+      return file.path;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.exportFailed('$e')), backgroundColor: AiraColors.terra),
         );
       }
+      return null;
     }
   }
 
@@ -315,27 +530,283 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 class _FilterChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  const _FilterChip({required this.label, required this.onTap});
+  final IconData? leadingIcon;
+  final bool isActive;
+  const _FilterChip({required this.label, required this.onTap, this.leadingIcon, this.isActive = false});
 
   @override
   Widget build(BuildContext context) {
     return AiraTapEffect(
       onTap: onTap,
       child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AiraColors.woodWash.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AiraColors.creamDk.withValues(alpha: 0.5)),
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFFCF8), Color(0xFFF5E7D7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isActive ? null : AiraColors.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isActive
+                ? AiraColors.woodPale.withValues(alpha: 0.6)
+                : AiraColors.creamDk.withValues(alpha: 0.8),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AiraColors.woodDk.withValues(alpha: isActive ? 0.08 : 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
+            if (leadingIcon != null) ...[
+              Icon(
+                leadingIcon,
+                size: 16,
+                color: isActive ? AiraColors.woodMid : AiraColors.muted,
+              ),
+              const SizedBox(width: 8),
+            ],
             Expanded(
-              child: Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: AiraColors.charcoal), overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AiraColors.charcoal,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Icon(Icons.arrow_drop_down_rounded, size: 18, color: AiraColors.muted),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: isActive ? AiraColors.woodMid : AiraColors.muted,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuditOverviewCard extends StatelessWidget {
+  final int totalCount;
+  final int filteredCount;
+  final int activeFilterCount;
+  final String dateRangeLabel;
+  const _AuditOverviewCard({required this.totalCount, required this.filteredCount, required this.activeFilterCount, required this.dateRangeLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: AiraColors.heroGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AiraColors.woodDk.withValues(alpha: 0.18),
+            blurRadius: 30,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                ),
+                child: const Icon(Icons.history_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.auditLogs,
+                      style: AiraFonts.heading(fontSize: 28, color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      l.isThai
+                          ? 'ติดตามกิจกรรมในระบบ การเข้าถึงข้อมูล และการเปลี่ยนแปลงสำคัญแบบรวมศูนย์'
+                          : 'Track system activity, data access, and key operational changes in one place.',
+                      style: AiraFonts.body(fontSize: 13, color: Colors.white.withValues(alpha: 0.82), height: 1.45),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _AuditMetricCard(
+                label: l.isThai ? 'ทั้งหมด' : 'Total logs',
+                value: '$totalCount',
+                icon: Icons.receipt_long_rounded,
+              ),
+              _AuditMetricCard(
+                label: l.isThai ? 'ที่แสดงผล' : 'Visible now',
+                value: '$filteredCount',
+                icon: Icons.tune_rounded,
+              ),
+              _AuditMetricCard(
+                label: l.isThai ? 'ตัวกรองที่ใช้' : 'Active filters',
+                value: '$activeFilterCount',
+                icon: Icons.filter_alt_rounded,
+              ),
+              _AuditMetricCard(
+                label: l.isThai ? 'ช่วงเวลา' : 'Time range',
+                value: dateRangeLabel,
+                icon: Icons.calendar_today_rounded,
+                compactValue: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuditMetricCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool compactValue;
+  const _AuditMetricCard({required this.label, required this.value, required this.icon, this.compactValue = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AiraFonts.body(fontSize: 11, color: Colors.white.withValues(alpha: 0.72))),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: compactValue
+                      ? AiraFonts.body(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)
+                      : AiraFonts.numeric(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuditEmptyState extends StatelessWidget {
+  final bool hasActiveFilters;
+  const _AuditEmptyState({required this.hasActiveFilters});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 460),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 34),
+          decoration: BoxDecoration(
+            gradient: AiraColors.cardGlow,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.16)),
+            boxShadow: [
+              BoxShadow(
+                color: AiraColors.woodDk.withValues(alpha: 0.05),
+                blurRadius: 26,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [AiraColors.woodPale.withValues(alpha: 0.20), AiraColors.gold.withValues(alpha: 0.12)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Icon(Icons.history_toggle_off_rounded, size: 34, color: AiraColors.woodMid),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                hasActiveFilters ? (l.isThai ? 'ไม่พบข้อมูลที่ตรงกับตัวกรอง' : 'No matching audit logs') : l.noTransactions,
+                textAlign: TextAlign.center,
+                style: AiraFonts.body(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                hasActiveFilters
+                    ? (l.isThai
+                        ? 'ลองเปลี่ยนเงื่อนไขการค้นหา หรือปรับช่วงเวลาเพื่อดูข้อมูลเพิ่มเติม'
+                        : 'Try adjusting your search keywords, entity, action, or time range.')
+                    : (l.isThai
+                        ? 'เมื่อมีการใช้งานระบบหรือการเปลี่ยนแปลงข้อมูล รายการจะแสดงในส่วนนี้'
+                        : 'System events and data changes will appear here once activity is recorded.'),
+                textAlign: TextAlign.center,
+                style: AiraFonts.body(fontSize: 13, color: AiraColors.muted, height: 1.55),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -352,58 +823,107 @@ class _AuditLogCard extends StatelessWidget {
     final dateStr = log.timestamp != null
         ? DateFormat('d/M/yy HH:mm:ss').format(log.timestamp!)
         : '';
+    final title = log.entityId?.isNotEmpty == true
+        ? log.entityId!
+        : (log.entityType?.isNotEmpty == true ? log.entityType! : (context.l10n.isThai ? 'เหตุการณ์ระบบ' : 'System event'));
+    final subtitleParts = <String>[
+      if (log.userId?.isNotEmpty == true) 'User ${log.userId}',
+      if (dateStr.isNotEmpty) dateStr,
+    ];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AiraColors.creamDk.withValues(alpha: 0.5)),
+        gradient: AiraColors.cardGlow,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: AiraColors.woodDk.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: color),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, size: 22, color: color),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(color: color.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(999)),
                       child: Text(log.action, style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
                     ),
                     if (log.entityType != null) ...[
-                      const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: AiraColors.woodWash.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(6)),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(color: AiraColors.woodWash.withValues(alpha: 0.38), borderRadius: BorderRadius.circular(999)),
                         child: Text(log.entityType!, style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
                       ),
                     ],
-                    const Spacer(),
-                    Text(dateStr, style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AiraColors.muted)),
                   ],
                 ),
-                if (log.entityId != null) ...[
-                  const SizedBox(height: 4),
-                  Text('ID: ${log.entityId}', style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AiraColors.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-                if (log.userId != null) ...[
-                  const SizedBox(height: 2),
-                  Text('User: ${log.userId}', style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AiraColors.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AiraFonts.body(fontSize: 15, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitleParts.isEmpty ? (context.l10n.isThai ? 'แตะเพื่อดูรายละเอียด' : 'Tap to view details') : subtitleParts.join('  •  '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AiraColors.muted),
+                ),
+                if (log.entityId != null && log.entityType != log.entityId) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AiraColors.creamDk),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.fingerprint_rounded, size: 14, color: AiraColors.muted),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ID: ${log.entityId}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AiraColors.woodMid, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
+          const SizedBox(width: 10),
+          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AiraColors.muted.withValues(alpha: 0.8)),
         ],
       ),
     );

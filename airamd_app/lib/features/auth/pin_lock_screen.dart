@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,9 +73,14 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
           setState(() => _statusMessage = '');
           _tryBiometric();
         }
-      } catch (_) {
-        // Secure storage might fail on web — default to setup mode
+      } catch (e) {
+        // Secure storage fails on unsigned macOS (no keychain) — skip PIN
         if (!mounted) return;
+        if (kDebugMode && Platform.isMacOS) {
+          debugPrint('⚠️ Keychain unavailable on macOS debug — skipping PIN');
+          widget.onUnlocked();
+          return;
+        }
         setState(() {
           _isSettingUp = true;
           _statusMessage = '';
@@ -132,42 +139,50 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
   }
 
   Future<void> _onPinComplete() async {
-    if (_isSettingUp) {
-      if (_firstPin.isEmpty) {
-        // First entry — ask to confirm
-        setState(() {
-          _firstPin = _enteredPin;
-          _enteredPin = '';
-          _statusMessage = '';
-        });
+    try {
+      if (_isSettingUp) {
+        if (_firstPin.isEmpty) {
+          // First entry — ask to confirm
+          setState(() {
+            _firstPin = _enteredPin;
+            _enteredPin = '';
+            _statusMessage = '';
+          });
+        } else {
+          // Confirm entry
+          if (_enteredPin == _firstPin) {
+            await _secureStorage.write(key: _pinStorageKey, value: _enteredPin);
+            await _secureStorage.write(key: _pinEnabledKey, value: 'true');
+            if (mounted) widget.onUnlocked();
+          } else {
+            _shakeCtrl.forward();
+            setState(() {
+              _isError = true;
+              _enteredPin = '';
+              _firstPin = '';
+              _statusMessage = '_mismatch';
+            });
+          }
+        }
       } else {
-        // Confirm entry
-        if (_enteredPin == _firstPin) {
-          await _secureStorage.write(key: _pinStorageKey, value: _enteredPin);
-          await _secureStorage.write(key: _pinEnabledKey, value: 'true');
+        // Verify existing PIN
+        final saved = await _secureStorage.read(key: _pinStorageKey);
+        if (_enteredPin == saved) {
           if (mounted) widget.onUnlocked();
         } else {
           _shakeCtrl.forward();
           setState(() {
             _isError = true;
             _enteredPin = '';
-            _firstPin = '';
-            _statusMessage = '_mismatch';
+            _statusMessage = '_incorrect';
           });
         }
       }
-    } else {
-      // Verify existing PIN
-      final saved = await _secureStorage.read(key: _pinStorageKey);
-      if (_enteredPin == saved) {
+    } catch (e) {
+      // Keychain unavailable on unsigned macOS debug — auto unlock
+      if (kDebugMode && Platform.isMacOS) {
+        debugPrint('⚠️ Keychain write failed — skipping PIN on macOS debug');
         if (mounted) widget.onUnlocked();
-      } else {
-        _shakeCtrl.forward();
-        setState(() {
-          _isError = true;
-          _enteredPin = '';
-          _statusMessage = '_incorrect';
-        });
       }
     }
   }
@@ -190,14 +205,15 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
       backgroundColor: AiraColors.cream,
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isTablet ? 420 : 360),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 2),
-                // ─── Logo / Brand ───
-                Container(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isTablet ? 420 : 360),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ─── Logo / Brand ───
+                  Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
@@ -296,7 +312,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
                 const SizedBox(height: 48),
                 // ─── Number Pad ───
                 _buildNumPad(isTablet),
-                const Spacer(flex: 1),
+                const SizedBox(height: 24),
                 // ─── Biometric button ───
                 if (!_isSettingUp)
                   TextButton.icon(
@@ -314,6 +330,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
                 const SizedBox(height: 24),
               ],
             ),
+          ),
           ),
         ),
       ),

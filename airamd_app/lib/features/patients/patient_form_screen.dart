@@ -1,10 +1,13 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
+import '../../core/widgets/aira_empty_state.dart';
+import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/services/audit_service.dart';
@@ -50,6 +53,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   PreferredChannel _channel = PreferredChannel.none;
   bool _isRetinoids = false;
   bool _isAnticoagulant = false;
+  String? _identityErrorText;
 
   @override
   void dispose() {
@@ -101,15 +105,12 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    // Require at least national ID or passport
-    if (_nationalIdCtrl.text.trim().isEmpty && _passportCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.requireIdOrPassport),
-          backgroundColor: AiraColors.terra,
-        ),
-      );
+    if (!_hasIdentityDocument) {
+      setState(() => _identityErrorText = context.l10n.requireIdOrPassport);
       return;
+    }
+    if (_identityErrorText != null) {
+      setState(() => _identityErrorText = null);
     }
     setState(() => _loading = true);
 
@@ -167,19 +168,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.isEdit ? 'แก้ไขข้อมูลสำเร็จ' : 'เพิ่มผู้รับบริการสำเร็จ'),
-            backgroundColor: AiraColors.sage,
-          ),
+        AiraFeedback.success(
+          context,
+          widget.isEdit ? context.l10n.editSuccess : context.l10n.addPatientSuccess,
         );
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.saveFailed('$e')), backgroundColor: AiraColors.terra),
-        );
+        AiraFeedback.error(context, context.l10n.saveFailed('$e'));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -197,14 +194,40 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         data: (patient) {
           if (patient == null) {
             return Scaffold(
-              body: Center(child: Text(context.l10n.patientNotFound, style: GoogleFonts.plusJakartaSans(fontSize: 16))),
+              backgroundColor: AiraColors.cream,
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: AiraEmptyState(
+                    icon: Icons.person_off_rounded,
+                    title: context.l10n.patientNotFound,
+                    subtitle: context.l10n.isThai
+                        ? 'ไม่พบข้อมูลผู้รับบริการที่ต้องการแก้ไขในระบบแล้ว'
+                        : 'The patient record you are trying to edit is no longer available.',
+                    accentColor: AiraColors.gold,
+                  ),
+                ),
+              ),
             );
           }
           _populateFromPatient(patient);
           return _buildForm(topPad);
         },
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator(color: AiraColors.woodMid))),
-        error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+        error: (e, _) => Scaffold(
+          backgroundColor: AiraColors.cream,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: AiraEmptyState(
+                icon: Icons.error_outline_rounded,
+                title: context.l10n.isThai ? 'โหลดข้อมูลผู้รับบริการไม่สำเร็จ' : 'Unable to load patient record',
+                subtitle: '$e',
+                accentColor: AiraColors.terra,
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -244,6 +267,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Form(
                   key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
                     children: [
@@ -288,7 +312,19 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         children: [
                           Row(
                             children: [
-                              Expanded(child: _field('เบอร์โทร *', _phoneCtrl, required: true, keyboard: TextInputType.phone, icon: Icons.phone_rounded)),
+                              Expanded(
+                                child: _field(
+                                  'เบอร์โทร *',
+                                  _phoneCtrl,
+                                  required: true,
+                                  keyboard: TextInputType.phone,
+                                  icon: Icons.phone_rounded,
+                                  validator: _validatePhone,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+                                  ],
+                                ),
+                              ),
                               const SizedBox(width: 14),
                               Expanded(child: _field('Email', _emailCtrl, keyboard: TextInputType.emailAddress, icon: Icons.email_rounded)),
                             ],
@@ -319,11 +355,42 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                           _statusPicker(),
                           Row(
                             children: [
-                              Expanded(child: _field('เลขบัตรประชาชน', _nationalIdCtrl, icon: Icons.credit_card_rounded)),
+                              Expanded(
+                                child: _field(
+                                  'เลขบัตรประชาชน',
+                                  _nationalIdCtrl,
+                                  icon: Icons.credit_card_rounded,
+                                  keyboard: TextInputType.text,
+                                  onChanged: _handleIdentityChanged,
+                                ),
+                              ),
                               const SizedBox(width: 14),
-                              Expanded(child: _field('Passport', _passportCtrl, icon: Icons.flight_rounded)),
+                              Expanded(
+                                child: _field(
+                                  'Passport',
+                                  _passportCtrl,
+                                  icon: Icons.flight_rounded,
+                                  keyboard: TextInputType.text,
+                                  onChanged: _handleIdentityChanged,
+                                ),
+                              ),
                             ],
                           ),
+                          if (_identityErrorText != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _identityErrorText!,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AiraColors.terra,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 28),
@@ -395,16 +462,61 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
   // ─── Helpers ─────────────────────────────────────────────
 
-  Widget _field(String label, TextEditingController ctrl, {bool required = false, TextInputType? keyboard, int maxLines = 1, String? hint, IconData? icon}) {
+  bool get _hasIdentityDocument =>
+      _nationalIdCtrl.text.trim().isNotEmpty ||
+      _passportCtrl.text.trim().isNotEmpty;
+
+  void _handleIdentityChanged(String _) {
+    if (_identityErrorText != null && _hasIdentityDocument) {
+      setState(() => _identityErrorText = null);
+    }
+  }
+
+  String? _validatePhone(String? value) {
+    final cleaned = (value ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleaned.isEmpty) {
+      return context.l10n.isThai
+          ? 'กรุณากรอกเบอร์โทร'
+          : 'Please enter a phone number';
+    }
+    if (cleaned.length < 8) {
+      return context.l10n.isThai
+          ? 'กรุณากรอกเบอร์โทรให้ถูกต้อง'
+          : 'Please enter a valid phone number';
+    }
+    return null;
+  }
+
+  String _plainLabel(String label) => label.replaceAll('*', '').trim();
+
+  Widget _field(
+    String label,
+    TextEditingController ctrl, {
+    bool required = false,
+    TextInputType? keyboard,
+    int maxLines = 1,
+    String? hint,
+    IconData? icon,
+    FormFieldValidator<String>? validator,
+    ValueChanged<String>? onChanged,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: ctrl,
         keyboardType: keyboard,
+        inputFormatters: inputFormatters,
         maxLines: maxLines,
         style: airaFieldTextStyle,
         decoration: airaFieldDecoration(label: label, hint: hint, prefixIcon: icon),
-        validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'กรุณากรอก$label' : null : null,
+        onChanged: onChanged,
+        validator: validator ??
+            (required
+                ? (v) => (v == null || v.trim().isEmpty)
+                    ? 'กรุณากรอก${_plainLabel(label)}'
+                    : null
+                : null),
       ),
     );
   }
