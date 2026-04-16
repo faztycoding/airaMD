@@ -642,7 +642,16 @@ class AppL10n {
   String get treatmentRules => isThai ? 'กฎระยะห่าง' : 'Interval Rules';
   String get treatmentRulesSubtitle => isThai ? 'Botox, Filler, HIFU...' : 'Botox, Filler, HIFU...';
   String get languageSubtitle => isThai ? 'ไทย / English' : 'Thai / English';
-  String get securitySubtitle => isThai ? 'PIN, Auto-lock' : 'PIN, Auto-lock';
+  String get securitySubtitle => isThai ? 'รหัสผ่าน, PIN, Auto-lock' : 'Password, PIN, Auto-lock';
+  String get changePassword => isThai ? 'เปลี่ยนรหัสผ่าน' : 'Change Password';
+  String get changePasswordSubtitle => isThai ? 'เปลี่ยนรหัสผ่านเข้าสู่ระบบ' : 'Change your login password';
+  String get currentPassword => isThai ? 'รหัสผ่านปัจจุบัน' : 'Current Password';
+  String get newPassword => isThai ? 'รหัสผ่านใหม่' : 'New Password';
+  String get confirmNewPassword => isThai ? 'ยืนยันรหัสผ่านใหม่' : 'Confirm New Password';
+  String get passwordChanged => isThai ? 'เปลี่ยนรหัสผ่านสำเร็จ' : 'Password changed successfully';
+  String get passwordChangeFailed => isThai ? 'เปลี่ยนรหัสผ่านไม่สำเร็จ' : 'Failed to change password';
+  String get accountSection => isThai ? 'บัญชี' : 'Account';
+  String get pinSection => isThai ? 'PIN Lock' : 'PIN Lock';
   String get cloudData => isThai ? 'ข้อมูลคลาวด์' : 'Cloud Data';
   String get cloudDataSubtitle => isThai ? 'Backup, Sync' : 'Backup, Sync';
   String get selectMenuToSettings => isThai ? 'เลือกเมนูด้านซ้ายเพื่อตั้งค่า' : 'Select a menu item to configure';

@@ -12,7 +12,7 @@ import '../features/settings/service_library_screen.dart';
 import '../features/settings/privacy_policy_screen.dart';
 import '../features/settings/inventory_screen.dart';
 import '../features/settings/audit_log_screen.dart';
-import '../features/settings/pin_management_screen.dart';
+import '../features/settings/security_screen.dart';
 import '../features/settings/consent_template_screen.dart';
 import '../features/settings/notification_settings_screen.dart';
 import '../features/settings/messaging_config_screen.dart';
@@ -280,13 +280,13 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
 
-    // ─── PIN Management ─────────────────────────────────
+    // ─── Security (Password + PIN + Auto-lock) ─────────
     GoRoute(
       path: '/settings/security',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
-        child: PinManagementScreen(),
+        child: SecurityScreen(),
       ),
     ),
 
