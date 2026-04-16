@@ -70,7 +70,7 @@ Widget buildTestApp({List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: [
       // Auth — logged in
-      authSessionProvider.overrideWith((ref) => Stream.value(null)),
+      authSessionProvider.overrideWithValue(null),
       isAuthenticatedProvider.overrideWithValue(true),
       currentAuthEmailProvider.overrideWithValue('owner@aira.test'),
       authSignOutActionProvider.overrideWithValue(() async {}),
@@ -300,9 +300,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            authSessionProvider.overrideWith(
-              (ref) => Stream.value(null),
-            ),
+            authSessionProvider.overrideWithValue(null),
           ],
           child: MaterialApp(
             locale: const Locale('th'),
