@@ -179,9 +179,9 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         }
       }
     } catch (e) {
-      // Keychain unavailable on unsigned macOS debug — auto unlock
-      if (kDebugMode && Platform.isMacOS) {
-        debugPrint('⚠️ Keychain write failed — skipping PIN on macOS debug');
+      // Keychain unavailable on macOS debug or iOS simulator — auto unlock
+      if (kDebugMode) {
+        debugPrint('⚠️ Keychain failed: $e — auto-unlocking in debug');
         if (mounted) widget.onUnlocked();
       }
     }

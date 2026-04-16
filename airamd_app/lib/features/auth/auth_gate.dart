@@ -16,9 +16,17 @@ final authSessionProvider = StreamProvider<Session?>((ref) async* {
   // Emit current session right away (avoids timeout hacks).
   yield client.auth.currentSession;
 
-  // Then relay every auth-state change.
+  // Only relay meaningful auth changes — ignore tokenRefreshed which
+  // can emit null session on iOS simulator and kick users to login.
   await for (final event in client.auth.onAuthStateChange) {
-    yield event.session;
+    switch (event.event) {
+      case AuthChangeEvent.signedIn:
+      case AuthChangeEvent.signedOut:
+      case AuthChangeEvent.initialSession:
+        yield event.session;
+      default:
+        break; // ignore tokenRefreshed, userUpdated, etc.
+    }
   }
 });
 
