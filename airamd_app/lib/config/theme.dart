@@ -410,6 +410,27 @@ class AiraTheme {
         elevation: 4,
         shape: CircleBorder(),
       ),
+
+      // TimePicker — prevent clock face number overlap from global font bump
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: AiraColors.white,
+        hourMinuteTextStyle: GoogleFonts.spaceGrotesk(fontSize: 40, fontWeight: FontWeight.w600),
+        dayPeriodTextStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
+        helpTextStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
+        dialTextStyle: GoogleFonts.plusJakartaSans(fontSize: 14),
+        hourMinuteShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+
+      // DatePicker — same fix for date picker dialogs
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: AiraColors.white,
+        headerHelpStyle: GoogleFonts.plusJakartaSans(fontSize: 14),
+        weekdayStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
+        dayStyle: GoogleFonts.plusJakartaSans(fontSize: 14),
+        yearStyle: GoogleFonts.plusJakartaSans(fontSize: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
     );
   }
 }
