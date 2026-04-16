@@ -315,6 +315,16 @@ class AppL10n {
   String get doctorRole => isThai ? 'แพทย์' : 'Doctor';
   String get staffRole => isThai ? 'พนักงาน' : 'Staff';
   String get noShiftTime => isThai ? 'ไม่มีเวลาเข้าเวร' : 'No shift time';
+  String get manageShift => isThai ? 'จัดการเวร' : 'Manage Shift';
+  String manageShiftFor(String name) => isThai ? 'จัดเวร $name' : 'Manage shift for $name';
+  String get shiftStatus => isThai ? 'สถานะ' : 'Status';
+  String get startTime => isThai ? 'เวลาเริ่ม' : 'Start Time';
+  String get endTime => isThai ? 'เวลาสิ้นสุด' : 'End Time';
+  String get shiftNote => isThai ? 'หมายเหตุ' : 'Note';
+  String get saveShift => isThai ? 'บันทึกเวร' : 'Save Shift';
+  String get shiftSaved => isThai ? 'บันทึกเวรสำเร็จ' : 'Shift saved';
+  String get deleteShift => isThai ? 'ลบเวร' : 'Delete Shift';
+  String get shiftDeleted => isThai ? 'ลบเวรสำเร็จ' : 'Shift deleted';
   String get notFoundShort => isThai ? 'ไม่พบข้อมูล' : 'Not found';
   String get noTreatmentSpecified => isThai ? 'ไม่ระบุหัตถการ' : 'No treatment specified';
   String get editAppointment => isThai ? 'แก้ไขนัดหมาย' : 'Edit Appointment';

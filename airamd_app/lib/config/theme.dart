@@ -75,7 +75,7 @@ class AiraFonts {
 
   /// Heading font — Playfair Display: elegant serif for titles
   static TextStyle heading({
-    double fontSize = 29,
+    double fontSize = 36,
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? height,
@@ -91,7 +91,7 @@ class AiraFonts {
 
   /// Body font — Plus Jakarta Sans: modern clean sans-serif
   static TextStyle body({
-    double fontSize = 19,
+    double fontSize = 26,
     FontWeight fontWeight = FontWeight.w400,
     Color? color,
     double? height,
@@ -107,7 +107,7 @@ class AiraFonts {
 
   /// Numeric display font — Space Grotesk: geometric, stunning numbers
   static TextStyle numeric({
-    double fontSize = 29,
+    double fontSize = 36,
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
     double? height,
@@ -123,7 +123,7 @@ class AiraFonts {
 
   /// Small label font
   static TextStyle label({
-    double fontSize = 17,
+    double fontSize = 24,
     FontWeight fontWeight = FontWeight.w500,
     Color? color,
   }) =>
@@ -227,7 +227,7 @@ class AiraTheme {
         foregroundColor: AiraColors.charcoal,
         centerTitle: false,
         titleTextStyle: GoogleFonts.playfairDisplay(
-          fontSize: 22,
+          fontSize: 29,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
@@ -236,59 +236,59 @@ class AiraTheme {
       // Text theme
       textTheme: TextTheme(
         displayLarge: headingFont.copyWith(
-          fontSize: 43,
+          fontSize: 50,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displayMedium: headingFont.copyWith(
-          fontSize: 36,
+          fontSize: 43,
           fontWeight: FontWeight.w700,
           color: AiraColors.charcoal,
         ),
         displaySmall: headingFont.copyWith(
-          fontSize: 31,
+          fontSize: 38,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         headlineMedium: headingFont.copyWith(
-          fontSize: 26,
+          fontSize: 33,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleLarge: bodyFont.copyWith(
-          fontSize: 24,
+          fontSize: 31,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         titleMedium: bodyFont.copyWith(
-          fontSize: 22,
+          fontSize: 29,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         titleSmall: bodyFont.copyWith(
-          fontSize: 19,
+          fontSize: 26,
           fontWeight: FontWeight.w500,
           color: AiraColors.charcoal,
         ),
         bodyLarge: bodyFont.copyWith(
-          fontSize: 22,
+          fontSize: 29,
           color: AiraColors.charcoal,
         ),
         bodyMedium: bodyFont.copyWith(
-          fontSize: 19,
+          fontSize: 26,
           color: AiraColors.charcoal,
         ),
         bodySmall: bodyFont.copyWith(
-          fontSize: 17,
+          fontSize: 24,
           color: AiraColors.muted,
         ),
         labelLarge: bodyFont.copyWith(
-          fontSize: 19,
+          fontSize: 26,
           fontWeight: FontWeight.w600,
           color: AiraColors.charcoal,
         ),
         labelMedium: bodyFont.copyWith(
-          fontSize: 17,
+          fontSize: 24,
           fontWeight: FontWeight.w500,
           color: AiraColors.muted,
         ),
@@ -323,7 +323,7 @@ class AiraTheme {
         ),
         hintStyle: GoogleFonts.plusJakartaSans(
           color: AiraColors.muted,
-          fontSize: 14,
+          fontSize: 21,
         ),
       ),
 
@@ -338,7 +338,7 @@ class AiraTheme {
             borderRadius: BorderRadius.circular(AiraSizes.radiusSm),
           ),
           textStyle: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
+            fontSize: 23,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -354,7 +354,7 @@ class AiraTheme {
             borderRadius: BorderRadius.circular(AiraSizes.radiusSm),
           ),
           textStyle: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
+            fontSize: 23,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -368,10 +368,10 @@ class AiraTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 12,
+          fontSize: 19,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 12),
+        unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 19),
       ),
 
       // Card
@@ -388,7 +388,7 @@ class AiraTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AiraColors.woodWash,
         selectedColor: AiraColors.woodDk,
-        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
+        labelStyle: GoogleFonts.plusJakartaSans(fontSize: 20),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),

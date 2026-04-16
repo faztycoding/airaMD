@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -860,12 +861,37 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
                 ...entries.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _RosterRow(entry: e.value, doctorIndex: e.key),
+                      child: GestureDetector(
+                        onTap: () => _showScheduleSheet(context, e.value, selectedDate),
+                        child: _RosterRow(entry: e.value, doctorIndex: e.key),
+                      ),
                     )),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  // ─── Schedule Management Bottom Sheet ──────────────────────
+  void _showScheduleSheet(
+    BuildContext ctx,
+    _StaffRosterEntry entry,
+    DateTime date,
+  ) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ScheduleSheet(
+        entry: entry,
+        date: date,
+        onSaved: () {
+          // Invalidate roster to refresh
+          ref.invalidate(_staffRosterProvider);
+        },
       ),
     );
   }
@@ -1035,6 +1061,361 @@ class _RosterRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Schedule Management Bottom Sheet
+// ═══════════════════════════════════════════════════════════════
+class _ScheduleSheet extends ConsumerStatefulWidget {
+  final _StaffRosterEntry entry;
+  final DateTime date;
+  final VoidCallback onSaved;
+
+  const _ScheduleSheet({
+    required this.entry,
+    required this.date,
+    required this.onSaved,
+  });
+
+  @override
+  ConsumerState<_ScheduleSheet> createState() => _ScheduleSheetState();
+}
+
+class _ScheduleSheetState extends ConsumerState<_ScheduleSheet> {
+  late ScheduleStatus _status;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+  final _noteController = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.entry.schedule;
+    _status = s?.status ?? ScheduleStatus.onDuty;
+    _startTime = _parseTime(s?.startTime);
+    _endTime = _parseTime(s?.endTime);
+    _noteController.text = s?.note ?? '';
+  }
+
+  TimeOfDay? _parseTime(String? t) {
+    if (t == null || t.isEmpty) return null;
+    final parts = t.split(':');
+    if (parts.length < 2) return null;
+    return TimeOfDay(hour: int.tryParse(parts[0]) ?? 0, minute: int.tryParse(parts[1]) ?? 0);
+  }
+
+  String? _formatTime(TimeOfDay? t) {
+    if (t == null) return null;
+    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final scheduleRepo = ref.read(scheduleRepoProvider);
+      final existing = widget.entry.schedule;
+
+      if (existing != null) {
+        await scheduleRepo.updateSchedule(StaffSchedule(
+          id: existing.id,
+          clinicId: existing.clinicId,
+          staffId: existing.staffId,
+          date: widget.date,
+          status: _status,
+          startTime: _formatTime(_startTime),
+          endTime: _formatTime(_endTime),
+          note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        ));
+      } else {
+        final clinicId = ref.read(currentClinicIdProvider);
+        if (clinicId == null) return;
+        await scheduleRepo.create(StaffSchedule(
+          id: '', // auto-generated
+          clinicId: clinicId,
+          staffId: widget.entry.staff.id,
+          date: widget.date,
+          status: _status,
+          startTime: _formatTime(_startTime),
+          endTime: _formatTime(_endTime),
+          note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        ));
+      }
+      widget.onSaved();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.shiftSaved),
+            backgroundColor: AiraColors.sage,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AiraColors.terra),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final existing = widget.entry.schedule;
+    if (existing == null) return;
+    setState(() => _saving = true);
+    try {
+      final scheduleRepo = ref.read(scheduleRepoProvider);
+      await scheduleRepo.deleteSchedule(existing.id);
+      widget.onSaved();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.shiftDeleted),
+            backgroundColor: AiraColors.terra,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AiraColors.terra),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final initial = (isStart ? _startTime : _endTime) ?? const TimeOfDay(hour: 9, minute: 0);
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AiraColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AiraColors.woodPale,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Title
+            Text(
+              l10n.manageShiftFor(widget.entry.staff.fullName),
+              style: AiraFonts.heading(fontSize: 22),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Status selector
+            Text(l10n.shiftStatus, style: AiraFonts.label()),
+            const SizedBox(height: 8),
+            Row(
+              children: ScheduleStatus.values.map((s) {
+                final selected = s == _status;
+                final color = switch (s) {
+                  ScheduleStatus.onDuty => AiraColors.sage,
+                  ScheduleStatus.leave => AiraColors.terra,
+                  ScheduleStatus.halfDay => AiraColors.gold,
+                };
+                final label = switch (s) {
+                  ScheduleStatus.onDuty => l10n.onDuty,
+                  ScheduleStatus.leave => l10n.leave,
+                  ScheduleStatus.halfDay => l10n.halfDay,
+                };
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _status = s),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: selected ? color.withValues(alpha: 0.18) : AiraColors.parchment,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selected ? color : AiraColors.woodPale.withValues(alpha: 0.5),
+                            width: selected ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              switch (s) {
+                                ScheduleStatus.onDuty => Icons.check_circle_rounded,
+                                ScheduleStatus.leave => Icons.cancel_rounded,
+                                ScheduleStatus.halfDay => Icons.timelapse_rounded,
+                              },
+                              color: selected ? color : AiraColors.muted,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              label,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                color: selected ? color : AiraColors.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+
+            // Time pickers row
+            Row(
+              children: [
+                Expanded(
+                  child: _TimePickerTile(
+                    label: l10n.startTime,
+                    value: _startTime,
+                    onTap: () => _pickTime(isStart: true),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TimePickerTile(
+                    label: l10n.endTime,
+                    value: _endTime,
+                    onTap: () => _pickTime(isStart: false),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Note
+            Text(l10n.shiftNote, style: AiraFonts.label()),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _noteController,
+              maxLines: 2,
+              style: AiraFonts.body(fontSize: 16),
+              decoration: InputDecoration(
+                hintText: l10n.shiftNote,
+                filled: true,
+                fillColor: AiraColors.parchment,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Save button
+            SizedBox(
+              height: AiraSizes.buttonHeight,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(l10n.saveShift),
+              ),
+            ),
+
+            // Delete button (only when editing)
+            if (widget.entry.schedule != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: AiraSizes.buttonHeight,
+                child: OutlinedButton(
+                  onPressed: _saving ? null : _delete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AiraColors.terra,
+                    side: const BorderSide(color: AiraColors.terra),
+                  ),
+                  child: Text(l10n.deleteShift),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimePickerTile extends StatelessWidget {
+  final String label;
+  final TimeOfDay? value;
+  final VoidCallback onTap;
+  const _TimePickerTile({required this.label, required this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final display = value != null
+        ? '${value!.hour.toString().padLeft(2, '0')}:${value!.minute.toString().padLeft(2, '0')}'
+        : '--:--';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: AiraColors.parchment,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted)),
+            const SizedBox(height: 4),
+            Text(
+              display,
+              style: AiraFonts.numeric(fontSize: 22),
+            ),
+          ],
+        ),
       ),
     );
   }
