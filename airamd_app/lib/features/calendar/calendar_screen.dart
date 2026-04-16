@@ -859,9 +859,25 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       ),
                     ),
                   ),
+                // Hint: tap to manage
+                if (entries.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.touch_app_rounded, size: 14, color: AiraColors.muted.withValues(alpha: 0.5)),
+                        const SizedBox(width: 4),
+                        Text(
+                          context.l10n.tapToManageShift,
+                          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted.withValues(alpha: 0.6), fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ),
                 ...entries.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: GestureDetector(
+                      child: AiraTapEffect(
                         onTap: () => _showScheduleSheet(context, e.value, selectedDate),
                         child: _RosterRow(entry: e.value, doctorIndex: e.key),
                       ),
@@ -984,12 +1000,19 @@ class _RosterRow extends StatelessWidget {
         ? context.l10n.noShiftTime
         : '${entry.schedule?.startTime ?? '--:--'} - ${entry.schedule?.endTime ?? '--:--'}';
 
+    final isUnscheduled = status == null;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AiraColors.parchment,
+        color: isUnscheduled ? AiraColors.cream : AiraColors.parchment,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: personalColor.withValues(alpha: 0.25)),
+        border: Border.all(
+          color: isUnscheduled
+              ? AiraColors.woodPale.withValues(alpha: 0.6)
+              : personalColor.withValues(alpha: 0.25),
+          width: isUnscheduled ? 1.5 : 1,
+        ),
       ),
       child: Row(
         children: [
@@ -999,7 +1022,7 @@ class _RosterRow extends StatelessWidget {
             height: 48,
             margin: const EdgeInsets.only(right: 10),
             decoration: BoxDecoration(
-              color: personalColor,
+              color: isUnscheduled ? AiraColors.woodPale : personalColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1049,16 +1072,53 @@ class _RosterRow extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              statusLabel,
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: statusColor),
-            ),
+          // Status chip + edit icon
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isUnscheduled
+                      ? AiraColors.woodPale.withValues(alpha: 0.25)
+                      : statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: isUnscheduled
+                      ? Border.all(color: AiraColors.woodPale.withValues(alpha: 0.5), width: 1)
+                      : null,
+                ),
+                child: Text(
+                  statusLabel,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isUnscheduled ? AiraColors.muted : statusColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isUnscheduled ? Icons.add_circle_outline_rounded : Icons.edit_rounded,
+                    size: 14,
+                    color: isUnscheduled ? AiraColors.woodMid : AiraColors.muted.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    isUnscheduled
+                        ? (context.l10n.isThai ? 'ลงเวร' : 'Set')
+                        : (context.l10n.isThai ? 'แก้ไข' : 'Edit'),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isUnscheduled ? AiraColors.woodMid : AiraColors.muted.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

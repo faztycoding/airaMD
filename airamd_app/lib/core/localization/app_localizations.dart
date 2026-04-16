@@ -325,6 +325,7 @@ class AppL10n {
   String get shiftSaved => isThai ? 'บันทึกเวรสำเร็จ' : 'Shift saved';
   String get deleteShift => isThai ? 'ลบเวร' : 'Delete Shift';
   String get shiftDeleted => isThai ? 'ลบเวรสำเร็จ' : 'Shift deleted';
+  String get tapToManageShift => isThai ? 'แตะเพื่อจัดเวร' : 'Tap to manage shift';
   String get notFoundShort => isThai ? 'ไม่พบข้อมูล' : 'Not found';
   String get noTreatmentSpecified => isThai ? 'ไม่ระบุหัตถการ' : 'No treatment specified';
   String get editAppointment => isThai ? 'แก้ไขนัดหมาย' : 'Edit Appointment';
