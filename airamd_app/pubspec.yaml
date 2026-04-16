@@ -69,7 +69,7 @@ dependencies:
   timezone: ^0.9.4
 
   # Utilities
-  intl: ^0.19.0
+  intl: ^0.20.2
   uuid: ^4.5.1
   path_provider: ^2.1.5
   share_plus: ^10.0.0

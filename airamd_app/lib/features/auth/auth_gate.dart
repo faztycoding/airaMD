@@ -9,10 +9,17 @@ import 'login_screen.dart';
 // ═══════════════════════════════════════════════════════════════
 
 /// Watches Supabase auth state and returns the current session.
-final authSessionProvider = StreamProvider<Session?>((ref) {
-  return ref.watch(supabaseClientProvider).auth.onAuthStateChange.map(
-    (event) => event.session,
-  );
+/// Emits the current session immediately, then listens for changes.
+final authSessionProvider = StreamProvider<Session?>((ref) async* {
+  final client = ref.watch(supabaseClientProvider);
+
+  // Emit current session right away (avoids timeout hacks).
+  yield client.auth.currentSession;
+
+  // Then relay every auth-state change.
+  await for (final event in client.auth.onAuthStateChange) {
+    yield event.session;
+  }
 });
 
 /// Whether the user is authenticated (has valid session).
@@ -53,9 +60,15 @@ class _SplashLoading extends StatelessWidget {
     return const Scaffold(
       backgroundColor: Color(0xFFF7F0E8), // AiraColors.cream
       body: Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF8B6650), // AiraColors.woodMid
-          strokeWidth: 2.5,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              color: Color(0xFF8B6650), // AiraColors.woodMid
+              strokeWidth: 2.5,
+            ),
+            SizedBox(height: 24),
+          ],
         ),
       ),
     );
