@@ -39,6 +39,7 @@ class SafetyCheckService {
     warnings.addAll(_checkPregnancyAge(patient));
     warnings.addAll(_checkKeloidHistory(patient, category));
     warnings.addAll(_checkSkinSensitivity(patient, category));
+    warnings.addAll(_checkSupplementInteractions(patient, category));
 
     return warnings;
   }
@@ -294,6 +295,122 @@ class SafetyCheckService {
         message:
             'หมายเหตุระบุว่าผิวอาจคล้ำ/ตากแดด — ควรปรับพลังงาน Laser เพื่อลดความเสี่ยง PIH',
       ));
+    }
+
+    return warnings;
+  }
+
+  /// Check supplements / OTC medications the patient is currently taking for
+  /// interactions with aesthetic procedures.
+  ///
+  /// Focuses on common supplements that affect:
+  /// - Bleeding (fish oil, vitamin E, ginkgo, garlic, ginseng, turmeric high-dose)
+  /// - Wound healing (vitamin E, St. John's Wort)
+  /// - Photosensitivity (St. John's Wort before laser)
+  static List<SafetyWarning> _checkSupplementInteractions(
+    Patient patient,
+    TreatmentCategory category,
+  ) {
+    if (patient.currentMedications.isEmpty) return const [];
+
+    final warnings = <SafetyWarning>[];
+    final meds = patient.currentMedications
+        .map((m) => m.toLowerCase().trim())
+        .toList();
+
+    bool has(List<String> keywords) =>
+        meds.any((m) => keywords.any((k) => m.contains(k)));
+
+    final isInjectable = category == TreatmentCategory.injectable;
+    final isLaser = category == TreatmentCategory.laser;
+    final isTreatment = category == TreatmentCategory.treatment;
+
+    // ─── Bleeding risk — relevant for injectables + laser ───
+    if (isInjectable || isLaser) {
+      if (has(['fish oil', 'omega', 'น้ำมันปลา', 'โอเมก้า'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.caution,
+          title: '🐟 น้ำมันปลา / Fish Oil',
+          message:
+              'เพิ่มความเสี่ยงช้ำ/เลือดออก — แนะนำงด 7-10 วันก่อนฉีด/เลเซอร์',
+        ));
+      }
+
+      if (has(['vitamin e', 'วิตามินอี', 'วิตามิน e'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.caution,
+          title: '💊 วิตามินอี / Vitamin E',
+          message:
+              'เพิ่มความเสี่ยงช้ำ/เลือดออก และอาจชะลอการหายของแผล — แนะนำงด 7-10 วันก่อนหัตถการ',
+        ));
+      }
+
+      if (has(['ginkgo', 'แปะก๊วย'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.caution,
+          title: '🌿 แปะก๊วย / Ginkgo Biloba',
+          message:
+              'ยับยั้งการแข็งตัวของเลือด — แนะนำงด 7-14 วันก่อนฉีด/เลเซอร์',
+        ));
+      }
+
+      if (has(['garlic', 'กระเทียม']) &&
+          !has(['garlic bread'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.caution,
+          title: '🧄 สารสกัดกระเทียม / Garlic Supplement',
+          message:
+              'เพิ่มความเสี่ยงเลือดออก — แนะนำงดอาหารเสริมกระเทียมเข้มข้น 7-10 วันก่อนหัตถการ',
+        ));
+      }
+
+      if (has(['ginseng', 'โสม'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.caution,
+          title: '🌱 โสม / Ginseng',
+          message:
+              'อาจทำให้เลือดแข็งตัวช้า — แนะนำงด 7 วันก่อนฉีด/เลเซอร์',
+        ));
+      }
+
+      if (has(['turmeric', 'ขมิ้น', 'curcumin'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.info,
+          title: '🟡 ขมิ้นชัน / Turmeric',
+          message:
+              'ปริมาณสูงอาจเพิ่มความเสี่ยงเลือดออก — สอบถามปริมาณ/งดหากเกิน 1,500mg ต่อวัน',
+        ));
+      }
+    }
+
+    // ─── Drug metabolism interactions (all categories) ───
+    if (has(['st. john', "st john's wort", 'เซนต์จอห์น'])) {
+      warnings.add(SafetyWarning(
+        level: isLaser ? WarningLevel.caution : WarningLevel.info,
+        title: "⚠️ St. John's Wort",
+        message: isLaser
+            ? 'เพิ่มความไวแสง (photosensitivity) — เพิ่มความเสี่ยงแผลไหม้จาก Laser'
+            : 'รบกวนการทำงานของยาอื่นผ่าน CYP450 — แจ้งแพทย์ก่อนทำหัตถการ',
+      ));
+    }
+
+    // ─── Tissue/Healing supportive (informational) ───
+    if (isInjectable || isTreatment) {
+      if (has(['arnica', 'อาร์นิกา'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.info,
+          title: '🌼 Arnica',
+          message: 'ช่วยลดรอยช้ำ — ปลอดภัย มักใช้ทั้งก่อนและหลังฉีด',
+        ));
+      }
+      if (has(['bromelain', 'โบรมีเลน'])) {
+        warnings.add(const SafetyWarning(
+          level: WarningLevel.info,
+          title: '🍍 Bromelain',
+          message:
+              'ลดอักเสบ/ลดช้ำหลังหัตถการ — ปลอดภัยหากใช้ขนาดปกติ',
+        ));
+      }
     }
 
     return warnings;

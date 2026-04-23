@@ -204,6 +204,10 @@ class AppL10n {
   String get statusAndId => isThai ? 'สถานะ & เอกสาร' : 'Status & Identification';
   String get statusAndIdDesc => isThai ? 'สถานะผู้รับบริการ, เลขบัตร' : 'Patient status and ID documents';
   String get medicalHistory => isThai ? 'ประวัติทางการแพทย์' : 'Medical History';
+  String get medicalConditionsLabel => isThai ? 'โรคประจำตัว (คั่นด้วย ,)' : 'Medical conditions (comma-separated)';
+  String get medicalConditionsHint => isThai ? 'เช่น ไมเกรน, เบาหวาน' : 'e.g., migraine, diabetes';
+  String get currentMedicationsLabel => isThai ? 'อาหารเสริม/ยาที่ทานอยู่ (คั่นด้วย ,)' : 'Current supplements/medications (comma-separated)';
+  String get currentMedicationsHint => isThai ? 'เช่น น้ำมันปลา, วิตามินอี, แปะก๊วย, โสม' : 'e.g., fish oil, vitamin E, ginkgo, ginseng';
   String get specialNotes => isThai ? 'บันทึกสิ่งที่ต้องระวังเป็นพิเศษ' : 'Any special instructions or notes';
   String get saveChanges => isThai ? 'บันทึกการแก้ไข' : 'Save Changes';
   String get registerPatient => isThai ? 'ลงทะเบียนผู้รับบริการ' : 'Register Patient';

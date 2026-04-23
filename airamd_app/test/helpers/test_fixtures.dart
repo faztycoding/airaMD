@@ -143,6 +143,20 @@ class TestFixtures {
         notes: 'ผิวคล้ำ ตากแดดบ่อย',
       );
 
+  static Patient supplementPatient({
+    String? id,
+    List<String> medications = const [],
+  }) =>
+      Patient(
+        id: id ?? 'patient-011',
+        clinicId: clinicId,
+        firstName: 'ภัทร',
+        lastName: 'อาหารเสริม',
+        dateOfBirth: DateTime(1988, 8, 8),
+        gender: GenderType.female,
+        currentMedications: medications,
+      );
+
   // ─── Treatment Records ─────────────────────────────────────
 
   static TreatmentRecord recentBotox({int daysAgo = 30}) => TreatmentRecord(

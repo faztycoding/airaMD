@@ -506,5 +506,143 @@ void main() {
         expect(dangerOrCaution, isEmpty);
       });
     });
+
+    // ─── Supplement Interaction Checks ────────────────────
+    group('supplement interactions', () {
+      test('fish oil should warn caution for injectable', () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(
+              medications: ['น้ำมันปลา 1000mg']),
+          treatmentName: 'Botox',
+          category: TreatmentCategory.injectable,
+          patientHistory: [],
+          rules: [],
+        );
+
+        final fishOilWarnings =
+            warnings.where((w) => w.title.contains('Fish Oil')).toList();
+        expect(fishOilWarnings, isNotEmpty);
+        expect(fishOilWarnings.first.level, WarningLevel.caution);
+      });
+
+      test('vitamin E should warn caution for laser', () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(
+              medications: ['Vitamin E 400IU']),
+          treatmentName: 'IPL',
+          category: TreatmentCategory.laser,
+          patientHistory: [],
+          rules: [],
+        );
+
+        final vitEWarnings = warnings
+            .where((w) => w.title.contains('Vitamin E'))
+            .toList();
+        expect(vitEWarnings, isNotEmpty);
+        expect(vitEWarnings.first.level, WarningLevel.caution);
+      });
+
+      test('ginkgo biloba should warn caution for injectable', () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(
+              medications: ['Ginkgo Biloba']),
+          treatmentName: 'Filler',
+          category: TreatmentCategory.injectable,
+          patientHistory: [],
+          rules: [],
+        );
+
+        expect(
+          warnings.any((w) => w.title.contains('Ginkgo')),
+          isTrue,
+        );
+      });
+
+      test('ginseng should warn caution for injectable', () {
+        final warnings = SafetyCheckService.checkAll(
+          patient:
+              TestFixtures.supplementPatient(medications: ['โสมเกาหลี']),
+          treatmentName: 'Botox',
+          category: TreatmentCategory.injectable,
+          patientHistory: [],
+          rules: [],
+        );
+
+        expect(warnings.any((w) => w.title.contains('Ginseng')), isTrue);
+      });
+
+      test("st. john's wort should warn caution for laser (photosensitivity)",
+          () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(
+              medications: ["St. John's Wort"]),
+          treatmentName: 'IPL',
+          category: TreatmentCategory.laser,
+          patientHistory: [],
+          rules: [],
+        );
+
+        final sjw = warnings
+            .where((w) => w.title.contains("St. John's Wort"))
+            .toList();
+        expect(sjw, isNotEmpty);
+        expect(sjw.first.level, WarningLevel.caution);
+      });
+
+      test('arnica should return info for injectable (not caution/danger)', () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(medications: ['Arnica']),
+          treatmentName: 'Filler',
+          category: TreatmentCategory.injectable,
+          patientHistory: [],
+          rules: [],
+        );
+
+        final arnica =
+            warnings.where((w) => w.title.contains('Arnica')).toList();
+        expect(arnica, isNotEmpty);
+        expect(arnica.first.level, WarningLevel.info);
+      });
+
+      test('empty currentMedications should produce no supplement warnings',
+          () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(medications: const []),
+          treatmentName: 'Botox',
+          category: TreatmentCategory.injectable,
+          patientHistory: [],
+          rules: [],
+        );
+
+        // No warnings should come from supplement check
+        final supplementKeywords = [
+          'Fish Oil',
+          'Vitamin E',
+          'Ginkgo',
+          'Ginseng',
+          'St. John',
+          'Arnica',
+          'Bromelain',
+          'Turmeric',
+        ];
+        final hits = warnings.where((w) =>
+            supplementKeywords.any((k) => w.title.contains(k))).toList();
+        expect(hits, isEmpty);
+      });
+
+      test('fish oil should NOT warn for non-invasive category (other)',
+          () {
+        final warnings = SafetyCheckService.checkAll(
+          patient: TestFixtures.supplementPatient(
+              medications: ['น้ำมันปลา']),
+          treatmentName: 'Follow-up',
+          category: TreatmentCategory.other,
+          patientHistory: [],
+          rules: [],
+        );
+
+        expect(warnings.any((w) => w.title.contains('Fish Oil')), isFalse);
+      });
+    });
   });
 }

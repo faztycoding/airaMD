@@ -21,6 +21,7 @@ class Patient {
   final List<String> drugAllergies;
   final String? allergySymptoms;
   final List<String> medicalConditions;
+  final List<String> currentMedications;
   final SmokingType smoking;
   final AlcoholType alcohol;
   final bool isUsingRetinoids;
@@ -53,6 +54,7 @@ class Patient {
     this.drugAllergies = const [],
     this.allergySymptoms,
     this.medicalConditions = const [],
+    this.currentMedications = const [],
     this.smoking = SmokingType.none,
     this.alcohol = AlcoholType.none,
     this.isUsingRetinoids = false,
@@ -106,6 +108,7 @@ class Patient {
         drugAllergies: _parseStringList(json['drug_allergies']),
         allergySymptoms: json['allergy_symptoms'] as String?,
         medicalConditions: _parseStringList(json['medical_conditions']),
+        currentMedications: _parseStringList(json['current_medications']),
         smoking: SmokingType.fromDb(json['smoking'] as String?),
         alcohol: AlcoholType.fromDb(json['alcohol'] as String?),
         isUsingRetinoids: json['is_using_retinoids'] as bool? ?? false,
@@ -143,6 +146,7 @@ class Patient {
         'drug_allergies': drugAllergies,
         if (allergySymptoms != null) 'allergy_symptoms': allergySymptoms,
         'medical_conditions': medicalConditions,
+        'current_medications': currentMedications,
         'smoking': smoking.dbValue,
         'alcohol': alcohol.dbValue,
         'is_using_retinoids': isUsingRetinoids,
@@ -170,6 +174,7 @@ class Patient {
         'drug_allergies': drugAllergies,
         'allergy_symptoms': allergySymptoms,
         'medical_conditions': medicalConditions,
+        'current_medications': currentMedications,
         'smoking': smoking.dbValue,
         'alcohol': alcohol.dbValue,
         'is_using_retinoids': isUsingRetinoids,
@@ -200,6 +205,7 @@ class Patient {
     List<String>? drugAllergies,
     String? allergySymptoms,
     List<String>? medicalConditions,
+    List<String>? currentMedications,
     SmokingType? smoking,
     AlcoholType? alcohol,
     bool? isUsingRetinoids,
@@ -229,6 +235,7 @@ class Patient {
         drugAllergies: drugAllergies ?? this.drugAllergies,
         allergySymptoms: allergySymptoms ?? this.allergySymptoms,
         medicalConditions: medicalConditions ?? this.medicalConditions,
+        currentMedications: currentMedications ?? this.currentMedications,
         smoking: smoking ?? this.smoking,
         alcohol: alcohol ?? this.alcohol,
         isUsingRetinoids: isUsingRetinoids ?? this.isUsingRetinoids,

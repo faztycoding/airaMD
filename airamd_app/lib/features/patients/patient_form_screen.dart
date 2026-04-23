@@ -43,6 +43,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   final _allergyCtrl = TextEditingController();
   final _allergySymptomsCtrl = TextEditingController();
   final _conditionsCtrl = TextEditingController();
+  final _medicationsCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   DateTime? _dob;
@@ -71,6 +72,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     _allergyCtrl.dispose();
     _allergySymptomsCtrl.dispose();
     _conditionsCtrl.dispose();
+    _medicationsCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -92,6 +94,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     _allergyCtrl.text = (p.drugAllergies).join(', ');
     _allergySymptomsCtrl.text = p.allergySymptoms ?? '';
     _conditionsCtrl.text = (p.medicalConditions).join(', ');
+    _medicationsCtrl.text = (p.currentMedications).join(', ');
     _notesCtrl.text = p.notes ?? '';
     _dob = p.dateOfBirth;
     _gender = p.gender;
@@ -133,6 +136,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     final conditions = _conditionsCtrl.text.trim().isEmpty
         ? <String>[]
         : _conditionsCtrl.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final medications = _medicationsCtrl.text.trim().isEmpty
+        ? <String>[]
+        : _medicationsCtrl.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     final patient = Patient(
       id: widget.isEdit ? widget.patientId! : '',
@@ -154,6 +160,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       drugAllergies: allergies,
       allergySymptoms: _allergySymptomsCtrl.text.trim().isEmpty ? null : _allergySymptomsCtrl.text.trim(),
       medicalConditions: conditions,
+      currentMedications: medications,
       smoking: _smoking,
       alcohol: _alcohol,
       isUsingRetinoids: _isRetinoids,
@@ -427,7 +434,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         children: [
                           _field('แพ้ยา (คั่นด้วย ,)', _allergyCtrl, hint: 'เช่น Penicillin, Lidocaine', icon: Icons.warning_amber_rounded),
                           _field('อาการแพ้', _allergySymptomsCtrl, icon: Icons.sick_rounded),
-                          _field('โรคประจำตัว (คั่นด้วย ,)', _conditionsCtrl, hint: 'เช่น ไมเกรน, เบาหวาน', icon: Icons.healing_rounded),
+                          _field(l.medicalConditionsLabel, _conditionsCtrl, hint: l.medicalConditionsHint, icon: Icons.healing_rounded),
+                          _field(l.currentMedicationsLabel, _medicationsCtrl, hint: l.currentMedicationsHint, icon: Icons.medication_rounded),
                           const SizedBox(height: 4),
                           Row(
                             children: [
