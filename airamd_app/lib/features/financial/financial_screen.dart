@@ -224,7 +224,12 @@ class FinancialScreen extends ConsumerWidget {
                                 return;
                               }
                               final clinicId = dialogRef.read(currentClinicIdProvider);
-                              if (clinicId == null) return;
+                              if (clinicId == null) {
+                                if (context.mounted) {
+                                  AiraFeedback.error(context, context.l10n.clinicContextMissing);
+                                }
+                                return;
+                              }
                               final amount = parseFinancialAmount(amountCtrl.text);
 
                               final record = FinancialRecord(

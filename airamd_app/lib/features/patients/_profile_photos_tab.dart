@@ -106,7 +106,17 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
 
     // Create an initial "before" placeholder record so the set appears
     final clinicId = ref.read(currentClinicIdProvider);
-    if (clinicId == null) return;
+    if (clinicId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.clinicContextMissing),
+            backgroundColor: AiraColors.terra,
+          ),
+        );
+      }
+      return;
+    }
     try {
       final repo = ref.read(photoRepoProvider);
       await repo.create(PatientPhoto(

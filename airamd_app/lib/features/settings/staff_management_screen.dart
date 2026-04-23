@@ -227,7 +227,17 @@ class StaffManagementScreen extends ConsumerWidget {
                           return;
                         }
                         final clinicId = ref.read(currentClinicIdProvider);
-                        if (clinicId == null) return;
+                        if (clinicId == null) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(context.l10n.clinicContextMissing),
+                                backgroundColor: AiraColors.terra,
+                              ),
+                            );
+                          }
+                          return;
+                        }
                         final repo = ref.read(staffRepoProvider);
 
                         final staff = Staff(

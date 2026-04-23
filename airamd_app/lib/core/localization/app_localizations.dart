@@ -673,6 +673,20 @@ class AppL10n {
   String get autoLock => isThai ? 'ล็อกอัตโนมัติ' : 'Auto-lock';
   String get autoLockSubtitle => isThai ? 'ล็อกเมื่อปิดแอป' : 'Lock when app is backgrounded';
 
+  // ─── PIN Recovery ───
+  String get forgotPin => isThai ? 'ลืมรหัส PIN?' : 'Forgot PIN?';
+  String get switchAccount => isThai ? 'ออกจากระบบเพื่อเปลี่ยนบัญชี' : 'Sign out to switch account';
+  String get forgotPinTitle => isThai ? 'รีเซ็ตรหัส PIN' : 'Reset PIN';
+  String get forgotPinBody => isThai
+      ? 'การรีเซ็ต PIN จะออกจากระบบและลบ PIN ปัจจุบัน ท่านต้องเข้าสู่ระบบใหม่ด้วยอีเมลและรหัสผ่าน จากนั้นจึงตั้ง PIN ใหม่'
+      : 'Resetting your PIN will sign you out and clear the current PIN. You will need to sign in again with your email and password, then set a new PIN.';
+  String get resetPinAndSignOut => isThai ? 'รีเซ็ต PIN และออกจากระบบ' : 'Reset PIN & sign out';
+
+  // ─── Clinic Context Missing ───
+  String get clinicContextMissing => isThai
+      ? 'ไม่พบข้อมูลคลินิกสำหรับบัญชีนี้ กรุณาเข้าสู่ระบบใหม่อีกครั้ง'
+      : 'Clinic context is unavailable for this account. Please sign in again.';
+
   // ═══════════════════════════════════════════════════════════════
   // Privacy Policy (PDPA)
   // ═══════════════════════════════════════════════════════════════

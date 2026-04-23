@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
+import '../../app.dart';
 import '../../config/theme.dart';
+import '../../core/providers/auth_providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/localization/app_localizations.dart';
 
@@ -195,6 +197,64 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
     return l.enterPinToUnlock;
   }
 
+  Future<void> _showForgotPinDialog() async {
+    final l = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l.forgotPinTitle,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AiraColors.charcoal,
+          ),
+        ),
+        content: Text(
+          l.forgotPinBody,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13.5,
+            height: 1.5,
+            color: AiraColors.muted,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              l.resetPinAndSignOut,
+              style: GoogleFonts.plusJakartaSans(
+                color: AiraColors.terra,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    // Clear stored PIN, sign out Supabase, and flip app to locked state.
+    try {
+      await _secureStorage.delete(key: _pinStorageKey);
+      await _secureStorage.delete(key: _pinEnabledKey);
+    } catch (_) {
+      // Best-effort cleanup — continue even if keychain delete fails.
+    }
+    try {
+      await ref.read(authSignOutActionProvider)();
+    } catch (_) {
+      // Ignore sign-out errors — the app_unlocked toggle will still force re-auth.
+    }
+    if (!mounted) return;
+    ref.read(appUnlockedProvider.notifier).state = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
@@ -324,6 +384,20 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
                         fontSize: 14,
                         color: AiraColors.woodMid,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                // ─── Forgot PIN / Switch Account ───
+                if (!_isSettingUp)
+                  TextButton(
+                    onPressed: _showForgotPinDialog,
+                    child: Text(
+                      l.forgotPin,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        color: AiraColors.muted,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),

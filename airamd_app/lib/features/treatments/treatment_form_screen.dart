@@ -316,6 +316,9 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     final clinicId = ref.read(currentClinicIdProvider);
     if (clinicId == null) {
       setState(() => _loading = false);
+      if (mounted) {
+        AiraFeedback.error(context, context.l10n.clinicContextMissing);
+      }
       return;
     }
 

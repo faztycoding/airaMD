@@ -704,7 +704,12 @@ class _TransactionPanel extends ConsumerWidget {
                 }
 
                 final clinicId = ref.read(currentClinicIdProvider);
-                if (clinicId == null) return;
+                if (clinicId == null) {
+                  if (context.mounted) {
+                    AiraFeedback.error(context, context.l10n.clinicContextMissing);
+                  }
+                  return;
+                }
 
                 if (quantityIssue == InventoryQuantityValidationIssue.insufficientStock) {
                   AiraFeedback.error(

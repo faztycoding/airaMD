@@ -138,6 +138,14 @@ class _AppointmentFormScreenState extends ConsumerState<AppointmentFormScreen> {
     final clinicId = ref.read(currentClinicIdProvider);
     if (clinicId == null) {
       setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.clinicContextMissing),
+            backgroundColor: AiraColors.terra,
+          ),
+        );
+      }
       return;
     }
 
