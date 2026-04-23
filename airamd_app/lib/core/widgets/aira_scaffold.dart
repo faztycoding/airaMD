@@ -33,19 +33,8 @@ class AiraScaffold extends ConsumerWidget {
       case 2:
         context.go('/calendar');
       case 3:
-        if (!canAccessSettings) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isThai
-                    ? 'บัญชีนี้ไม่มีสิทธิ์เข้าถึงการตั้งค่า'
-                    : 'This account cannot access settings.',
-              ),
-              backgroundColor: AiraColors.woodDk,
-            ),
-          );
-          return;
-        }
+        // Always navigate — AccessGuard will render a panel with Back + Logout
+        // actions so the user is never trapped without a way to log out.
         context.go('/settings');
     }
   }

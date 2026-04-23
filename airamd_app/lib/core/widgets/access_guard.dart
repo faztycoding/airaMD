@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:go_router/go_router.dart';
+import '../../app.dart';
 import '../../config/theme.dart';
 import '../providers/providers.dart';
 import '../localization/app_localizations.dart';
@@ -31,6 +33,7 @@ class AccessGuard extends ConsumerWidget {
               child: _AccessDeniedPanel(
                 title: _title(context),
                 description: _description(context),
+                showActions: true,
               ),
             ),
           ),
@@ -105,13 +108,60 @@ class InlineAccessGuard extends ConsumerWidget {
   }
 }
 
-class _AccessDeniedPanel extends StatelessWidget {
+class _AccessDeniedPanel extends ConsumerWidget {
   final String title;
   final String description;
-  const _AccessDeniedPanel({required this.title, required this.description});
+  final bool showActions;
+  const _AccessDeniedPanel({
+    required this.title,
+    required this.description,
+    this.showActions = false,
+  });
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final l = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l.logoutButton,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AiraColors.charcoal,
+          ),
+        ),
+        content: Text(
+          l.logoutConfirm,
+          style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              l.logoutButton,
+              style: GoogleFonts.plusJakartaSans(
+                color: AiraColors.terra,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(authSignOutActionProvider)();
+    ref.read(appUnlockedProvider.notifier).state = false;
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -158,6 +208,59 @@ class _AccessDeniedPanel extends StatelessWidget {
               color: AiraColors.muted,
             ),
           ),
+          if (showActions) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        context.go('/dashboard');
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: AiraColors.woodPale.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: Icon(Icons.arrow_back_rounded, size: 18, color: AiraColors.charcoal),
+                    label: Text(
+                      context.l10n.isThai ? 'ย้อนกลับ' : 'Back',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AiraColors.charcoal,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmLogout(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AiraColors.terra.withValues(alpha: 0.06),
+                      side: BorderSide(color: AiraColors.terra.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: Icon(Icons.logout_rounded, size: 18, color: AiraColors.terra),
+                    label: Text(
+                      context.l10n.logoutButton,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AiraColors.terra,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
