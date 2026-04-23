@@ -53,16 +53,22 @@ class PatientRepository extends BaseRepository {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return list(clinicId: clinicId, limit: limit);
 
+    // Supabase `.or()` parses commas as condition separators and parentheses
+    // as grouping, so strip those chars to avoid malformed queries when users
+    // include them in their search term.
+    final safe = trimmed.replaceAll(RegExp(r'[(),]'), ' ').trim();
+    if (safe.isEmpty) return list(clinicId: clinicId, limit: limit);
+
     final data = await client
         .from(tableName)
         .select()
         .eq('clinic_id', clinicId)
-        .or('first_name.ilike.%$trimmed%,'
-            'last_name.ilike.%$trimmed%,'
-            'nickname.ilike.%$trimmed%,'
-            'hn.ilike.%$trimmed%,'
-            'phone.ilike.%$trimmed%,'
-            'national_id.ilike.%$trimmed%')
+        .or('first_name.ilike.%$safe%,'
+            'last_name.ilike.%$safe%,'
+            'nickname.ilike.%$safe%,'
+            'hn.ilike.%$safe%,'
+            'phone.ilike.%$safe%,'
+            'national_id.ilike.%$safe%')
         .order('created_at', ascending: false)
         .limit(limit);
 

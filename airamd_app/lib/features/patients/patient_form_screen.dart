@@ -338,7 +338,15 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                 ),
                               ),
                               const SizedBox(width: 14),
-                              Expanded(child: _field('Email', _emailCtrl, keyboard: TextInputType.emailAddress, icon: Icons.email_rounded)),
+                              Expanded(
+                                child: _field(
+                                  'Email',
+                                  _emailCtrl,
+                                  keyboard: TextInputType.emailAddress,
+                                  icon: Icons.email_rounded,
+                                  validator: _validateEmail,
+                                ),
+                              ),
                             ],
                           ),
                           _field('ที่อยู่', _addressCtrl, maxLines: 2, icon: Icons.location_on_rounded),
@@ -495,6 +503,16 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       return context.l10n.isThai
           ? 'กรุณากรอกเบอร์โทรให้ถูกต้อง'
           : 'Please enter a valid phone number';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) return null; // Email is optional
+    final emailRegex = RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)+$');
+    if (!emailRegex.hasMatch(trimmed)) {
+      return context.l10n.invalidEmail;
     }
     return null;
   }
