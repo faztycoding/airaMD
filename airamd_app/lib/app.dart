@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'config/constants.dart';
+import 'features/auth/login_screen.dart';
 import 'features/auth/pin_lock_screen.dart';
 import 'core/providers/locale_provider.dart';
 import 'core/providers/repository_providers.dart';
@@ -178,7 +179,7 @@ class _AiraAppState extends ConsumerState<AiraApp> {
         GoRoute(
           path: '/login',
           parentNavigatorKey: rootNavigatorKey,
-          builder: (context, state) => const _LoginPlaceholder(),
+          builder: (context, state) => const LoginScreen(),
         ),
         ...appRoutes, // Main app routes from routes.dart
       ],

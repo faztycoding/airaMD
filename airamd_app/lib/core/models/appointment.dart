@@ -12,6 +12,10 @@ class Appointment {
   final String? treatmentType;
   final String? notes;
   final bool reminderSent;
+  /// If this appointment was auto-created as a follow-up from a treatment
+  /// record, this stores the originating treatment_record.id. Populated
+  /// by migration 016.
+  final String? treatmentRecordId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -27,6 +31,7 @@ class Appointment {
     this.treatmentType,
     this.notes,
     this.reminderSent = false,
+    this.treatmentRecordId,
     this.createdAt,
     this.updatedAt,
   });
@@ -43,6 +48,7 @@ class Appointment {
         treatmentType: json['treatment_type'] as String?,
         notes: json['notes'] as String?,
         reminderSent: json['reminder_sent'] as bool? ?? false,
+        treatmentRecordId: json['treatment_record_id'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
@@ -62,6 +68,7 @@ class Appointment {
         if (treatmentType != null) 'treatment_type': treatmentType,
         if (notes != null) 'notes': notes,
         'reminder_sent': reminderSent,
+        if (treatmentRecordId != null) 'treatment_record_id': treatmentRecordId,
       };
 
   Map<String, dynamic> toUpdateJson() => {

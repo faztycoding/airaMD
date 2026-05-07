@@ -38,10 +38,6 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   int _selectedSection = 0;
 
-  /// Sub-category pill within the Dermatology tab. Persisted only for the
-  /// lifetime of this screen instance.
-  String _dermSubCategory = 'ALL'; // ALL | INJECTABLE | LASER | TREATMENT
-
   List<_TabDef> _tabs(
     AppL10n l, {
     required bool canManageClinicalData,
@@ -55,9 +51,13 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       _TabDef(1, Icons.healing_rounded, l.healthHistory),
       if (canManageClinicalData) ...[
         _TabDef(2, Icons.draw_rounded, l.faceDiagram),
-        // Single "Dermatology" tab covering Injectables / Lasers / Treatments.
-        // Sub-categories are exposed as filter pills inside this tab.
-        _TabDef(3, Icons.medical_services_rounded, l.dermatology),
+        // Treatment sub-tabs — each maps to the Dermatology tab content
+        // with the corresponding category filter pre-selected.
+        // A group header "การรักษา / Treatments" is shown above the first item.
+        _TabDef(30, Icons.colorize_rounded, l.injectable, isSubItem: true,
+            groupLabel: l.isThai ? 'การรักษา' : 'Treatments'),
+        _TabDef(31, Icons.flash_on_rounded, l.laser, isSubItem: true),
+        _TabDef(32, Icons.science_rounded, l.treatment, isSubItem: true),
         _TabDef(6, Icons.spa_rounded, l.antiAging),
       ],
       if (canAccessFinancialData) _TabDef(7, Icons.table_chart_rounded, l.courseTable),
@@ -125,32 +125,27 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 960;
-                    final horizontalPadding = isWide ? 24.0 : 12.0;
+                    // Use vertical sidebar for any screen >= 600 wide
+                    // (covers iPad portrait at 834px and up, not just landscape).
+                    final isWide = constraints.maxWidth >= 600;
+                    final sidebarWidth = constraints.maxWidth >= 960 ? 272.0 : 220.0;
+                    final horizontalPadding = isWide ? 20.0 : 12.0;
                     return Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1460),
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 0),
-                          child: isWide
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(
-                                      width: 272,
-                                      child: _buildSidebar(tabs),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    Expanded(child: _buildContentShell(patient)),
-                                  ],
-                                )
-                              : Column(
-                                  children: [
-                                    _buildHorizontalPicker(tabs),
-                                    const SizedBox(height: 12),
-                                    Expanded(child: _buildContentShell(patient)),
-                                  ],
-                                ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: sidebarWidth,
+                                child: _buildSidebar(tabs),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildContentShell(patient)),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -283,69 +278,69 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 4)),
         ],
       ),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(12),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(10),
         itemCount: tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 6),
         itemBuilder: (context, index) {
           final tab = tabs[index];
-          return _ProfileSectionNavItem(
-            icon: tab.icon,
-            label: tab.label,
-            selected: tab.sectionId == _selectedSection,
-            onTap: () => setState(() => _selectedSection = tab.sectionId),
-          );
-        },
-      ),
-    );
-  }
+          final selected = tab.sectionId == _selectedSection;
+          // Any treatment sub-tab (30/31/32) counts as selected
+          // for the sidebar highlight when another sibling is active.
+          final isInTreatmentGroup = tab.isSubItem;
+          final treatmentGroupActive = _selectedSection >= 30 && _selectedSection <= 32;
 
-  Widget _buildHorizontalPicker(List<_TabDef> tabs) {
-    return SizedBox(
-      height: 54,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: List.generate(tabs.length, (index) {
-            final tab = tabs[index];
-            final selected = tab.sectionId == _selectedSection;
-            return Padding(
-              padding: EdgeInsets.only(right: index == tabs.length - 1 ? 0 : 8),
-              child: AiraTapEffect(
-                onTap: () => setState(() => _selectedSection = tab.sectionId),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: selected ? AiraColors.woodDk : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: selected ? AiraColors.woodDk : AiraColors.woodPale.withValues(alpha: 0.25),
-                    ),
-                    boxShadow: [
-                      BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3)),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(tab.icon, size: 16, color: selected ? Colors.white : AiraColors.woodDk),
-                      const SizedBox(width: 8),
-                      Text(
-                        tab.label,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? Colors.white : AiraColors.charcoal,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Group header rendered above first sub-item
+              if (tab.groupLabel != null) ...
+                [
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 3, height: 14,
+                          decoration: BoxDecoration(
+                            color: isInTreatmentGroup && treatmentGroupActive
+                                ? AiraColors.woodDk
+                                : AiraColors.muted.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          tab.groupLabel!,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isInTreatmentGroup && treatmentGroupActive
+                                ? AiraColors.charcoal
+                                : AiraColors.muted,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                ],
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: 4,
+                  left: tab.isSubItem ? 8.0 : 0.0,
+                ),
+                child: _ProfileSectionNavItem(
+                  icon: tab.icon,
+                  label: tab.label,
+                  selected: selected,
+                  isSubItem: tab.isSubItem,
+                  onTap: () => setState(() => _selectedSection = tab.sectionId),
                 ),
               ),
-            );
-          }),
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -379,14 +374,42 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
         return _FaceDiagramWithNotepad(patientId: patient.id);
-      case 3: // Dermatology (Injectable + Laser + Treatment combined)
+      case 3: // Legacy — redirect to Injectable sub-tab
+      case 30: // Injectable
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
         return _DermatologyTab(
           patientId: patient.id,
-          subCategory: _dermSubCategory,
-          onSubCategoryChanged: (v) => setState(() => _dermSubCategory = v),
+          subCategory: 'INJECTABLE',
+          onSubCategoryChanged: (v) {
+            final sectionForCat = v == 'INJECTABLE' ? 30 : v == 'LASER' ? 31 : 32;
+            setState(() => _selectedSection = sectionForCat);
+          },
+        );
+      case 31: // Laser
+        if (!canManageClinicalData) {
+          return const InlineAccessGuard(permission: AiraPermission.clinical);
+        }
+        return _DermatologyTab(
+          patientId: patient.id,
+          subCategory: 'LASER',
+          onSubCategoryChanged: (v) {
+            final sectionForCat = v == 'INJECTABLE' ? 30 : v == 'LASER' ? 31 : 32;
+            setState(() => _selectedSection = sectionForCat);
+          },
+        );
+      case 32: // Treatment (Facial/Peel)
+        if (!canManageClinicalData) {
+          return const InlineAccessGuard(permission: AiraPermission.clinical);
+        }
+        return _DermatologyTab(
+          patientId: patient.id,
+          subCategory: 'TREATMENT',
+          onSubCategoryChanged: (v) {
+            final sectionForCat = v == 'INJECTABLE' ? 30 : v == 'LASER' ? 31 : 32;
+            setState(() => _selectedSection = sectionForCat);
+          },
         );
       case 6:
         if (!canManageClinicalData) {
@@ -427,49 +450,72 @@ class _TabDef {
   final int sectionId;
   final IconData icon;
   final String label;
-  const _TabDef(this.sectionId, this.icon, this.label);
+  /// When true, renders as an indented sub-item in the sidebar.
+  final bool isSubItem;
+  /// If non-null, a group header label is rendered above this tab item.
+  final String? groupLabel;
+  const _TabDef(
+    this.sectionId,
+    this.icon,
+    this.label, {
+    this.isSubItem = false,
+    this.groupLabel,
+  });
 }
 
 class _ProfileSectionNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
+  final bool isSubItem;
   final VoidCallback onTap;
   const _ProfileSectionNavItem({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.isSubItem = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = isSubItem ? 15.0 : 18.0;
+    final fontSize = isSubItem ? 13.0 : 14.0;
+    final vertPad = isSubItem ? 9.0 : 11.0;
     return AiraTapEffect(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: vertPad),
         decoration: BoxDecoration(
-          color: selected ? AiraColors.woodDk.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? AiraColors.woodDk.withValues(alpha: 0.10) : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? AiraColors.woodDk.withValues(alpha: 0.22) : Colors.transparent,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: selected ? AiraColors.woodDk : AiraColors.muted),
+            Icon(icon, size: iconSize, color: selected ? AiraColors.woodDk : AiraColors.muted),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: selected ? AiraColors.charcoal : AiraColors.muted,
                 ),
               ),
             ),
+            if (selected)
+              Container(
+                width: 6, height: 6,
+                decoration: const BoxDecoration(
+                  color: AiraColors.woodDk,
+                  shape: BoxShape.circle,
+                ),
+              ),
           ],
         ),
       ),

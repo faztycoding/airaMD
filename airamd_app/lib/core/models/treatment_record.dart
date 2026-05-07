@@ -26,6 +26,10 @@ class TreatmentRecord {
   final List<String> instructions;
   final DateTime? followUpDate;
   final String? followUpTime;
+  /// The follow-up appointment auto-created when this record was saved.
+  /// NULL if no follow-up was scheduled or the appointment hasn't been
+  /// created yet. Populated by migration 016.
+  final String? followUpAppointmentId;
   final String? diagramUrl;
   final String? notes;
   final CommissionStatus commissionStatus;
@@ -63,6 +67,7 @@ class TreatmentRecord {
     this.instructions = const [],
     this.followUpDate,
     this.followUpTime,
+    this.followUpAppointmentId,
     this.diagramUrl,
     this.notes,
     this.commissionStatus = CommissionStatus.pending,
@@ -100,6 +105,7 @@ class TreatmentRecord {
             ? DateTime.tryParse(json['follow_up_date'].toString())
             : null,
         followUpTime: json['follow_up_time'] as String?,
+        followUpAppointmentId: json['follow_up_appointment_id'] as String?,
         diagramUrl: json['diagram_url'] as String?,
         notes: json['notes'] as String?,
         commissionStatus:

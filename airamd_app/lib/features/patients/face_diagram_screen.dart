@@ -531,24 +531,35 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
 
   // ═══════════════════════════════════════════════════════════════
   // Narrow Layout (Portrait/Phone) — Stacked
+  // Canvas is OUTSIDE the SingleChildScrollView so the parent
+  // UIScrollView (iOS) never intercepts Apple Pencil stylus events.
   // ═══════════════════════════════════════════════════════════════
   Widget _buildNarrowLayout(bool isThai) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildViewTabs(isThai),
-          SizedBox(
-            height: 420,
-            child: _buildCanvasArea(),
-          ),
-          if (!_isReadOnly) _buildToolbar(),
-          Padding(
+    return Column(
+      children: [
+        // View tabs — outside scroll so they stay pinned above canvas
+        _buildViewTabs(isThai),
+        // Canvas in a fixed-height container NOT inside any scrollable widget.
+        // This guarantees Listener/EagerGestureRecognizer receives ALL pointer
+        // events from Apple Pencil without the UIScrollView intercepting them.
+        SizedBox(
+          height: 420,
+          child: _buildCanvasArea(),
+        ),
+        if (!_isReadOnly) _buildToolbar(),
+        // Only the SOAP form fields scroll — canvas is outside the scroll zone.
+        Expanded(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildFormFields(isThai),
+            child: Column(
+              children: [
+                _buildFormFields(isThai),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-          const SizedBox(height: 100),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

@@ -118,6 +118,19 @@ class TreatmentRepository extends BaseRepository {
     return TreatmentRecord.fromJson(data);
   }
 
+  /// Write the follow-up appointment ID back onto the treatment record
+  /// (migration 016 bidirectional link). Minimal patch — only touches
+  /// the `follow_up_appointment_id` column so no version conflict.
+  Future<void> updateFollowUpAppointmentId({
+    required String treatmentId,
+    required String followUpAppointmentId,
+  }) async {
+    await client
+        .from(tableName)
+        .update({'follow_up_appointment_id': followUpAppointmentId})
+        .eq('id', treatmentId);
+  }
+
   /// Optimistic-concurrency update.
   ///
   /// The caller passes the [expectedVersion] they last fetched. The DB's

@@ -477,14 +477,30 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
             treatmentType: tnameTrim.isEmpty
                 ? null
                 : 'Follow-up: $tnameTrim',
-            // Cross-reference back to the treatment record so the calendar
-            // can show "originated from treatment X".
+            // Bidirectional link (migration 016): store the originating
+            // treatment record ID on the appointment so the calendar card
+            // can navigate back to the treatment.
+            treatmentRecordId: record.id,
             notes:
                 'Follow-up for treatment ${record.id} (${record.treatmentName})',
           );
-          await apptRepo.create(newAppt);
+          final createdAppt = await apptRepo.create(newAppt);
           followUpAppointmentCreated = true;
           createdFollowUpDate = _followUpDate;
+
+          // Back-link: update treatment record with the new appointment ID
+          // so the treatment card can show "📅 Follow-up booked on {date}".
+          if (createdAppt.id.isNotEmpty) {
+            try {
+              await ref.read(treatmentRepoProvider).updateFollowUpAppointmentId(
+                    treatmentId: record.id,
+                    followUpAppointmentId: createdAppt.id,
+                  );
+            } catch (_) {
+              // Non-fatal — the appointment was still created; the link
+              // will be set on the next retry / manual save.
+            }
+          }
         } catch (e) {
           // Non-fatal: surface to the user but don't block the success flow.
           if (mounted) {

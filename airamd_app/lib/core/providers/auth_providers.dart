@@ -24,7 +24,14 @@ final authSignOutActionProvider = Provider<AuthSignOutAction>((ref) {
 });
 
 /// Current logged-in staff member (resolved from auth.uid → staff table).
+///
+/// IMPORTANT: watches [authUserProvider] so it rebuilds when the auth user
+/// changes (e.g. logout → re-login as a different user). Without this, the
+/// FutureProvider would cache the previous user's staff row indefinitely.
 final currentStaffProvider = FutureProvider<Staff?>((ref) async {
+  // Rebuild whenever the underlying auth user changes.
+  final authUser = ref.watch(authUserProvider).valueOrNull;
+  if (authUser == null) return null;
   final repo = ref.watch(staffRepoProvider);
   return repo.getCurrentStaff();
 });

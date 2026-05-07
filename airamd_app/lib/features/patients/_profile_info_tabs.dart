@@ -315,20 +315,36 @@ class _DermatologyTab extends ConsumerWidget {
         filtered.sort((a, b) =>
             (b.date).compareTo(a.date));
 
-        // The "+ New" button creates a record in whatever sub-category is
-        // currently selected. ALL defaults to INJECTABLE so the user always
-        // ends up on a known category instead of silently picking one.
-        final newCategory = subCategory == 'ALL' ? 'INJECTABLE' : subCategory;
-        final newLabel = pills.firstWhere(
-          (p) => p.$1 == newCategory,
-          orElse: () => pills.first,
-        ).$2;
+        // + New: if a specific sub-category is selected use it directly;
+        // if ALL is selected, show a picker sheet so user consciously
+        // chooses the category (prevents silent INJECTABLE default).
+        final newCategory = subCategory == 'ALL' ? null : subCategory;
+
+        void onNewTap() {
+          if (newCategory != null) {
+            context.push('/patients/$patientId/treatments/new?category=$newCategory');
+            return;
+          }
+          // Show category picker bottom-sheet
+          showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: Colors.transparent,
+            builder: (_) => _TreatmentCategoryPicker(
+              onSelected: (cat) => context.push(
+                '/patients/$patientId/treatments/new?category=$cat',
+              ),
+            ),
+          );
+        }
+
+        final newLabel = newCategory == null
+            ? (l.isThai ? 'บันทึกการรักษา' : 'New Treatment')
+            : pills.firstWhere((p) => p.$1 == newCategory, orElse: () => pills.first).$2;
 
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ─── Sub-category filter pills (vertical hierarchy expressed
-            //     as inline filter chips so the patient nav doesn't bloat). ───
+            // ─── Sub-category filter pills ───
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -346,11 +362,9 @@ class _DermatologyTab extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // ─── + New record button (uses currently filtered category) ───
+            // ─── + New record button ───
             AiraTapEffect(
-              onTap: () => context.push(
-                '/patients/$patientId/treatments/new?category=$newCategory',
-              ),
+              onTap: onNewTap,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -390,6 +404,8 @@ class _DermatologyTab extends ConsumerWidget {
                       '${_dermCategoryIcon(t.category.dbValue)} ${t.treatmentName}',
                   subtitle: t.chiefComplaint,
                   doctorId: t.doctorId,
+                  followUpDate: t.followUpDate,
+                  followUpAppointmentId: t.followUpAppointmentId,
                   products: t.productsUsed
                       .map((product) {
                         if (product is Map) {
@@ -515,6 +531,8 @@ class _TreatmentCard extends ConsumerWidget {
   final String title;
   final String? subtitle;
   final String? doctorId;
+  final DateTime? followUpDate;
+  final String? followUpAppointmentId;
   final List<String> products;
   final String category;
   const _TreatmentCard({
@@ -522,6 +540,8 @@ class _TreatmentCard extends ConsumerWidget {
     required this.title,
     this.subtitle,
     this.doctorId,
+    this.followUpDate,
+    this.followUpAppointmentId,
     required this.products,
     required this.category,
   });
@@ -576,6 +596,51 @@ class _TreatmentCard extends ConsumerWidget {
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
+                ],
+                // ─── Follow-up appointment badge ───
+                if (followUpDate != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: followUpAppointmentId != null
+                          ? AiraColors.sage.withValues(alpha: 0.10)
+                          : AiraColors.gold.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: followUpAppointmentId != null
+                            ? AiraColors.sage.withValues(alpha: 0.25)
+                            : AiraColors.gold.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          followUpAppointmentId != null
+                              ? Icons.event_available_rounded
+                              : Icons.event_rounded,
+                          size: 13,
+                          color: followUpAppointmentId != null
+                              ? AiraColors.sage
+                              : AiraColors.gold,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          context.l10n.isThai
+                              ? 'นัดติดตามผล ${followUpDate!.day}/${followUpDate!.month}/${followUpDate!.year}${followUpAppointmentId != null ? " ✓" : ""}'
+                              : 'Follow-up ${followUpDate!.day}/${followUpDate!.month}/${followUpDate!.year}${followUpAppointmentId != null ? " ✓" : ""}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: followUpAppointmentId != null
+                                ? AiraColors.sage
+                                : AiraColors.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
                 if (doctorAsync != null) ...[
                   const SizedBox(height: 8),
@@ -714,6 +779,126 @@ class _CourseOverviewSection extends ConsumerWidget {
       ),
       loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
       error: (e, _) => Center(child: Text('Error: $e')),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Treatment Category Picker — shown when ALL filter is active
+// Asks user to consciously choose Injectable / Laser / Treatment
+// before navigating to the new-treatment form.
+// ═══════════════════════════════════════════════════════════════════
+class _TreatmentCategoryPicker extends StatelessWidget {
+  final ValueChanged<String> onSelected;
+  const _TreatmentCategoryPicker({required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final isThai = l.isThai;
+    final options = [
+      (
+        cat: 'INJECTABLE',
+        label: l.injectable,
+        sublabel: isThai ? 'Botox, Filler, Mesotherapy' : 'Botox, Filler, Meso',
+        icon: Icons.colorize_rounded,
+        color: const Color(0xFF4A90D9),
+      ),
+      (
+        cat: 'LASER',
+        label: l.laser,
+        sublabel: isThai ? 'Laser, IPL, RF, HIFU' : 'Laser, IPL, RF, HIFU',
+        icon: Icons.flash_on_rounded,
+        color: const Color(0xFFE06B8F),
+      ),
+      (
+        cat: 'TREATMENT',
+        label: l.treatment,
+        sublabel: isThai ? 'Facial, Peel, Skincare' : 'Facial, Peel, Skincare',
+        icon: Icons.science_rounded,
+        color: const Color(0xFF7A9070),
+      ),
+    ];
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: AiraColors.muted.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            isThai ? 'เลือกประเภทการรักษา' : 'Choose Treatment Category',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isThai ? 'บันทึกจะถูกจัดกลุ่มตามประเภทที่เลือก' : 'Records are grouped by the chosen category',
+            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+          ),
+          const SizedBox(height: 24),
+          ...options.map((opt) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AiraTapEffect(
+              onTap: () {
+                Navigator.of(context).pop();
+                onSelected(opt.cat);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: opt.color.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: opt.color.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: opt.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(opt.icon, size: 24, color: opt.color),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            opt.label,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16, fontWeight: FontWeight.w700, color: AiraColors.charcoal,
+                            ),
+                          ),
+                          Text(
+                            opt.sublabel,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, size: 20, color: opt.color.withValues(alpha: 0.5)),
+                  ],
+                ),
+              ),
+            ),
+          )),
+        ],
+      ),
     );
   }
 }
