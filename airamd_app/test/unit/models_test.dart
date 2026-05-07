@@ -249,6 +249,32 @@ void main() {
       expect(json['treatment_name'], 'Filler');
       expect(json['category'], 'INJECTABLE');
     });
+
+    test('version round-trips through fromJson and defaults to 1', () {
+      // Server-supplied version is honoured.
+      final fromServer = TreatmentRecord.fromJson({
+        'id': 'tr-2',
+        'clinic_id': 'c-001',
+        'patient_id': 'p-001',
+        'date': '2026-04-13T09:00:00Z',
+        'category': 'INJECTABLE',
+        'treatment_name': 'Botox',
+        'version': 7,
+      });
+      expect(fromServer.version, 7);
+
+      // Missing version (e.g. legacy rows from before migration 009) falls
+      // back to 1 instead of throwing.
+      final fromLegacy = TreatmentRecord.fromJson({
+        'id': 'tr-2',
+        'clinic_id': 'c-001',
+        'patient_id': 'p-001',
+        'date': '2026-04-13T09:00:00Z',
+        'category': 'INJECTABLE',
+        'treatment_name': 'Botox',
+      });
+      expect(fromLegacy.version, 1);
+    });
   });
 
   // ─── TreatmentRule Model ─────────────────────────────────

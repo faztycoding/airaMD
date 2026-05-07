@@ -1,79 +1,7 @@
 part of 'patient_profile_screen.dart';
 
-// ═══════════════════════════════════════════════════════════════════
-// TAB 8: ศัลยกรรม (Surgery) — Surgery history with timeline
-// ═══════════════════════════════════════════════════════════════════
-
-class _SurgeryTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _SectionCard(
-          title: 'ประวัติศัลยกรรม',
-          icon: Icons.favorite_rounded,
-          iconColor: AiraColors.terra,
-          children: [
-            _SurgeryItem('Rhinoplasty tip', 'ปลายจมูก/แม่พิมพ์', ['<1 เดือน', '1-3 เดือน', '3-6 เดือน', '6-12 เดือน', '1-2 ปี', '>5 ปี']),
-            const Divider(height: 24),
-            _SurgeryItem('Double Eyelid', 'ตัดชั้นตาสองชั้น', ['<1 เดือน', '1-3 เดือน', '3-6 เดือน', '6-12 เดือน', '1-2 ปี', '>2 ปี']),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _SurgeryItem extends StatelessWidget {
-  final String name;
-  final String desc;
-  final List<String> timeline;
-  const _SurgeryItem(this.name, this.desc, this.timeline);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.favorite_rounded, size: 14, color: AiraColors.terra),
-            const SizedBox(width: 6),
-            Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6, runSpacing: 6,
-          children: timeline.asMap().entries.map((e) {
-            final isLast = e.key == timeline.length - 1;
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: isLast ? AiraColors.terra.withValues(alpha: 0.12) : AiraColors.parchment,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isLast ? AiraColors.terra.withValues(alpha: 0.3) : AiraColors.woodPale.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                e.value,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
-                  color: isLast ? AiraColors.terra : AiraColors.muted,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 6),
-        Text('❤️ $desc', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.terra)),
-      ],
-    );
-  }
-}
+// (Surgery tab removed — folded into the unified Health History tab.
+//  See `_HATab` in `_profile_info_tabs.dart`.)
 
 // ═══════════════════════════════════════════════════════════════════
 // TAB 9: ค่าใช้จ่าย (Finance) — Courses + Payments
@@ -148,9 +76,18 @@ class _FinanceTab extends ConsumerWidget {
                 ),
               ...activeCourses.map((course) {
                 final total = course.sessionsTotal ?? (course.sessionsBought + course.sessionsBonus);
+                // Show price as both per-course and per-session for the
+                // client's preferred format (matches the course form input).
+                final perSession = (course.price != null && total > 0)
+                    ? course.price! / total
+                    : null;
+                final priceLine = course.price != null
+                    ? ' • ฿${_formatAmount(course.price!)} '
+                        '${perSession != null ? '(฿${_formatAmount(perSession)}/ครั้ง)' : ''}'
+                    : '';
                 final detail = 'ซื้อ ${course.sessionsBought} แถม ${course.sessionsBonus}'
                     '${course.expiryDate != null ? ' • ครบกำหนด ${_formatDate(course.expiryDate)}' : ' • ไม่กำหนดวันหมดอายุ'}'
-                    '${course.price != null ? ' • ฿${_formatAmount(course.price!)}' : ''}';
+                    ' • $total ครั้ง$priceLine';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _CourseCard(

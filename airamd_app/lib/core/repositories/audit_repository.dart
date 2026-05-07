@@ -11,25 +11,37 @@ class AuditRepository extends BaseRepository {
   }
 
   /// Log an action for PDPA compliance.
+  ///
+  /// Routes through the `record_audit_log` SECURITY DEFINER RPC introduced
+  /// in migration 010 so:
+  ///   * `user_id` and `timestamp` are forced server-side from `auth.uid()`
+  ///     and `now()` — the client cannot spoof either.
+  ///   * Direct INSERT on `audit_logs` is REVOKEd from `authenticated`, so
+  ///     even if this code path is bypassed nothing can write a fake row.
+  ///
+  /// The [userId] parameter is intentionally ignored: the RPC resolves the
+  /// staff row from the authenticated session.
   Future<AuditLog> logAction({
     required String clinicId,
-    String? userId,
+    String? userId, // ignored, kept for API compatibility
     required String action,
     String? entityType,
     String? entityId,
     Map<String, dynamic>? oldData,
     Map<String, dynamic>? newData,
   }) async {
-    return create(AuditLog(
-      id: '',
-      clinicId: clinicId,
-      userId: userId,
-      action: action,
-      entityType: entityType,
-      entityId: entityId,
-      oldData: oldData,
-      newData: newData,
-    ));
+    final result = await client.rpc(
+      'record_audit_log',
+      params: {
+        'p_clinic_id': clinicId,
+        'p_action': action,
+        'p_entity_type': entityType,
+        'p_entity_id': entityId,
+        'p_old_data': oldData,
+        'p_new_data': newData,
+      },
+    );
+    return AuditLog.fromJson(Map<String, dynamic>.from(result as Map));
   }
 
   /// Get audit history for a specific entity.

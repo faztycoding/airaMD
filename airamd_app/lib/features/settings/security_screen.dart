@@ -2,17 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/theme.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/providers/providers.dart';
+import '../../core/services/pin_auth_service.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../app.dart';
-
-const _pinStorageKey = 'airamd_pin_code';
-final _secureStorage = FlutterSecureStorage();
 
 /// Combined Security screen: Change Password + PIN Management + Auto-lock
 class SecurityScreen extends ConsumerStatefulWidget {
@@ -46,10 +43,10 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
   Future<void> _checkExistingPin() async {
     try {
-      final stored = await _secureStorage.read(key: _pinStorageKey);
+      final stored = await pinAuthService.hasPin();
       if (mounted) {
         setState(() {
-          _hasExistingPin = stored != null && stored.isNotEmpty;
+          _hasExistingPin = stored;
           if (!_hasExistingPin) _pinStep = _PinStep.enterNew;
         });
       }
@@ -125,8 +122,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
     switch (_pinStep) {
       case _PinStep.enterCurrent:
         try {
-          final stored = await _secureStorage.read(key: _pinStorageKey);
-          if (_enteredPin == stored) {
+          final ok = await pinAuthService.verifyPin(_enteredPin);
+          if (ok) {
             setState(() {
               _enteredPin = '';
               _pinStep = _PinStep.enterNew;
@@ -159,7 +156,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       case _PinStep.confirmNew:
         if (_enteredPin == _newPin) {
           try {
-            await _secureStorage.write(key: _pinStorageKey, value: _newPin);
+            await pinAuthService.setPin(_newPin);
           } catch (e) {
             if (kDebugMode) debugPrint('⚠️ Keychain write failed: $e');
           }

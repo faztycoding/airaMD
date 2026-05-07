@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/constants.dart';
@@ -11,6 +12,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/access_guard.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/repositories/repository_exceptions.dart';
 import 'digital_notepad_screen.dart';
 import 'photo_comparison_screen.dart';
 import 'message_history_screen.dart';
@@ -36,6 +38,10 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   int _selectedSection = 0;
 
+  /// Sub-category pill within the Dermatology tab. Persisted only for the
+  /// lifetime of this screen instance.
+  String _dermSubCategory = 'ALL'; // ALL | INJECTABLE | LASER | TREATMENT
+
   List<_TabDef> _tabs(
     AppL10n l, {
     required bool canManageClinicalData,
@@ -43,20 +49,21 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   }) {
     return [
       _TabDef(0, Icons.person_rounded, l.personalInfo),
+      // Health History now also includes Supplements + Surgery (per client
+      // brief — clinic does not perform surgery so a dedicated tab is
+      // unnecessary and supplements belong under medical history).
       _TabDef(1, Icons.healing_rounded, l.healthHistory),
       if (canManageClinicalData) ...[
         _TabDef(2, Icons.draw_rounded, l.faceDiagram),
-        _TabDef(3, Icons.colorize_rounded, 'Injectables'),
-        _TabDef(4, Icons.flash_on_rounded, l.laser),
-        _TabDef(5, Icons.science_rounded, l.treatment),
+        // Single "Dermatology" tab covering Injectables / Lasers / Treatments.
+        // Sub-categories are exposed as filter pills inside this tab.
+        _TabDef(3, Icons.medical_services_rounded, l.dermatology),
         _TabDef(6, Icons.spa_rounded, l.antiAging),
       ],
       if (canAccessFinancialData) _TabDef(7, Icons.table_chart_rounded, l.courseTable),
       if (canManageClinicalData) ...[
         _TabDef(8, Icons.photo_library_rounded, l.beforeAfter),
         _TabDef(9, Icons.description_rounded, l.consentForm),
-        _TabDef(10, Icons.medication_rounded, l.supplements),
-        _TabDef(11, Icons.favorite_rounded, l.surgery),
       ],
       if (canAccessFinancialData) _TabDef(12, Icons.account_balance_wallet_rounded, l.spending),
       _TabDef(13, Icons.message_rounded, l.messages),
@@ -66,7 +73,13 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
+    // Aggregated single-call fetch (migration 009 `get_patient_full` RPC)
+    // — replaces what used to be 4-5 sequential round trips for the
+    // header + finance + dermatology tabs. Tab-specific deep data
+    // (messages, notepads, photos) is still loaded lazily via its own
+    // providers when the user navigates to that tab.
+    final bundleAsync = ref.watch(patientProfileBundleProvider(widget.patientId));
+    final patientAsync = bundleAsync.whenData((b) => b?.patient);
     final l = context.l10n;
     final canManageClinicalData = ref.watch(canManageClinicalDataProvider);
     final canAccessFinancialData = ref.watch(canAccessFinancialDataProvider);
@@ -91,8 +104,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
             body: Center(child: Text(l.patientNotFound, style: GoogleFonts.plusJakartaSans(fontSize: 16, color: AiraColors.muted))),
           );
         }
-        final hasLineContact = patient.lineId != null && patient.lineId!.isNotEmpty;
-        final hasMessagingContact = hasLineContact || (patient.phone != null && patient.phone!.isNotEmpty);
+        // LINE button is now always visible (per client brief). Tapping it
+        // jumps to the Messages tab where, if no LINE ID is on file, the
+        // user gets a dialog to capture one.
         return Scaffold(
           backgroundColor: AiraColors.cream,
           body: Column(
@@ -102,11 +116,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 onBack: () => context.pop(),
                 onEdit: () => context.push('/patients/${patient.id}/edit'),
                 onDelete: () => _confirmDeletePatient(context, ref, patient),
-                onOpenMessages: hasMessagingContact ? () => setState(() => _selectedSection = 13) : null,
+                onOpenMessages: () => setState(() => _selectedSection = 13),
                 canEdit: canManageClinicalData,
                 canDelete: effectiveRole == StaffRole.owner,
-                showLineAction: hasLineContact,
-                showMessageAction: hasMessagingContact,
+                showLineAction: true,
+                showMessageAction: true,
               ),
               Expanded(
                 child: LayoutBuilder(
@@ -157,7 +171,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           const SizedBox(height: 4),
           Text('$e', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: () => ref.invalidate(patientByIdProvider(widget.patientId)), child: Text(l.retry)),
+          ElevatedButton(onPressed: () => ref.invalidate(patientProfileBundleProvider(widget.patientId)), child: Text(l.retry)),
         ],
       ))),
     );
@@ -357,27 +371,23 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       case 0:
         return _InfoTab(patient: patient);
       case 1:
+        // Combined Health History — allergies, conditions, lifestyle,
+        // supplements/medications and surgery history all live here now.
         return _HATab(patient: patient);
       case 2: // Face Diagram + Digital Notepad embedded
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
         return _FaceDiagramWithNotepad(patientId: patient.id);
-      case 3:
+      case 3: // Dermatology (Injectable + Laser + Treatment combined)
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
-        return _TreatmentListTab(patientId: patient.id, category: 'INJECTABLE', label: 'Injectable');
-      case 4:
-        if (!canManageClinicalData) {
-          return const InlineAccessGuard(permission: AiraPermission.clinical);
-        }
-        return _TreatmentListTab(patientId: patient.id, category: 'LASER', label: 'Laser');
-      case 5:
-        if (!canManageClinicalData) {
-          return const InlineAccessGuard(permission: AiraPermission.clinical);
-        }
-        return _TreatmentListTab(patientId: patient.id, category: 'TREATMENT', label: 'Treatment');
+        return _DermatologyTab(
+          patientId: patient.id,
+          subCategory: _dermSubCategory,
+          onSubCategoryChanged: (v) => setState(() => _dermSubCategory = v),
+        );
       case 6:
         if (!canManageClinicalData) {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
@@ -398,16 +408,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return const InlineAccessGuard(permission: AiraPermission.clinical);
         }
         return _ConsentFormTab(patientId: patient.id);
-      case 10: // Supplements
-        if (!canManageClinicalData) {
-          return const InlineAccessGuard(permission: AiraPermission.clinical);
-        }
-        return _SupplementsTab(patientId: patient.id);
-      case 11:
-        if (!canManageClinicalData) {
-          return const InlineAccessGuard(permission: AiraPermission.clinical);
-        }
-        return _SurgeryTab();
       case 12:
         if (!canAccessFinancialData) {
           return const InlineAccessGuard(permission: AiraPermission.financial);

@@ -1,3 +1,4 @@
+import '../repositories/_helpers.dart';
 import 'enums.dart';
 
 class Patient {
@@ -105,10 +106,10 @@ class Patient {
         email: json['email'] as String?,
         address: json['address'] as String?,
         status: PatientStatus.fromDb(json['status'] as String?),
-        drugAllergies: _parseStringList(json['drug_allergies']),
+        drugAllergies: parseStringList(json['drug_allergies']),
         allergySymptoms: json['allergy_symptoms'] as String?,
-        medicalConditions: _parseStringList(json['medical_conditions']),
-        currentMedications: _parseStringList(json['current_medications']),
+        medicalConditions: parseStringList(json['medical_conditions']),
+        currentMedications: parseStringList(json['current_medications']),
         smoking: SmokingType.fromDb(json['smoking'] as String?),
         alcohol: AlcoholType.fromDb(json['alcohol'] as String?),
         isUsingRetinoids: json['is_using_retinoids'] as bool? ?? false,
@@ -246,10 +247,4 @@ class Patient {
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
-
-  static List<String> _parseStringList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value.map((e) => e.toString()).toList();
-    return [];
-  }
 }

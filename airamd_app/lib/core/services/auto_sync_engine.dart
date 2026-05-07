@@ -6,6 +6,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
+import '../../config/constants.dart';
 import '../providers/repository_providers.dart';
 import 'offline_sync_service.dart';
 
@@ -109,6 +110,14 @@ class AutoSyncEngine {
             case 'UPSERT':
               await client.from(op.table).upsert(op.payload);
               break;
+            case 'RPC':
+              // Atomic compound writes (e.g. record_treatment_atomic) are
+              // queued as RPC ops. `op.table` carries the function name and
+              // `op.payload` is the params object. Replaying the RPC instead
+              // of the original multi-call sequence keeps offline saves
+              // race-free in exactly the same way as online saves.
+              await client.rpc(op.table, params: op.payload);
+              break;
           }
 
           // Successfully synced — remove from queue
@@ -142,9 +151,14 @@ class AutoSyncEngine {
   }
 
   /// Schedule a retry after failure.
+  ///
+  /// Retry cadence comes from [AppConfig.current.syncRetrySeconds] so dev
+  /// builds retry quickly (10s) while production avoids hammering the API
+  /// (30s) when an op consistently fails.
   void _scheduleRetry() {
     _retryTimer?.cancel();
-    _retryTimer = Timer(const Duration(seconds: 30), () {
+    final retryDelay = Duration(seconds: AppConfig.current.syncRetrySeconds);
+    _retryTimer = Timer(retryDelay, () {
       processQueue();
     });
   }
@@ -284,12 +298,17 @@ class OfflineAwareRepository {
   OfflineAwareRepository(this._client);
 
   /// Fetch data with offline cache fallback.
+  ///
+  /// Default `cacheMaxAge` follows [AppConfig.current.cacheMaxAge] so
+  /// production allows 24h-old cache reads when offline while dev forces a
+  /// fresh fetch within ~1h.
   Future<List<Map<String, dynamic>>> getWithCache({
     required String table,
     required String clinicId,
     required Future<List<Map<String, dynamic>>> Function() onlineFetch,
-    Duration cacheMaxAge = const Duration(hours: 24),
+    Duration? cacheMaxAge,
   }) async {
+    final maxAge = cacheMaxAge ?? AppConfig.current.cacheMaxAge;
     try {
       // Try online fetch first
       final data = await onlineFetch();
@@ -308,7 +327,7 @@ class OfflineAwareRepository {
       final cached = await LocalDataCache.readTableData(
         table: table,
         clinicId: clinicId,
-        maxAge: cacheMaxAge,
+        maxAge: maxAge,
       );
 
       if (cached != null) {
@@ -329,10 +348,11 @@ class OfflineAwareRepository {
       final result = await _client.from(table).insert(data).select().single();
       return result;
     } catch (e) {
-      // Queue for later sync
+      // Queue for later sync. UUID id avoids collisions on rapid taps
+      // (the legacy millisecondsSinceEpoch overlapped within the same ms).
       debugPrint('[OfflineAware] Insert failed, queuing: $e');
       final op = PendingOperation(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: OfflineSyncService.newOperationId(),
         table: table,
         action: 'INSERT',
         payload: data,
@@ -357,7 +377,7 @@ class OfflineAwareRepository {
     } catch (e) {
       debugPrint('[OfflineAware] Update failed, queuing: $e');
       final op = PendingOperation(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: OfflineSyncService.newOperationId(),
         table: table,
         action: 'UPDATE',
         payload: {...data, '_id': id},
@@ -378,7 +398,7 @@ class OfflineAwareRepository {
     } catch (e) {
       debugPrint('[OfflineAware] Delete failed, queuing: $e');
       final op = PendingOperation(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: OfflineSyncService.newOperationId(),
         table: table,
         action: 'DELETE',
         payload: {'id': id},

@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
+import '_helpers.dart';
 import 'base_repository.dart';
+import 'repository_exceptions.dart';
 
 class ProductRepository extends BaseRepository {
   ProductRepository(SupabaseClient client) : super(client, 'products');
@@ -69,6 +71,10 @@ class ProductRepository extends BaseRepository {
   }
 
   /// Search products by name or brand.
+  ///
+  /// User input is sanitised through `escape_like` to neutralise `%` `_` `\`
+  /// wildcard injection that would otherwise let an attacker exfiltrate a
+  /// whole clinic's product list with a single character.
   Future<List<Product>> searchProducts({
     required String clinicId,
     required String query,
@@ -77,11 +83,12 @@ class ProductRepository extends BaseRepository {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return list(clinicId: clinicId);
 
+    final escaped = escapeLike(trimmed);
     final data = await client
         .from(tableName)
         .select()
         .eq('clinic_id', clinicId)
-        .or('name.ilike.%$trimmed%,brand.ilike.%$trimmed%')
+        .or('name.ilike.%$escaped%,brand.ilike.%$escaped%')
         .eq('is_active', true)
         .order('name', ascending: true)
         .limit(limit);
@@ -89,27 +96,54 @@ class ProductRepository extends BaseRepository {
     return data.map(Product.fromJson).toList();
   }
 
-  double _normalizeQuantity(double value) {
-    return double.parse(value.toStringAsFixed(3));
-  }
+  // ───────────────────────────────────────────────────────────────
+  // Stock mutation
+  // ───────────────────────────────────────────────────────────────
 
   /// Deduct stock after treatment usage.
+  ///
+  /// Uses the `deduct_stock_atomic` Postgres RPC introduced in migration 009
+  /// so two concurrent treatments using the same product can never produce
+  /// negative stock. Throws [InvalidQuantityException] /
+  /// [InsufficientStockException] / [NotFoundException] instead of bare
+  /// `Exception` so callers can switch on the failure mode.
   Future<Product> deductStock(String productId, double quantity) async {
     if (quantity <= 0) {
-      throw Exception('Quantity must be greater than zero');
+      throw const InvalidQuantityException();
     }
 
-    final product = await get(productId);
-    if (product == null) throw Exception('Product not found');
-
-    final normalizedQuantity = _normalizeQuantity(quantity);
-    final availableQuantity = _normalizeQuantity(product.stockQuantity);
-    if (normalizedQuantity > availableQuantity) {
-      throw Exception('Insufficient stock for ${product.name}');
+    try {
+      // The RPC performs the read-modify-write inside one statement using
+      // `UPDATE ... WHERE stock_quantity >= $qty` so it is race-free even
+      // under concurrent calls.
+      await client.rpc(
+        'deduct_stock_atomic',
+        params: {
+          'p_product_id': productId,
+          'p_quantity': quantity,
+        },
+      );
+    } on PostgrestException catch (e) {
+      // Postgres SQLSTATE / message dispatch — see migration 009.
+      if (e.message.contains('insufficient_stock')) {
+        // Look up the product name once for a friendlier UI message.
+        final fallback = await get(productId);
+        throw InsufficientStockException(
+          productName: fallback?.name,
+          cause: e,
+        );
+      }
+      if (e.message.contains('quantity_must_be_positive')) {
+        throw InvalidQuantityException(e);
+      }
+      rethrow;
     }
 
-    final newQty = _normalizeQuantity(availableQuantity - normalizedQuantity);
-    final data = await update(productId, {'stock_quantity': newQty});
-    return Product.fromJson(data);
+    // Refetch so callers receive the canonical post-update Product row.
+    final updated = await get(productId);
+    if (updated == null) {
+      throw const NotFoundException('product');
+    }
+    return updated;
   }
 }

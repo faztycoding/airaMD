@@ -1,3 +1,5 @@
+import '../repositories/_helpers.dart';
+
 class ConsentForm {
   final String id;
   final String clinicId;
@@ -40,7 +42,7 @@ class ConsentForm {
         witnessName: json['witness_name'] as String?,
         pdfUrl: json['pdf_url'] as String?,
         procedure: json['procedure'] as String?,
-        consentedItems: _parseStringList(json['consented_items']),
+        consentedItems: parseStringList(json['consented_items']),
         notes: json['notes'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
@@ -60,10 +62,4 @@ class ConsentForm {
         'consented_items': consentedItems,
         if (notes != null) 'notes': notes,
       };
-
-  static List<String> _parseStringList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value.map((e) => e.toString()).toList();
-    return [];
-  }
 }

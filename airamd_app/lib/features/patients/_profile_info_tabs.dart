@@ -101,7 +101,9 @@ class _StatusChipSelect extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TAB 2: HA — Allergies, medical history
+// TAB 2: HA — Allergies, medical history, supplements, surgery
+// (Per client brief: supplements + surgery history are folded into HA so
+//  there is one source of truth for medical background.)
 // ═══════════════════════════════════════════════════════════════════
 
 class _HATab extends ConsumerWidget {
@@ -113,6 +115,7 @@ class _HATab extends ConsumerWidget {
     final isThai = ref.watch(isThaiProvider);
     final hasAllergies = patient.drugAllergies.isNotEmpty;
     final hasConditions = patient.medicalConditions.isNotEmpty;
+    final hasMedications = patient.currentMedications.isNotEmpty;
     final yes = context.l10n.yes;
     final no = context.l10n.no;
 
@@ -158,6 +161,55 @@ class _HATab extends ConsumerWidget {
             _InfoRow(context.l10n.alcohol, patient.alcohol.label(isThai: isThai)),
             _InfoRow(context.l10n.usingRetinoids, patient.isUsingRetinoids ? yes : no),
             _InfoRow(context.l10n.onAnticoagulant, patient.isOnAnticoagulant ? yes : no),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: context.l10n.supplementsAndMeds,
+          icon: Icons.medication_rounded,
+          iconColor: AiraColors.sage,
+          children: [
+            if (hasMedications)
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: patient.currentMedications
+                    .map((m) => _ConditionChip(m))
+                    .toList(),
+              )
+            else
+              Text(
+                isThai
+                    ? 'ยังไม่มีอาหารเสริมหรือยาที่บันทึกไว้'
+                    : 'No supplements or medications on file',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: context.l10n.surgeryHistory,
+          icon: Icons.favorite_rounded,
+          iconColor: AiraColors.terra,
+          children: [
+            // Clinic does not perform surgery — this section is informational
+            // only and pulls from the patient's own narrative notes.
+            Text(
+              isThai
+                  ? 'คลินิกไม่ได้ให้บริการศัลยกรรม ส่วนนี้บันทึกไว้เพื่อประเมินความเสี่ยงในการรักษา'
+                  : 'This clinic does not perform surgery. This section is for risk assessment only.',
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 8),
+            if (patient.notes != null && patient.notes!.isNotEmpty)
+              Text(
+                patient.notes!,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.charcoal),
+              )
+            else
+              Text(
+                context.l10n.noSurgeryHistory,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
+              ),
           ],
         ),
       ],
@@ -215,95 +267,248 @@ final _staffByIdProvider = FutureProvider.family<Staff?, String>((ref, staffId) 
   return repo.get(staffId);
 });
 
-class _TreatmentListTab extends ConsumerWidget {
+/// Provider that fetches ALL treatments for the patient regardless of category
+/// — used by the unified Dermatology tab.
+final _allTreatmentsByPatientProvider =
+    FutureProvider.family<List<TreatmentRecord>, String>((ref, patientId) async {
+  final repo = ref.watch(treatmentRepoProvider);
+  return repo.getByPatient(patientId: patientId);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Dermatology Tab — unified Injectable + Laser + Treatment view with
+// sub-category filter pills. Replaces the three separate top-level tabs
+// per the client UX brief.
+// ═══════════════════════════════════════════════════════════════════
+
+class _DermatologyTab extends ConsumerWidget {
   final String patientId;
-  final String category;
-  final String label;
-  const _TreatmentListTab({required this.patientId, required this.category, required this.label});
+  final String subCategory; // ALL | INJECTABLE | LASER | TREATMENT
+  final ValueChanged<String> onSubCategoryChanged;
+
+  const _DermatologyTab({
+    required this.patientId,
+    required this.subCategory,
+    required this.onSubCategoryChanged,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final treatmentsAsync = ref.watch(_treatmentsByPatientCategoryProvider((patientId: patientId, category: category)));
+    final l = context.l10n;
+    final treatmentsAsync = ref.watch(_allTreatmentsByPatientProvider(patientId));
+
+    final pills = <(String value, String label, IconData icon)>[
+      ('ALL', l.allCategories, Icons.apps_rounded),
+      ('INJECTABLE', l.injectable, Icons.colorize_rounded),
+      ('LASER', l.laser, Icons.flash_on_rounded),
+      ('TREATMENT', l.treatment, Icons.science_rounded),
+    ];
 
     return treatmentsAsync.when(
-      data: (treatments) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          AiraTapEffect(
-            onTap: () => context.push('/patients/$patientId/treatments/new?category=$category'),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)]),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))],
-              ),
-              child: Center(
-                child: Text('+ บันทึก $label ใหม่', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+      data: (allTreatments) {
+        final filtered = subCategory == 'ALL'
+            ? allTreatments
+            : allTreatments
+                .where((t) => t.category.dbValue == subCategory)
+                .toList();
+        // Sort newest first
+        filtered.sort((a, b) =>
+            (b.date).compareTo(a.date));
+
+        // The "+ New" button creates a record in whatever sub-category is
+        // currently selected. ALL defaults to INJECTABLE so the user always
+        // ends up on a known category instead of silently picking one.
+        final newCategory = subCategory == 'ALL' ? 'INJECTABLE' : subCategory;
+        final newLabel = pills.firstWhere(
+          (p) => p.$1 == newCategory,
+          orElse: () => pills.first,
+        ).$2;
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // ─── Sub-category filter pills (vertical hierarchy expressed
+            //     as inline filter chips so the patient nav doesn't bloat). ───
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final p in pills) ...[
+                    _DermSubPill(
+                      label: p.$2,
+                      icon: p.$3,
+                      selected: subCategory == p.$1,
+                      onTap: () => onSubCategoryChanged(p.$1),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ...treatments.map((t) => Padding(
+            const SizedBox(height: 16),
+            // ─── + New record button (uses currently filtered category) ───
+            AiraTapEffect(
+              onTap: () => context.push(
+                '/patients/$patientId/treatments/new?category=$newCategory',
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B6650), Color(0xFF6B4F3A)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AiraColors.woodDk.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '+ ${l.isThai ? "บันทึก" : "Record"} $newLabel ${l.isThai ? "ใหม่" : "(new)"}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // ─── Records (filtered) ───
+            ...filtered.map((t) {
+              return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _TreatmentCard(
-                  date: _formatDate(t.date),
-                  title: '${_categoryIcon(category)} ${t.treatmentName}',
+                  date: '${t.date.day}/${t.date.month}/${t.date.year}',
+                  title:
+                      '${_dermCategoryIcon(t.category.dbValue)} ${t.treatmentName}',
                   subtitle: t.chiefComplaint,
                   doctorId: t.doctorId,
                   products: t.productsUsed
                       .map((product) {
                         if (product is Map) {
-                          final map = Map<String, dynamic>.from(product);
-                          final name = map['name']?.toString().trim() ?? '';
+                          final map =
+                              Map<String, dynamic>.from(product);
+                          final name =
+                              map['name']?.toString().trim() ?? '';
                           if (name.isEmpty) return null;
                           final quantity = map['quantity'];
-                          final unit = map['unit']?.toString().trim() ?? '';
+                          final unit =
+                              map['unit']?.toString().trim() ?? '';
                           if (quantity == null) return name;
-                          return '$name ${quantity.toString()} ${unit.isEmpty ? '' : unit}'.trim();
+                          return '$name ${quantity.toString()} ${unit.isEmpty ? '' : unit}'
+                              .trim();
                         }
                         final text = product.toString().trim();
                         return text.isEmpty ? null : text;
                       })
                       .whereType<String>()
                       .toList(),
-                  category: category,
+                  category: t.category.dbValue,
                 ),
-              )),
-          if (treatments.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: Column(
-                  children: [
-                    Icon(Icons.inbox_rounded, size: 48, color: AiraColors.muted.withValues(alpha: 0.3)),
-                    const SizedBox(height: 12),
-                    Text(context.l10n.noRecords(label), style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted)),
-                  ],
+              );
+            }),
+            if (filtered.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 60),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.inbox_rounded,
+                        size: 48,
+                        color: AiraColors.muted.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l.noRecords(newLabel),
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14, color: AiraColors.muted),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
+          ],
+        );
+      },
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AiraColors.woodMid)),
       error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
 
-  String _categoryIcon(String cat) {
+  String _dermCategoryIcon(String cat) {
     switch (cat) {
-      case 'INJECTABLE': return '💉';
-      case 'LASER': return '⚡';
-      default: return '🧪';
+      case 'INJECTABLE':
+        return '💉';
+      case 'LASER':
+        return '⚡';
+      default:
+        return '🧪';
     }
   }
+}
 
-  String _formatDate(DateTime? dt) {
-    if (dt == null) return '';
-    return '${dt.day}/${dt.month}/${dt.year}';
+class _DermSubPill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _DermSubPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AiraTapEffect(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? AiraColors.woodDk : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AiraColors.woodDk
+                : AiraColors.woodPale.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 14,
+                color: selected ? Colors.white : AiraColors.woodDk),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : AiraColors.charcoal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
+
+// (`_TreatmentListTab` was previously used by the separate Injectable / Laser
+//  / Treatment top-level tabs. Those have been consolidated into the unified
+//  `_DermatologyTab` above so this list view is no longer needed.)
 
 class _TreatmentCard extends ConsumerWidget {
   final String date;
@@ -461,9 +666,16 @@ class _CourseOverviewSection extends ConsumerWidget {
           const SizedBox(height: 16),
           ...courses.map((course) {
             final total = course.sessionsTotal ?? (course.sessionsBought + course.sessionsBonus);
+            // Per-course total + per-session breakdown (per client brief).
+            final perSession =
+                (course.price != null && total > 0) ? course.price! / total : null;
+            final priceLine = course.price != null
+                ? ' • ฿${course.price!.toStringAsFixed(0)} '
+                    '${perSession != null ? '(฿${perSession.toStringAsFixed(0)}/ครั้ง)' : ''}'
+                : '';
             final detail = 'ซื้อ ${course.sessionsBought} แถม ${course.sessionsBonus}'
                 '${course.expiryDate != null ? ' • ครบกำหนด ${course.expiryDate!.day}/${course.expiryDate!.month}/${course.expiryDate!.year}' : ' • ไม่กำหนดวันหมดอายุ'}'
-                '${course.price != null ? ' • ฿${course.price!.toStringAsFixed(0)}' : ''}';
+                ' • $total ครั้ง$priceLine';
             final color = switch (course.status) {
               CourseStatus.completed => AiraColors.sage,
               CourseStatus.low => AiraColors.gold,

@@ -9,6 +9,7 @@ import 'config/constants.dart';
 import 'config/supabase_config.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/logger_service.dart';
+import 'core/services/crash_reporting_service.dart';
 import 'app.dart';
 
 void main() {
@@ -62,6 +63,12 @@ class _AppBootstrapState extends State<_AppBootstrap> {
     }
     FirebaseCrashlytics.instance
         .setCustomKey('environment', AppConstants.environment);
+
+    // Optional remote crash reporting (Sentry / Logtail) — no-op in dev or
+    // when SENTRY_DSN is empty. Crashlytics above already handles fatal
+    // crashes; this layer adds non-fatal exception capture for the
+    // repository / RPC paths.
+    await CrashReporter.initialise();
 
     // Supabase
     await SupabaseConfig.initialize();

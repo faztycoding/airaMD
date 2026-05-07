@@ -3,28 +3,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../app.dart';
 import '../../config/theme.dart';
 import '../../core/providers/auth_providers.dart';
+import '../../core/services/pin_auth_service.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/localization/app_localizations.dart';
 
 // ─── Providers ────────────────────────────────────────────────
-const _pinStorageKey = 'airamd_pin_code';
-const _pinEnabledKey = 'airamd_pin_enabled';
-
-final _secureStorage = FlutterSecureStorage();
+// PIN state is now owned by [PinAuthService] which stores a PBKDF2 hash
+// instead of the raw PIN. See `core/services/pin_auth_service.dart`.
 
 final pinEnabledProvider = FutureProvider<bool>((ref) async {
-  final v = await _secureStorage.read(key: _pinEnabledKey);
-  return v == 'true';
+  return pinAuthService.isEnabled();
 });
 
-final savedPinProvider = FutureProvider<String?>((ref) async {
-  return _secureStorage.read(key: _pinStorageKey);
+/// True when any PIN (legacy or hashed) exists. Replaces the old
+/// `savedPinProvider` that leaked the raw PIN to callers.
+final pinConfiguredProvider = FutureProvider<bool>((ref) async {
+  return pinAuthService.hasPin();
 });
 
 // ─── Lock Screen ──────────────────────────────────────────────
@@ -64,9 +63,9 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
     // Check if PIN is set; if not, go to setup mode
     Future.microtask(() async {
       try {
-        final pin = await _secureStorage.read(key: _pinStorageKey);
+        final configured = await pinAuthService.hasPin();
         if (!mounted) return;
-        if (pin == null || pin.isEmpty) {
+        if (!configured) {
           setState(() {
             _isSettingUp = true;
             _statusMessage = '';
@@ -153,8 +152,10 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
         } else {
           // Confirm entry
           if (_enteredPin == _firstPin) {
-            await _secureStorage.write(key: _pinStorageKey, value: _enteredPin);
-            await _secureStorage.write(key: _pinEnabledKey, value: 'true');
+            // PBKDF2 derivation runs on the main isolate (~200ms on iPad);
+            // acceptable for a once-per-setup call. Migrate to `compute`
+            // if profiling shows a visible stutter.
+            await pinAuthService.setPin(_enteredPin);
             if (mounted) widget.onUnlocked();
           } else {
             _shakeCtrl.forward();
@@ -167,9 +168,9 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
           }
         }
       } else {
-        // Verify existing PIN
-        final saved = await _secureStorage.read(key: _pinStorageKey);
-        if (_enteredPin == saved) {
+        // Verify existing PIN — constant-time compare inside the service.
+        final ok = await pinAuthService.verifyPin(_enteredPin);
+        if (ok) {
           if (mounted) widget.onUnlocked();
         } else {
           _shakeCtrl.forward();
@@ -241,8 +242,7 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen>
     if (confirmed != true || !mounted) return;
     // Clear stored PIN, sign out Supabase, and flip app to locked state.
     try {
-      await _secureStorage.delete(key: _pinStorageKey);
-      await _secureStorage.delete(key: _pinEnabledKey);
+      await pinAuthService.clearPin();
     } catch (_) {
       // Best-effort cleanup — continue even if keychain delete fails.
     }

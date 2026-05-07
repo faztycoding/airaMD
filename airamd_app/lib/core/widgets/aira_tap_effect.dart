@@ -28,6 +28,23 @@ class AiraTapEffect extends StatefulWidget {
   /// Reverse duration (release). Default 180 ms — smooth spring-out.
   final Duration pressOutDuration;
 
+  /// Accessibility label announced by screen readers.
+  ///
+  /// Provide this for any tap target whose `child` does not already include
+  /// readable text (e.g. icon-only buttons). When omitted, screen readers
+  /// fall back to the child's text, which is correct for most card-style
+  /// targets in the app.
+  final String? semanticsLabel;
+
+  /// Optional longer description for the action — read AFTER the label.
+  /// Useful for compound CTAs like "Edit" / "Tap to edit patient profile".
+  final String? semanticsHint;
+
+  /// Whether this tap target should be exposed as a button to assistive
+  /// tech. Default true. Set to false for purely decorative tap effects
+  /// that aren't real navigation / actions.
+  final bool isButton;
+
   const AiraTapEffect({
     super.key,
     required this.child,
@@ -37,6 +54,9 @@ class AiraTapEffect extends StatefulWidget {
     this.pressedOpacity = 0.85,
     this.pressInDuration = const Duration(milliseconds: 80),
     this.pressOutDuration = const Duration(milliseconds: 180),
+    this.semanticsLabel,
+    this.semanticsHint,
+    this.isButton = true,
   });
 
   @override
@@ -79,8 +99,12 @@ class _AiraTapEffectState extends State<AiraTapEffect>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final gesture = GestureDetector(
       behavior: HitTestBehavior.opaque,
+      // Tap-down/up animations are visual-only — they should NOT be
+      // announced to screen readers, which would otherwise read every
+      // press-in/press-out as separate semantic events.
+      excludeFromSemantics: true,
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
@@ -99,6 +123,20 @@ class _AiraTapEffectState extends State<AiraTapEffect>
         },
         child: widget.child,
       ),
+    );
+
+    // The Semantics wrapper exposes this as a focusable, activatable
+    // button to TalkBack / VoiceOver. Even when no explicit label is
+    // provided we still set `button: true` so the assistive tech reads
+    // the child text as a button rather than as plain text.
+    return Semantics(
+      label: widget.semanticsLabel,
+      hint: widget.semanticsHint,
+      button: widget.isButton,
+      enabled: widget.onTap != null || widget.onLongPress != null,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      child: gesture,
     );
   }
 }

@@ -34,8 +34,13 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
   bool _sending = false;
 
   // ─── Deep link launchers ───
-  Future<void> _openLine(String lineId) async {
-    final uri = Uri.parse('https://line.me/R/ti/p/$lineId');
+  Future<void> _openLine(String? lineId) async {
+    // If a LINE ID is provided, open the direct chat. Otherwise fall back to
+    // the LINE app's home screen so the user can manually search for the
+    // patient — better than silently doing nothing per the client brief.
+    final uri = (lineId != null && lineId.trim().isNotEmpty)
+        ? Uri.parse('https://line.me/R/ti/p/${lineId.trim()}')
+        : Uri.parse('https://line.me/');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -53,6 +58,88 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
     final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    }
+  }
+
+  /// Prompt the user to set the patient's LINE ID inline when they tap LINE
+  /// without one configured. Saves to the patient record and refreshes.
+  Future<void> _promptForLineId() async {
+    final controller = TextEditingController();
+    final l = context.l10n;
+    final lineId = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l.isThai ? 'เพิ่ม LINE ID' : 'Add LINE ID',
+          style: GoogleFonts.plusJakartaSans(
+              fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.isThai
+                  ? 'ใส่ LINE ID ของคนไข้เพื่อเปิดแชทได้โดยตรง'
+                  : 'Enter the patient\'s LINE ID to open chat directly',
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12, color: AiraColors.muted),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: GoogleFonts.plusJakartaSans(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'e.g. mypam_2024',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.cancel,
+                style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF06C755),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l.save,
+                style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (lineId == null || lineId.isEmpty) return;
+    final patient = widget.patient;
+    if (patient == null) return;
+
+    try {
+      final updated = patient.copyWith(lineId: lineId);
+      await ref.read(patientRepoProvider).updatePatient(updated);
+      ref.invalidate(patientByIdProvider(patient.id));
+      // Open LINE immediately after saving for a smooth experience.
+      await _openLine(lineId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AiraColors.terra,
+          ),
+        );
+      }
     }
   }
 
@@ -84,8 +171,8 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
 
       // Open deep link
       final patient = widget.patient;
-      if (channel == MessageChannel.line && patient?.lineId != null && patient!.lineId!.isNotEmpty) {
-        await _openLine(patient.lineId!);
+      if (channel == MessageChannel.line) {
+        await _openLine(patient?.lineId);
       } else if (channel == MessageChannel.whatsapp && patient?.phone != null && patient!.phone!.isNotEmpty) {
         await _openWhatsApp(patient.phone!);
       }
@@ -116,7 +203,11 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
     final hasPhone = patient?.phone != null && patient!.phone!.isNotEmpty;
     if (!hasLine && !hasPhone) return;
 
-    var channel = hasLine ? MessageChannel.line : MessageChannel.whatsapp;
+    // Always default to LINE when available; otherwise WhatsApp. LINE
+    // remains selectable even without a patient lineId — the user is then
+    // prompted to add one via _promptForLineId.
+    var channel =
+        hasLine ? MessageChannel.line : (hasPhone ? MessageChannel.whatsapp : MessageChannel.line);
     var templateType = MessageTemplateType.custom;
 
     showDialog(
@@ -254,42 +345,44 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
         ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Quick actions — deep links
-            if (hasMessagingChannel)
-              Row(
-                children: [
-                  if (hasLine)
-                    Expanded(
-                      child: _QuickLink(
-                        icon: Icons.chat_rounded,
-                        label: l.openLine,
-                        color: const Color(0xFF06C755),
-                        onTap: () => _openLine(lineId),
-                      ),
+            // Quick actions — deep links.
+            // LINE is ALWAYS shown (per client request) — when no LINE ID is
+            // configured we surface a dialog to capture it instead of hiding
+            // the button. WhatsApp + Call are gated on having a phone number.
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickLink(
+                    icon: Icons.chat_rounded,
+                    label: hasLine ? l.openLine : (l.isThai ? 'เพิ่ม LINE' : 'Add LINE'),
+                    color: const Color(0xFF06C755),
+                    onTap: hasLine ? () => _openLine(lineId) : _promptForLineId,
+                  ),
+                ),
+                if (hasPhone) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _QuickLink(
+                      icon: Icons.phone_android_rounded,
+                      label: 'WhatsApp',
+                      color: const Color(0xFF25D366),
+                      onTap: () => _openWhatsApp(phone),
                     ),
-                  if (hasPhone) ...[
-                    if (hasLine) const SizedBox(width: 10),
-                    Expanded(
-                      child: _QuickLink(
-                        icon: Icons.phone_android_rounded,
-                        label: 'WhatsApp',
-                        color: const Color(0xFF25D366),
-                        onTap: () => _openWhatsApp(phone),
-                      ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _QuickLink(
+                      icon: Icons.phone_rounded,
+                      label: l.call,
+                      color: AiraColors.woodMid,
+                      onTap: () => _openPhone(phone),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _QuickLink(
-                        icon: Icons.phone_rounded,
-                        label: l.call,
-                        color: AiraColors.woodMid,
-                        onTap: () => _openPhone(phone),
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
-              )
-            else
+              ],
+            ),
+            if (!hasMessagingChannel) ...[
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -298,10 +391,13 @@ class _MessageHistoryTabState extends ConsumerState<MessageHistoryTab> {
                   border: Border.all(color: AiraColors.creamDk.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  l.isThai ? 'ยังไม่มีช่องทางติดต่อสำหรับการส่งข้อความ' : 'No messaging channel is available for this patient.',
+                  l.isThai
+                      ? 'ยังไม่ได้บันทึกเบอร์โทร / LINE ID — กดปุ่ม "เพิ่ม LINE" หรือแก้ไขข้อมูลคนไข้'
+                      : 'No phone or LINE ID on file — tap "Add LINE" or edit the patient profile.',
                   style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
                 ),
               ),
+            ],
             const SizedBox(height: 16),
 
             // Send new message button

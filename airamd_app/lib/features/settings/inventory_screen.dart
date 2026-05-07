@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
+import '../../core/repositories/repository_exceptions.dart';
 import '../../core/widgets/aira_empty_state.dart';
 import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
@@ -726,37 +726,38 @@ class _TransactionPanel extends ConsumerWidget {
 
                 try {
                   final invRepo = ref.read(inventoryRepoProvider);
-                  final prodRepo = ref.read(productRepoProvider);
                   final currentStaff =
                       ref.read(currentStaffProvider).valueOrNull;
 
-                  // Calculate new stock quantity
-                  double newStock;
+                  // Compose an optional note combining the adjustment
+                  // explanation (rendered client-side for locale) and the
+                  // user-provided free text. Stock math itself runs inside
+                  // the `apply_inventory_adjustment` RPC so it's atomic
+                  // with the ledger row.
+                  double projectedStock;
                   if (type == InventoryTransactionType.adjustment) {
-                    newStock = validQty; // Adjustment sets absolute value
+                    projectedStock = validQty;
                   } else if (type == InventoryTransactionType.stockIn) {
-                    newStock = product.stockQuantity + validQty;
+                    projectedStock = product.stockQuantity + validQty;
                   } else {
-                    // used or wastage
-                    newStock = product.stockQuantity - validQty;
+                    projectedStock = product.stockQuantity - validQty;
                   }
 
                   final noteSegments = <String>[];
                   if (type == InventoryTransactionType.adjustment) {
                     noteSegments.add(
                       context.l10n.isThai
-                          ? 'ปรับยอดจาก ${NumberFormat('#,##0.##').format(product.stockQuantity)} เป็น ${NumberFormat('#,##0.##').format(newStock)} ${product.unit}'
-                          : 'Adjusted stock from ${NumberFormat('#,##0.##').format(product.stockQuantity)} to ${NumberFormat('#,##0.##').format(newStock)} ${product.unit}',
+                          ? 'ปรับยอดจาก ${NumberFormat('#,##0.##').format(product.stockQuantity)} เป็น ${NumberFormat('#,##0.##').format(projectedStock)} ${product.unit}'
+                          : 'Adjusted stock from ${NumberFormat('#,##0.##').format(product.stockQuantity)} to ${NumberFormat('#,##0.##').format(projectedStock)} ${product.unit}',
                     );
                   }
                   if (notesCtrl.text.trim().isNotEmpty) {
                     noteSegments.add(notesCtrl.text.trim());
                   }
 
-                  // Create transaction record
-                  final tx = InventoryTransaction(
-                    id: const Uuid().v4(),
-                    clinicId: clinicId,
+                  // Single round trip: ledger + stock update inside one
+                  // Postgres transaction with FOR UPDATE on the row.
+                  await invRepo.applyAdjustment(
                     productId: product.id,
                     transactionType: type,
                     quantity: validQty,
@@ -768,28 +769,16 @@ class _TransactionPanel extends ConsumerWidget {
                     notes: noteSegments.isEmpty ? null : noteSegments.join(' • '),
                     createdBy: currentStaff?.id,
                   );
-                  await invRepo.create(tx);
-
-                  // Update product stock
-                  final selectedExpiryDate = expiryDate;
-                  final syncedExpiryDate =
-                      type == InventoryTransactionType.stockIn &&
-                              selectedExpiryDate != null &&
-                              (product.expiryDate == null ||
-                                  selectedExpiryDate.isBefore(product.expiryDate!))
-                          ? selectedExpiryDate
-                          : product.expiryDate;
-                  await prodRepo.updateProduct(product.copyWith(
-                    stockQuantity: newStock,
-                    expiryDate: syncedExpiryDate,
-                  ));
 
                   // Refresh
                   ref.invalidate(_inventoryTxProvider(product.id));
                   ref.invalidate(productListProvider);
                   ref.invalidate(lowStockAlertsProvider);
 
-                  // Audit log
+                  // Audit log. Note: projectedStock mirrors what the RPC
+                  // computed server-side; the RPC's return value is the
+                  // authoritative source but we use the projection to
+                  // keep the audit payload human-readable in UI order.
                   ref.read(auditServiceProvider).log(
                     action: 'STOCK_${type.dbValue}',
                     entityType: 'products',
@@ -797,15 +786,35 @@ class _TransactionPanel extends ConsumerWidget {
                     newData: {
                       'quantity': qty,
                       'product': product.name,
-                      'new_stock': newStock,
-                      'batch_no': tx.batchNo,
-                      'expiry_date': tx.expiryDate?.toIso8601String(),
-                      'created_by': tx.createdBy,
+                      'new_stock': projectedStock,
+                      'batch_no': batchCtrl.text.trim().isEmpty
+                          ? null
+                          : batchCtrl.text.trim(),
+                      'expiry_date': expiryDate?.toIso8601String(),
+                      'created_by': currentStaff?.id,
                     },
                   );
 
                   if (context.mounted) {
                     AiraFeedback.success(context, context.l10n.transactionSaveSuccess);
+                  }
+                } on InsufficientStockException {
+                  if (context.mounted) {
+                    AiraFeedback.error(
+                      context,
+                      context.l10n.isThai
+                          ? 'สต็อกไม่พอ — ตรวจสอบจำนวนอีกครั้ง'
+                          : 'Insufficient stock — please re-check quantity.',
+                    );
+                  }
+                } on InvalidQuantityException {
+                  if (context.mounted) {
+                    AiraFeedback.error(
+                      context,
+                      context.l10n.isThai
+                          ? 'จำนวนไม่ถูกต้อง'
+                          : 'Invalid quantity.',
+                    );
                   }
                 } catch (e) {
                   if (context.mounted) {

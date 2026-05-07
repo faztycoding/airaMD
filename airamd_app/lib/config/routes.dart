@@ -31,13 +31,12 @@ import '../features/patients/digital_notepad_screen.dart';
 import '../core/widgets/aira_scaffold.dart';
 import '../core/widgets/access_guard.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-final GoRouter appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/dashboard',
-  routes: [
+/// Main app routes list (used by consolidated router in app.dart).
+/// Login and lock routes are handled separately in app.dart.
+List<RouteBase> get appRoutes => [
     GoRoute(
       path: '/',
       redirect: (context, state) => '/dashboard',
@@ -79,7 +78,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Patient ──────────────────────────────────────────────
     GoRoute(
       path: '/patients/new',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.clinical,
         child: PatientFormScreen(patientId: 'new'),
@@ -87,14 +86,14 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/patients/:id',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => PatientProfileScreen(
         patientId: state.pathParameters['id']!,
       ),
     ),
     GoRoute(
       path: '/patients/:id/edit',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: PatientFormScreen(
@@ -106,7 +105,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Treatment (SOAP) ────────────────────────────────────
     GoRoute(
       path: '/patients/:pid/treatments/new',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
         final catStr = state.uri.queryParameters['category'];
         final appointmentId = state.uri.queryParameters['appointmentId'];
@@ -123,7 +122,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/patients/:pid/treatments/:tid/edit',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: TreatmentFormScreen(
@@ -136,7 +135,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Appointments ────────────────────────────────────────
     GoRoute(
       path: '/appointments/new',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
         final dateStr = state.uri.queryParameters['date'];
         final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
@@ -145,7 +144,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/appointments/:id/edit',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AppointmentFormScreen(
         appointmentId: state.pathParameters['id']!,
       ),
@@ -154,7 +153,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Courses ─────────────────────────────────────────────
     GoRoute(
       path: '/courses',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
         final patientId = state.uri.queryParameters['patientId'];
         return AccessGuard(
@@ -165,7 +164,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/courses/new',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
         final patientId = state.uri.queryParameters['patientId'];
         return AccessGuard(
@@ -176,7 +175,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/courses/:id',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.financial,
         child: CourseFormScreen(
@@ -188,7 +187,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Consent Form ──────────────────────────────────────
     GoRoute(
       path: '/patients/:pid/consent',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: ConsentFormScreen(
@@ -201,7 +200,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Face Diagram (new) ────────────────────────────────
     GoRoute(
       path: '/patients/:pid/diagram',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: FaceDiagramScreen(
@@ -215,7 +214,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Digital Notepad ─────────────────────────────────────
     GoRoute(
       path: '/patients/:pid/notepad',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: DigitalNotepadScreen(
@@ -225,7 +224,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/patients/:pid/notepad/:nid',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => AccessGuard(
         permission: AiraPermission.clinical,
         child: DigitalNotepadScreen(
@@ -238,7 +237,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Financial ───────────────────────────────────────────
     GoRoute(
       path: '/settings/financial',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.financial,
         child: FinancialScreen(),
@@ -248,7 +247,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Product & Service Library ───────────────────────────
     GoRoute(
       path: '/settings/products',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: ProductLibraryScreen(),
@@ -256,7 +255,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/settings/services',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: ServiceLibraryScreen(),
@@ -266,14 +265,14 @@ final GoRouter appRouter = GoRouter(
     // ─── Privacy Policy (PDPA) ─────────────────────────────────
     GoRoute(
       path: '/settings/privacy',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const PrivacyPolicyScreen(),
     ),
 
     // ─── Inventory / Stock Management ───────────────────────
     GoRoute(
       path: '/settings/inventory',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: InventoryScreen(),
@@ -283,7 +282,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Security (Password + PIN + Auto-lock) ─────────
     GoRoute(
       path: '/settings/security',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: SecurityScreen(),
@@ -293,7 +292,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Consent Templates ───────────────────────────────
     GoRoute(
       path: '/settings/consent-templates',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: ConsentTemplateScreen(),
@@ -303,7 +302,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Audit Logs ───────────────────────────────────
     GoRoute(
       path: '/settings/audit-logs',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: AccessGuard(
           permission: AiraPermission.settings,
@@ -315,7 +314,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Clinic Info ───────────────────────────────────
     GoRoute(
       path: '/settings/clinic-info',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: ClinicInfoScreen(),
@@ -325,7 +324,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Staff Management ──────────────────────────────
     GoRoute(
       path: '/settings/staff',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: StaffManagementScreen(),
@@ -335,7 +334,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Treatment Rules ───────────────────────────────
     GoRoute(
       path: '/settings/treatment-rules',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: TreatmentRuleScreen(),
@@ -345,7 +344,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Course Overview ───────────────────────────────
     GoRoute(
       path: '/settings/course-overview',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.financial,
         child: CourseOverviewScreen(),
@@ -355,7 +354,7 @@ final GoRouter appRouter = GoRouter(
     // ─── Notification Settings ─────────────────────────
     GoRoute(
       path: '/settings/notifications',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: NotificationSettingsScreen(),
@@ -365,11 +364,10 @@ final GoRouter appRouter = GoRouter(
     // ─── Messaging Config ──────────────────────────────
     GoRoute(
       path: '/settings/messaging',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: MessagingConfigScreen(),
       ),
     ),
-  ],
-);
+  ];

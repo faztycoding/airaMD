@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/constants.dart';
 import '../../config/theme.dart';
 import '../../core/providers/repository_providers.dart';
 import '../../core/localization/app_localizations.dart';
@@ -121,10 +122,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     setState(() { _loading = true; _errorMessage = null; });
 
     try {
+      // Redirect URL must match the Supabase project env the app was
+      // built against — never hardcode a project ref in source. `build()`
+      // asserts `supabaseUrl` is non-empty, so this is always safe.
+      final redirectTo = '${AppConstants.supabaseUrl}/auth/v1/verify';
       final res = await ref.read(supabaseClientProvider).auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
-        emailRedirectTo: 'https://pzqjqqaekxmfdlrxbgmk.supabase.co/auth/v1/verify',
+        emailRedirectTo: redirectTo,
         data: {
           'full_name': _nameCtrl.text.trim(),
           'clinic_name': _clinicCtrl.text.trim(),
@@ -150,22 +155,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _createClinicAndStaff(User user) async {
+    // Wrap clinic + owner staff creation in a single atomic transaction
+    // via `bootstrap_owner_signup` (migration 012). The previous
+    // client-side pair of INSERTs could leave an orphan clinic when the
+    // staff insert failed — the RPC rolls both back together.
     final client = ref.read(supabaseClientProvider);
-    // Create clinic
-    final clinicData = await client.from('clinics').insert({
-      'name': _clinicCtrl.text.trim().isEmpty
-          ? '${_nameCtrl.text.trim()} Clinic'
-          : _clinicCtrl.text.trim(),
-    }).select().single();
-
-    // Create owner staff record
-    await client.from('staff').insert({
-      'clinic_id': clinicData['id'],
-      'user_id': user.id,
-      'full_name': _nameCtrl.text.trim(),
-      'role': 'OWNER',
-      'is_active': true,
-    });
+    await client.rpc(
+      'bootstrap_owner_signup',
+      params: {
+        'p_full_name': _nameCtrl.text.trim(),
+        'p_clinic_name': _clinicCtrl.text.trim(),
+      },
+    );
   }
 
   Future<void> _handleForgotPassword() async {

@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
+import '../../core/repositories/repository_exceptions.dart';
 import '../../core/services/safety_check_service.dart';
 import '../../core/services/audit_service.dart';
 import '../../core/widgets/aira_feedback.dart';
@@ -133,6 +134,11 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   // Follow-up
   final _followUpTimeCtrl = TextEditingController();
   DateTime? _followUpDate;
+  // When true (default), saving the treatment also creates a calendar
+  // appointment for the follow-up so the patient/clinic both see it on the
+  // booking screen — fulfils the client's "link appointments to treatment
+  // history" request.
+  bool _createFollowUpAppointment = true;
 
   // Dropdowns
   late TreatmentCategory _category;
@@ -377,7 +383,6 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
 
     try {
       final repo = ref.read(treatmentRepoProvider);
-      final stockSyncFailures = <String>[];
       final linkedAppointment = widget.appointmentId != null && widget.appointmentId!.isNotEmpty
           ? await ref.read(
               _preferredAppointmentProvider((
@@ -389,40 +394,110 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       if (widget.isEdit) {
         await repo.updateRecord(record);
       } else {
-        await repo.create(record);
-        stockSyncFailures.addAll(
-          await const TreatmentPostSaveService().handleNewTreatmentSave(
+        // Atomic save: treatment row + inventory_transactions + per-product
+        // stock deduction all happen inside one Postgres transaction
+        // (`record_treatment_atomic` RPC). Either everything is persisted, or
+        // nothing is — no more half-saved treatments with un-deducted stock.
+        final inventoryOps = TreatmentPostSaveService.buildInventoryOps(
+          productsUsed: _productsUsed,
+          treatmentName: record.treatmentName,
+        );
+        try {
+          await repo.createWithInventory(
+            record: record,
+            inventory: inventoryOps,
+          );
+        } on InsufficientStockException catch (e) {
+          if (mounted) {
+            final productLabel =
+                e.productName != null ? ': ${e.productName}' : '';
+            AiraFeedback.error(
+              context,
+              context.l10n.isThai
+                  ? 'สต็อกไม่พอ$productLabel — ยังไม่ได้บันทึกการรักษา'
+                  : 'Insufficient stock$productLabel — treatment not saved',
+            );
+          }
+          return;
+        }
+
+        // Mark the linked appointment completed AFTER the atomic save.
+        // Kept outside the transaction because a missed status update is
+        // recoverable and shouldn't roll back the patient's clinical record.
+        await const TreatmentPostSaveService().markLinkedAppointmentCompleted(
+          record: record,
+          updateAppointmentStatus: (appointmentId, status) async {
+            await ref.read(appointmentRepoProvider).updateStatus(
+                  appointmentId,
+                  status,
+                );
+          },
+        );
+      }
+      // ─── Auto-create follow-up appointment ───
+      // When the user has set a follow-up date AND time AND kept the toggle
+      // enabled, also create a calendar appointment so the follow-up shows up
+      // in the booking screen and can be reminded on. We do this only on
+      // *new* records (not edit) to avoid duplicating appointments on every
+      // re-save and only for records with a clear follow-up plan.
+      var followUpAppointmentCreated = false;
+      DateTime? createdFollowUpDate;
+      if (!widget.isEdit &&
+          _createFollowUpAppointment &&
+          _followUpDate != null &&
+          _followUpTimeCtrl.text.trim().isNotEmpty) {
+        try {
+          final time = _followUpTimeCtrl.text.trim();
+          // End time = +30 min (best-effort, falls back to start time on parse fail)
+          String endTime = time;
+          final parts = time.split(':');
+          if (parts.length == 2) {
+            final h = int.tryParse(parts[0]);
+            final m = int.tryParse(parts[1]);
+            if (h != null && m != null) {
+              final endDt = DateTime(0, 1, 1, h, m).add(const Duration(minutes: 30));
+              endTime = '${endDt.hour.toString().padLeft(2, '0')}:${endDt.minute.toString().padLeft(2, '0')}';
+            }
+          }
+          final apptRepo = ref.read(appointmentRepoProvider);
+          // Build the follow-up label without touching `context` after the
+          // earlier awaits to avoid use_build_context_synchronously warnings —
+          // the prefix is intentionally hard-coded EN/TH because saving to the
+          // DB shouldn't depend on the active locale at save-time anyway.
+          final tnameTrim = _treatmentNameCtrl.text.trim();
+          final newAppt = Appointment(
+            id: '',
             clinicId: clinicId,
             patientId: widget.patientId,
-            record: record,
-            productsUsed: _productsUsed,
-            updateAppointmentStatus: (appointmentId, status) async {
-              await ref.read(appointmentRepoProvider).updateStatus(
-                    appointmentId,
-                    status,
-                  );
-            },
-            deductStock: (productId, quantity) async {
-              await ref.read(productRepoProvider).deductStock(
-                    productId,
-                    quantity,
-                  );
-            },
-            createInventoryTransaction: (transaction) async {
-              await ref.read(inventoryRepoProvider).create(transaction);
-            },
-          ),
-        );
-
-        if (mounted && stockSyncFailures.isNotEmpty) {
-          AiraFeedback.warning(
-            context,
-            context.l10n.isThai
-                ? 'บันทึกการรักษาสำเร็จ แต่ซิงค์สต็อกไม่ครบ: ${stockSyncFailures.join(', ')}'
-                : 'Treatment saved, but stock sync failed for: ${stockSyncFailures.join(', ')}',
+            doctorId: _selectedDoctorId,
+            date: _followUpDate!,
+            startTime: time,
+            endTime: endTime,
+            status: AppointmentStatus.newAppt,
+            treatmentType: tnameTrim.isEmpty
+                ? null
+                : 'Follow-up: $tnameTrim',
+            // Cross-reference back to the treatment record so the calendar
+            // can show "originated from treatment X".
+            notes:
+                'Follow-up for treatment ${record.id} (${record.treatmentName})',
           );
+          await apptRepo.create(newAppt);
+          followUpAppointmentCreated = true;
+          createdFollowUpDate = _followUpDate;
+        } catch (e) {
+          // Non-fatal: surface to the user but don't block the success flow.
+          if (mounted) {
+            AiraFeedback.warning(
+              context,
+              context.l10n.isThai
+                  ? 'บันทึกการรักษาสำเร็จ แต่สร้างนัดติดตามผลอัตโนมัติไม่สำเร็จ: $e'
+                  : 'Treatment saved, but auto-creating follow-up appointment failed: $e',
+            );
+          }
         }
       }
+
       ref.invalidate(treatmentsByPatientProvider(widget.patientId));
       ref.invalidate(todayTreatmentsProvider);
       ref.invalidate(dashboardStatsProvider);
@@ -438,6 +513,17 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
               linkedAppointment.date.year,
               linkedAppointment.date.month,
               linkedAppointment.date.day,
+            ),
+          ),
+        );
+      }
+      if (createdFollowUpDate != null) {
+        ref.invalidate(
+          appointmentsByDateProvider(
+            DateTime(
+              createdFollowUpDate.year,
+              createdFollowUpDate.month,
+              createdFollowUpDate.day,
             ),
           ),
         );
@@ -458,6 +544,9 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
               ? (context.l10n.isThai ? 'อัปเดตบันทึกการรักษาเรียบร้อยแล้ว' : 'Treatment record updated successfully')
               : (context.l10n.isThai ? 'บันทึกการรักษาเรียบร้อยแล้ว' : 'Treatment record saved successfully'),
         );
+        if (followUpAppointmentCreated) {
+          AiraFeedback.info(context, context.l10n.followUpCreated);
+        }
         context.pop();
       }
     } catch (e) {
@@ -603,8 +692,11 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Safety check + Save buttons
-                      if (!_safetyChecked)
+                      // Optional pre-flight safety check (still surfaced for
+                      // users who want to see warnings before saving). The
+                      // primary Save button is now ALWAYS visible — when tapped
+                      // it runs the safety check internally before persisting.
+                      if (!_safetyChecked) ...[
                         AiraSafetyCheckButton(
                           onTap: () {
                             if (_treatmentNameCtrl.text.trim().isNotEmpty) {
@@ -616,14 +708,15 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                             }
                           },
                         ),
-                      if (_safetyChecked)
-                        AiraPremiumSaveButton(
-                          label: _loading
-                              ? context.l10n.saving
-                              : context.l10n.saveTreatment,
-                          loading: _loading,
-                          onTap: _save,
-                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      AiraPremiumSaveButton(
+                        label: _loading
+                            ? context.l10n.saving
+                            : context.l10n.saveTreatment,
+                        loading: _loading,
+                        onTap: _save,
+                      ),
                       const SizedBox(height: 16),
                       const AiraBrandingFooter(),
                       const SizedBox(height: 40),
@@ -1280,6 +1373,54 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+        // ─── Auto-create follow-up appointment toggle ───
+        // The toggle only takes effect when both date AND time are set,
+        // so we visually disable it in that case to make the requirement
+        // obvious rather than silently doing nothing on save.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AiraColors.sage.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AiraColors.sage.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_available_rounded, size: 18, color: AiraColors.sage),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.createFollowUpAppt,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AiraColors.charcoal,
+                      ),
+                    ),
+                    Text(
+                      context.l10n.isThai
+                          ? 'ระบบจะสร้างนัดในปฏิทินอัตโนมัติเมื่อบันทึก'
+                          : 'A calendar appointment will be created on save',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: AiraColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _createFollowUpAppointment,
+                activeColor: AiraColors.sage,
+                onChanged: (v) =>
+                    setState(() => _createFollowUpAppointment = v),
+              ),
+            ],
           ),
         ),
       ],

@@ -13,6 +13,7 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/repositories/repository_exceptions.dart';
 import '../../core/services/consent_pdf_service.dart';
 
 /// Consent Form screen — patient signs with finger/stylus on iPad.
@@ -82,11 +83,11 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
     try {
       // 1. Export signature as PNG bytes
       final Uint8List? sigBytes = await _sigCtrl.toPngBytes();
-      if (sigBytes == null) throw Exception('Signature export failed');
+      if (sigBytes == null) throw const RenderFailureException();
 
       // 2. Build unique storage path
       final clinicId = ref.read(currentClinicIdProvider);
-      if (clinicId == null) throw Exception('No clinic ID');
+      if (clinicId == null) throw const MissingContextException('clinic_id');
       final now = DateTime.now();
       final ts = now.millisecondsSinceEpoch;
       final storagePath = '$clinicId/${widget.patientId}/sig_$ts.png';

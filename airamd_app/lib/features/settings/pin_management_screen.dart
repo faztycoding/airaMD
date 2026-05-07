@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/pin_auth_service.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../app.dart';
-
-const _pinStorageKey = 'airamd_pin_code';
-final _secureStorage = FlutterSecureStorage();
 
 /// Allows the user to change their PIN or toggle auto-lock.
 class PinManagementScreen extends ConsumerStatefulWidget {
@@ -273,8 +270,8 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
   Future<void> _onComplete() async {
     switch (_step) {
       case _PinStep.enterCurrent:
-        final saved = await _secureStorage.read(key: _pinStorageKey);
-        if (_enteredPin == saved) {
+        final ok = await pinAuthService.verifyPin(_enteredPin);
+        if (ok) {
           setState(() {
             _step = _PinStep.enterNew;
             _enteredPin = '';
@@ -296,7 +293,7 @@ class _PinManagementScreenState extends ConsumerState<PinManagementScreen> {
         break;
       case _PinStep.confirmNew:
         if (_enteredPin == _newPin) {
-          await _secureStorage.write(key: _pinStorageKey, value: _enteredPin);
+          await pinAuthService.setPin(_enteredPin);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(context.l10n.pinChanged)),

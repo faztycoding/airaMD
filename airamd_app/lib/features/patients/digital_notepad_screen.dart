@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/repositories/repository_exceptions.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 // Digital Notepad — Blank canvas for free-form clinical notes
@@ -162,7 +164,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
     final picture = recorder.endRecording();
     final img = await picture.toImage(width, height);
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) throw Exception('Failed to render notepad to PNG');
+    if (byteData == null) throw const RenderFailureException();
     return byteData.buffer.asUint8List();
   }
 
@@ -212,7 +214,7 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
     setState(() => _isSaving = true);
     try {
       final clinicId = ref.read(currentClinicIdProvider);
-      if (clinicId == null) throw Exception('No clinic ID');
+      if (clinicId == null) throw const MissingContextException('clinic_id');
 
       final strokesJson = _strokes.map(_strokeToJson).toList();
       final canvasData = {
@@ -468,54 +470,84 @@ class _DigitalNotepadScreenState extends ConsumerState<DigitalNotepadScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Page background with optional lines/grid
-            CustomPaint(painter: _PageLinePainter(_pageStyle)),
+            // Page background with optional lines/grid — wrapped in RepaintBoundary
+            // so the lined / grid layer is not re-rasterized on every stroke update.
+            RepaintBoundary(
+              child: CustomPaint(painter: _PageLinePainter(_pageStyle)),
+            ),
             // User strokes
-            CustomPaint(
-              painter: _StrokesPainter(
-                strokes: _strokes,
-                currentStroke: _currentStroke,
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: _StrokesPainter(
+                  strokes: _strokes,
+                  currentStroke: _currentStroke,
+                ),
               ),
             ),
-            // Touch handler
+            // Touch handler — uses raw Listener + EagerGestureRecognizer so the
+            // canvas does not lose pointers to any parent ScrollView gesture
+            // arena and Apple Pencil contact registers immediately on the first
+            // pixel of movement (no kTouchSlop / "press harder" feel).
             if (!widget.isReadOnly)
-              GestureDetector(
-                onPanStart: (details) {
-                  if (_isEraser) {
-                    _eraseStrokeAt(details.localPosition);
-                  } else {
-                    setState(() {
-                      _currentStroke = _Stroke(
-                        points: [details.localPosition],
-                        color: _penColor,
-                        size: _penSize,
-                      );
-                    });
-                  }
-                },
-                onPanUpdate: (details) {
-                  if (_isEraser) {
-                    _eraseStrokeAt(details.localPosition);
-                  } else {
-                    if (_currentStroke == null) return;
-                    setState(() {
-                      _currentStroke = _Stroke(
-                        points: [..._currentStroke!.points, details.localPosition],
-                        color: _currentStroke!.color,
-                        size: _currentStroke!.size,
-                      );
-                    });
-                  }
-                },
-                onPanEnd: (_) {
-                  if (!_isEraser && _currentStroke != null) {
-                    setState(() {
-                      _strokes.add(_currentStroke!);
-                      _redoStack.clear();
-                      _currentStroke = null;
-                    });
-                  }
-                },
+              Positioned.fill(
+                child: RawGestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  gestures: <Type, GestureRecognizerFactory>{
+                    EagerGestureRecognizer:
+                        GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+                      () => EagerGestureRecognizer(),
+                      (instance) {},
+                    ),
+                  },
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (event) {
+                      if (_isEraser) {
+                        _eraseStrokeAt(event.localPosition);
+                      } else {
+                        setState(() {
+                          _currentStroke = _Stroke(
+                            points: [event.localPosition],
+                            color: _penColor,
+                            size: _penSize,
+                          );
+                        });
+                      }
+                    },
+                    onPointerMove: (event) {
+                      if (_isEraser) {
+                        _eraseStrokeAt(event.localPosition);
+                      } else {
+                        if (_currentStroke == null) return;
+                        setState(() {
+                          _currentStroke = _Stroke(
+                            points: [..._currentStroke!.points, event.localPosition],
+                            color: _currentStroke!.color,
+                            size: _currentStroke!.size,
+                          );
+                        });
+                      }
+                    },
+                    onPointerUp: (_) {
+                      if (!_isEraser && _currentStroke != null) {
+                        setState(() {
+                          _strokes.add(_currentStroke!);
+                          _redoStack.clear();
+                          _currentStroke = null;
+                        });
+                      }
+                    },
+                    onPointerCancel: (_) {
+                      if (!_isEraser && _currentStroke != null) {
+                        setState(() {
+                          _strokes.add(_currentStroke!);
+                          _redoStack.clear();
+                          _currentStroke = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
               ),
             // Watermark
             Positioned(

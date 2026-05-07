@@ -42,7 +42,7 @@
 - empty states และ save feedback ดูสะอาดและพรีเมียมขึ้น
 - inventory มี traceability ดีขึ้นโดยไม่ต้องเพิ่มความเสี่ยงจากการรื้อ schema ใหญ่
 
-### Audit Hardening (รอบล่าสุด)
+### Audit Hardening (รอบ 1)
 - RBAC fallback เปลี่ยนเป็น deny-by-default (receptionist) ป้องกันการเข้าถึงข้อมูลความลับกรณี staff ยังโหลดไม่เสร็จ
 - PatientForm null clinicId safety แสดง feedback แทน crash
 - Financial validation ครอบคลุม empty, invalid, non-positive, >10M
@@ -50,6 +50,33 @@
 - SettingsScreen inject auth providers แทน Supabase.instance ตรง
 - ลด Supabase.instance ใน auth gate, login, storage screens, services เหลือ 5 จุด (infrastructure)
 - Treatment post-save แยกเป็น TreatmentPostSaveService ที่ test ได้
+
+### Production Hardening (รอบล่าสุด — May 2026)
+
+**ฐานข้อมูล (Migrations 008–010)**
+- `008_hn_year_prefix.sql` — HN format `C-YYYY-NNNNN` รีเซ็ต sequence ต่อคลินิกต่อปี
+- `009_critical_fixes.sql`
+  - Race-safe HN generation ผ่าน `pg_advisory_xact_lock`
+  - Atomic stock deduction RPC (`deduct_stock_atomic`)
+  - Atomic treatment + inventory write RPC (`record_treatment_atomic`)
+  - PIN hash format CHECK (bcrypt prefix only)
+  - Financial amount ≥ 0 + course session UNIQUE constraints
+  - RLS performance — `auth.uid()` cached via subquery, partial index
+  - GIN indexes on `drug_allergies`, `medical_conditions`, `current_medications`
+  - Course sessions auto-create trigger
+  - Optimistic concurrency `version` column + trigger บน `treatment_records`
+  - N+1 eliminator RPCs: `get_today_revenue(clinic_id)`, `get_patient_full(patient_id)`
+- `010_audit_secure_writes.sql` — REVOKE direct INSERT บน `audit_logs` ทุก write ผ่าน `record_audit_log` SECURITY DEFINER RPC ที่บังคับ `user_id` + `timestamp` server-side (กัน spoofing)
+
+**Flutter (Round 2-3)**
+- `RepositoryException` sealed hierarchy (`InsufficientStockException`, `InvalidQuantityException`, `NotFoundException`, `VersionConflictException`)
+- Treatment save ใช้ `record_treatment_atomic` — partial-state class ของบั๊กหายไปเลย
+- Offline queue รองรับ RPC action: ถ้าออฟไลน์ตอน save treatment จะ queue RPC params ตัวเดิมไว้ replay ตอนเชื่อมต่อ → ยังคง atomic เสมอ
+- `PatientProfileBundle` typed model + `get_patient_full` RPC ลด round trip จาก 4-5 → 1
+- Patient list pagination — `paginatedPatientsProvider` + infinite scroll sentinel
+- Environment-aware `AppConfig` (dev/staging/prod) ผูกกับ AutoSyncEngine retry/cache TTL
+- AiraTapEffect รองรับ accessibility semantics (label/hint/button/enabled) → screen reader อ่านปุ่มทุกที่ในแอป
+- `CrashReporter` boilerplate (Sentry-shape API) — รอ DSN เพื่อ enable
 
 ## แนวทางการสื่อสารกับลูกค้า
 
@@ -76,13 +103,48 @@
 
 ## Checklist ก่อน handoff
 
-- ทบทวน `docs/DEMO_WALKTHROUGH.md`
-- ทบทวน `docs/FEATURE_MATRIX.md`
-- ตรวจสอบบัญชีเดโมสำหรับ owner, doctor และ limited role
-- ตรวจสอบว่ามีอย่างน้อย 1 ผู้รับบริการ, 1 appointment, 1 product และ 1 inventory item สำหรับเดโมจริง
-- ตรวจสอบว่าการเปิด deep link ของ messaging เหมาะกับอุปกรณ์ที่ใช้เดโม
-- รัน `flutter analyze` (ตรวจสอบ — 0 issues)
-- รัน `flutter test` (ตรวจสอบ — 158+ tests)
+### โค้ด
+- [x] `flutter analyze` — 0 issues
+- [x] `flutter test` — 191 tests pass
+- [x] CI workflow แก้ working dir เป็น `airamd_app` + Flutter 3.41.0
+- [x] Migrations 008, 009, 010 idempotent (ปลอดภัยกรณีรันซ้ำ)
+
+### ฐานข้อมูล (ลูกค้ารัน supabase db push แล้ว)
+- [x] Migration 008 applied
+- [x] Migration 009 applied
+- [x] Migration 010 applied
+- [ ] Verify smoke flow: login → save 1 treatment → confirm `treatment_records` + `inventory_transactions` + stock deduction พร้อมกัน 1 transaction
+- [ ] Verify `audit_logs` row เกิดขึ้นทุกครั้งที่มี write action สำคัญ (`user_id` ตรงกับ staff ที่ลงชื่อเข้าใช้)
+- [ ] Verify direct `INSERT INTO audit_logs` จาก client ถูก reject (HTTP 401/403)
+
+### Demo & data
+- [x] Seed file: `supabase/seed.sql` (clinic + treatment_rules + ~25 products + ~15 services + consent forms)
+- [ ] เพิ่ม owner staff + doctor staff + receptionist staff อย่างน้อย 1 ราย (สร้างจาก Supabase Auth → INSERT ลง `staff` ผูก `user_id`)
+- [ ] สร้าง 5–10 patients ด้วย HN format ใหม่ (`C-2026-00001` ขึ้นไป) ผ่าน UI หรือ seed
+- [ ] สร้าง 1–2 courses + 2–3 appointments เพื่อให้ profile screen มี content จริง
+- [ ] ตรวจสอบ deep link messaging (LINE/WhatsApp/โทร) บนอุปกรณ์ที่ใช้เดโม
+
+### Build & Deploy
+- [ ] iOS — `flutter build ipa --release --dart-define=ENV=prod --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... --dart-define=SENTRY_DSN=... --export-options-plist=ios/ExportOptions.plist`
+- [ ] Verify code signing (DEVELOPMENT_TEAM = `H43SK9D7D3`) ตรงกับ Apple Developer account ของลูกค้า
+- [ ] Install บน iPad ของลูกค้า → smoke test ทำ workflow หลัก (patient → appointment → treatment → financial)
+- [ ] Push `--dart-define=ENV=prod` แทน `dev` ก่อน build production
+
+### เอกสาร
+- [x] `docs/DEMO_WALKTHROUGH.md` — script เดโมหน้าจอต่อหน้าจอ
+- [x] `docs/FEATURE_MATRIX.md` — matrix ของฟีเจอร์ทั้งหมด
+- [x] `docs/CLIENT_HANDOFF.md` (ไฟล์นี้)
+- [ ] บันทึก SUPABASE_URL + ANON_KEY + DSN (ถ้ามี) ที่ใช้จริงไว้ใน 1Password หรือ secret manager ของลูกค้า
+
+### Smoke test ที่แนะนำให้ทำก่อนเริ่ม demo
+1. Login ด้วย staff owner
+2. สร้าง patient ใหม่ → ดูว่า HN format = `C-2026-XXXXX` (ปีปัจจุบัน)
+3. สร้าง appointment ให้ patient นั้น
+4. เปิด appointment → กด "Save Treatment" → ใส่ products used (ที่มี stock) → save
+5. ตรวจ patient profile screen → ต้องเห็น treatment + outstanding ทันที (single-call bundle)
+6. ตรวจ inventory → stock ของ product ที่ใช้ถูกตัดเป๊ะ
+7. ลอง save treatment ที่ใช้ product เกิน stock → ต้อง toast InsufficientStockException + ไม่สร้าง partial row
+8. Logout → switch เป็น receptionist → confirm settings page ไม่เปิดได้
 
 ## กรอบการยอมรับงาน
 

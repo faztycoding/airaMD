@@ -1,3 +1,4 @@
+import '../repositories/_helpers.dart';
 import 'enums.dart';
 
 class TreatmentRecord {
@@ -28,6 +29,12 @@ class TreatmentRecord {
   final String? diagramUrl;
   final String? notes;
   final CommissionStatus commissionStatus;
+
+  /// Server-assigned optimistic-concurrency token. Defaults to `1` for new
+  /// records that have not been persisted yet. Bumped by the
+  /// `bump_treatment_version` Postgres trigger on every update.
+  final int version;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -59,6 +66,7 @@ class TreatmentRecord {
     this.diagramUrl,
     this.notes,
     this.commissionStatus = CommissionStatus.pending,
+    this.version = 1,
     this.createdAt,
     this.updatedAt,
   });
@@ -86,8 +94,8 @@ class TreatmentRecord {
         actualUnitsUsed: (json['actual_units_used'] as num?)?.toDouble(),
         responseToPrevious: TreatmentResponse.fromDb(
             json['response_to_previous'] as String?),
-        adverseEvents: _parseStringList(json['adverse_events']),
-        instructions: _parseStringList(json['instructions']),
+        adverseEvents: parseStringList(json['adverse_events']),
+        instructions: parseStringList(json['instructions']),
         followUpDate: json['follow_up_date'] != null
             ? DateTime.tryParse(json['follow_up_date'].toString())
             : null,
@@ -96,6 +104,7 @@ class TreatmentRecord {
         notes: json['notes'] as String?,
         commissionStatus:
             CommissionStatus.fromDb(json['commission_status'] as String?),
+        version: (json['version'] as num?)?.toInt() ?? 1,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
@@ -159,10 +168,4 @@ class TreatmentRecord {
         'notes': notes,
         'commission_status': commissionStatus.dbValue,
       };
-
-  static List<String> _parseStringList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value.map((e) => e.toString()).toList();
-    return [];
-  }
 }

@@ -4,13 +4,11 @@ part of 'patient_profile_screen.dart';
 // ═══════════════════════════════════════════════════════════════════
 // TAB 7: รูปภาพ (Photos) — Before / After panels
 // ═══════════════════════════════════════════════════════════════════
-
-// Provider for treatment records filtered by patient + category
-final _treatmentsByPatientCategoryProvider = FutureProvider.family<List<TreatmentRecord>, ({String patientId, String category})>((ref, params) async {
-  final repo = ref.watch(treatmentRepoProvider);
-  final all = await repo.getByPatient(patientId: params.patientId);
-  return all.where((t) => t.category.dbValue == params.category).toList();
-});
+//
+// (Previously declared `_treatmentsByPatientCategoryProvider` was used by the
+//  legacy per-category Treatment tabs. After the move to the unified
+//  Dermatology tab it is no longer needed and has been removed to keep the
+//  analyzer surface clean.)
 
 final _beforeAfterPairsProvider = FutureProvider.family<Map<String, List<PatientPhoto>>, String>((ref, patientId) async {
   final repo = ref.watch(photoRepoProvider);
@@ -51,55 +49,110 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
   }
 
   // ─── Create new comparison set ───
+  // Per client brief: use the date as the default title (the clinic identifies
+  // before/after sets primarily by the visit date). The user can still rename
+  // optionally — the date prefix stays for chronological sorting.
   Future<void> _createNewSet(bool isThai) async {
-    final controller = TextEditingController();
+    var pickedDate = DateTime.now();
+    final dateLabel = DateFormat(isThai ? 'd MMM yyyy' : 'MMM d, yyyy').format(pickedDate);
+    final controller = TextEditingController(text: dateLabel);
+
     final label = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          context.l10n.newComparisonSet,
-          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              context.l10n.nameComparisonHint,
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              style: GoogleFonts.plusJakartaSans(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: context.l10n.comparisonSetName,
-                hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            context.l10n.newComparisonSet,
+            style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date picker — drives the default set title.
+              AiraTapEffect(
+                onTap: () async {
+                  final selected = await showDatePicker(
+                    context: ctx,
+                    initialDate: pickedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 1)),
+                  );
+                  if (selected != null) {
+                    setDlg(() {
+                      pickedDate = selected;
+                      controller.text = DateFormat(
+                        isThai ? 'd MMM yyyy' : 'MMM d, yyyy',
+                      ).format(selected);
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AiraColors.woodPale.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 18, color: AiraColors.woodMid),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          DateFormat(isThai ? 'EEEE d MMMM yyyy' : 'EEEE, MMMM d, yyyy').format(pickedDate),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
+                        ),
+                      ),
+                      Text(
+                        isThai ? 'แตะเพื่อแก้ไข' : 'Tap to change',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(height: 12),
+              Text(
+                isThai
+                    ? 'ตั้งชื่อชุดเปรียบเทียบ (ค่าเริ่มต้นคือวันที่ — เปลี่ยนได้)'
+                    : 'Title (defaults to the selected date — you may rename)',
+                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                style: GoogleFonts.plusJakartaSans(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: context.l10n.comparisonSetName,
+                  hintStyle: GoogleFonts.plusJakartaSans(color: AiraColors.muted),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AiraColors.woodMid,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                final text = controller.text.trim();
+                Navigator.pop(ctx, text.isEmpty ? dateLabel : text);
+              },
+              child: Text(context.l10n.create, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.l10n.cancel, style: GoogleFonts.plusJakartaSans(color: AiraColors.muted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AiraColors.woodMid,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isNotEmpty) Navigator.pop(ctx, text);
-            },
-            child: Text(context.l10n.create, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-          ),
-        ],
       ),
     );
     if (label == null || label.isEmpty) return;
@@ -126,7 +179,9 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
         imageType: PhotoType.before,
         storagePath: '',
         description: label,
-        treatmentDate: DateTime.now(),
+        // Use the date the user actually chose for the comparison set so the
+        // header/timeline reflects the visit date, not the moment of creation.
+        treatmentDate: pickedDate,
       ));
       ref.invalidate(_beforeAfterPairsProvider(widget.patientId));
     } catch (e) {
@@ -145,7 +200,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
     setState(() => _uploading = true);
     try {
       final clinicId = ref.read(currentClinicIdProvider);
-      if (clinicId == null) throw Exception('No clinic');
+      if (clinicId == null) throw const MissingContextException('clinic_id');
       final bytes = await picked.readAsBytes();
       final ts = DateTime.now().millisecondsSinceEpoch;
       final ext = picked.name.split('.').last;

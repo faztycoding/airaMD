@@ -1,9 +1,107 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:airamd/core/models/models.dart';
+import 'package:airamd/core/repositories/repository_exceptions.dart';
 import 'package:airamd/features/treatments/treatment_post_save_service.dart';
 
 void main() {
-  group('TreatmentPostSaveService', () {
+  group('TreatmentPostSaveService.buildInventoryOps', () {
+    test('drops rows with missing product_id or non-positive quantity', () {
+      final ops = TreatmentPostSaveService.buildInventoryOps(
+        productsUsed: const [
+          {'product_id': 'p-1', 'quantity': 1.5, 'unit': 'ml'},
+          {'product_id': null, 'quantity': 1.0}, // missing id
+          {'product_id': 'p-2', 'quantity': 0}, // zero qty
+          {'product_id': 'p-3', 'quantity': -1}, // negative
+          {'product_id': 'p-4', 'quantity': 2.0}, // valid
+        ],
+        treatmentName: 'Botox',
+      );
+
+      expect(ops.map((o) => o.productId).toList(), ['p-1', 'p-4']);
+      expect(ops.first.quantity, 1.5);
+      expect(ops.first.unit, 'ml');
+      expect(ops.first.notes, 'Auto-deduct: Botox');
+    });
+
+    test('falls back to "U" unit when missing', () {
+      final ops = TreatmentPostSaveService.buildInventoryOps(
+        productsUsed: const [
+          {'product_id': 'p-1', 'quantity': 1.0},
+        ],
+        treatmentName: 'Filler',
+      );
+      expect(ops.single.unit, 'U');
+    });
+  });
+
+  group('TreatmentPostSaveService.markLinkedAppointmentCompleted', () {
+    const service = TreatmentPostSaveService();
+
+    final baseRecord = TreatmentRecord(
+      id: 'tr-001',
+      clinicId: 'clinic-001',
+      patientId: 'patient-001',
+      appointmentId: 'appt-001',
+      treatmentName: 'Botox',
+      category: TreatmentCategory.injectable,
+      date: DateTime(2026, 4, 13),
+    );
+
+    test('marks linked appointment completed', () async {
+      final calls = <Map<String, dynamic>>[];
+      await service.markLinkedAppointmentCompleted(
+        record: baseRecord,
+        updateAppointmentStatus: (id, status) async {
+          calls.add({'id': id, 'status': status});
+        },
+      );
+      expect(calls, [
+        {'id': 'appt-001', 'status': AppointmentStatus.completed}
+      ]);
+    });
+
+    test('skips when no appointment is linked', () async {
+      final calls = <Map<String, dynamic>>[];
+      final unlinked = TreatmentRecord(
+        id: 'tr-002',
+        clinicId: 'clinic-001',
+        patientId: 'patient-001',
+        appointmentId: null,
+        treatmentName: 'Botox',
+        category: TreatmentCategory.injectable,
+        date: DateTime(2026, 4, 13),
+      );
+      await service.markLinkedAppointmentCompleted(
+        record: unlinked,
+        updateAppointmentStatus: (id, status) async {
+          calls.add({'id': id, 'status': status});
+        },
+      );
+      expect(calls, isEmpty);
+    });
+
+    test('skips when appointmentId is empty string', () async {
+      final calls = <Map<String, dynamic>>[];
+      final emptyAppt = TreatmentRecord(
+        id: 'tr-003',
+        clinicId: 'clinic-001',
+        patientId: 'patient-001',
+        appointmentId: '',
+        treatmentName: 'Botox',
+        category: TreatmentCategory.injectable,
+        date: DateTime(2026, 4, 13),
+      );
+      await service.markLinkedAppointmentCompleted(
+        record: emptyAppt,
+        updateAppointmentStatus: (id, status) async {
+          calls.add({'id': id, 'status': status});
+        },
+      );
+      expect(calls, isEmpty);
+    });
+  });
+
+  group('TreatmentPostSaveService (legacy non-atomic flow)', () {
     const service = TreatmentPostSaveService();
 
     final record = TreatmentRecord(
@@ -79,7 +177,10 @@ void main() {
         updateAppointmentStatus: (_, __) async {},
         deductStock: (productId, quantity) async {
           if (productId == 'prod-002') {
-            throw Exception('insufficient stock');
+            // The repository now raises a typed exception rather than a bare
+            // `Exception('insufficient stock')`. The post-save service must
+            // still treat it as a non-fatal stock-sync failure.
+            throw const InsufficientStockException(productName: 'Filler');
           }
         },
         createInventoryTransaction: (_) async {},

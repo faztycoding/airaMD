@@ -12,41 +12,116 @@ import '../../core/localization/app_localizations.dart';
 final _searchQueryProvider = StateProvider<String>((ref) => '');
 final _activeFilterProvider = StateProvider<String>((ref) => 'ทั้งหมด');
 
-final _filteredPatientsProvider = FutureProvider<List<Patient>>((ref) async {
-  final clinicId = ref.watch(currentClinicIdProvider);
-  if (clinicId == null) return [];
-  final repo = ref.watch(patientRepoProvider);
-  final query = ref.watch(_searchQueryProvider);
-  final filter = ref.watch(_activeFilterProvider);
+/// Page size for the unfiltered list path. Large enough that <30-patient
+/// clinics fit in the first page (no pagination UI shown), small enough
+/// that an N=10000 clinic's first paint is still fast.
+const int _patientPageSize = 30;
 
-  List<Patient> patients;
-  if (query.isNotEmpty) {
-    patients = await repo.searchPatients(clinicId: clinicId, query: query);
-  } else if (filter == 'VIP') {
-    patients = await repo.getByStatus(clinicId: clinicId, status: PatientStatus.vip);
-  } else if (filter == 'STAR' || filter == '⭐') {
-    patients = await repo.getByStatus(clinicId: clinicId, status: PatientStatus.star);
-  } else if (filter == 'นัดวันนี้') {
-    final appointments = await ref.watch(todayAppointmentsProvider.future);
-    if (appointments.isEmpty) return [];
-    final patientIds = appointments.map((a) => a.patientId).toSet();
-    final allPatients = await repo.list(clinicId: clinicId);
-    patients = allPatients.where((p) => patientIds.contains(p.id)).toList();
-  } else if (filter == 'Follow-up') {
-    final apptRepo = ref.watch(appointmentRepoProvider);
-    final allAppts = await apptRepo.list(clinicId: clinicId, limit: 500);
-    final followUpIds = allAppts
-        .where((a) => a.status == AppointmentStatus.followUp)
-        .map((a) => a.patientId)
-        .toSet();
-    if (followUpIds.isEmpty) return [];
-    final allPatients = await repo.list(clinicId: clinicId);
-    patients = allPatients.where((p) => followUpIds.contains(p.id)).toList();
-  } else {
-    patients = await repo.list(clinicId: clinicId);
+/// Paginated patient list with infinite-scroll support.
+///
+/// The unfiltered "ทั้งหมด" path streams pages of [_patientPageSize] from
+/// the server. Filtered branches (search, VIP, "today's appointments",
+/// Follow-up) still load their (small) result set in a single request
+/// because the underlying queries already filter server-side.
+final paginatedPatientsProvider =
+    AsyncNotifierProvider<PaginatedPatientsNotifier, List<Patient>>(
+  PaginatedPatientsNotifier.new,
+);
+
+class PaginatedPatientsNotifier extends AsyncNotifier<List<Patient>> {
+  int _offset = 0;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  String _activeFilter = 'ทั้งหมด';
+  String _query = '';
+
+  /// Whether the next page exists. UI hides the "load more" indicator when
+  /// false.
+  bool get hasMore => _hasMore && _query.isEmpty && _activeFilter == 'ทั้งหมด';
+
+  @override
+  Future<List<Patient>> build() async {
+    // Re-build whenever the filter or search query changes.
+    _query = ref.watch(_searchQueryProvider);
+    _activeFilter = ref.watch(_activeFilterProvider);
+    final clinicId = ref.watch(currentClinicIdProvider);
+    if (clinicId == null) return [];
+    final repo = ref.watch(patientRepoProvider);
+
+    _offset = 0;
+    _hasMore = true;
+
+    if (_query.isNotEmpty) {
+      _hasMore = false; // search is already capped at 50
+      return repo.searchPatients(clinicId: clinicId, query: _query);
+    }
+    if (_activeFilter == 'VIP') {
+      _hasMore = false;
+      return repo.getByStatus(clinicId: clinicId, status: PatientStatus.vip);
+    }
+    if (_activeFilter == 'STAR' || _activeFilter == '⭐') {
+      _hasMore = false;
+      return repo.getByStatus(clinicId: clinicId, status: PatientStatus.star);
+    }
+    if (_activeFilter == 'นัดวันนี้') {
+      _hasMore = false;
+      final appointments = await ref.watch(todayAppointmentsProvider.future);
+      if (appointments.isEmpty) return [];
+      final patientIds = appointments.map((a) => a.patientId).toSet();
+      final allPatients =
+          await repo.list(clinicId: clinicId, limit: 500);
+      return allPatients.where((p) => patientIds.contains(p.id)).toList();
+    }
+    if (_activeFilter == 'Follow-up') {
+      _hasMore = false;
+      final apptRepo = ref.watch(appointmentRepoProvider);
+      final allAppts = await apptRepo.list(clinicId: clinicId, limit: 500);
+      final followUpIds = allAppts
+          .where((a) => a.status == AppointmentStatus.followUp)
+          .map((a) => a.patientId)
+          .toSet();
+      if (followUpIds.isEmpty) return [];
+      final allPatients =
+          await repo.list(clinicId: clinicId, limit: 500);
+      return allPatients.where((p) => followUpIds.contains(p.id)).toList();
+    }
+
+    // Default: paginated "ทั้งหมด" path.
+    final firstPage = await repo.list(
+      clinicId: clinicId,
+      limit: _patientPageSize,
+      offset: 0,
+    );
+    if (firstPage.length < _patientPageSize) _hasMore = false;
+    return firstPage;
   }
-  return patients;
-});
+
+  /// Load the next page and append to the current list.
+  ///
+  /// Re-entrant-safe: a second call while a page is already loading is a
+  /// no-op so a stutter-tap on the scroll sentinel doesn't fetch the same
+  /// page twice.
+  Future<void> loadMore() async {
+    if (_loadingMore || !hasMore) return;
+    _loadingMore = true;
+    try {
+      final clinicId = ref.read(currentClinicIdProvider);
+      if (clinicId == null) return;
+      final repo = ref.read(patientRepoProvider);
+      _offset += _patientPageSize;
+      final nextPage = await repo.list(
+        clinicId: clinicId,
+        limit: _patientPageSize,
+        offset: _offset,
+      );
+      if (nextPage.length < _patientPageSize) _hasMore = false;
+      final current = state.value ?? const <Patient>[];
+      state = AsyncData([...current, ...nextPage]);
+    } finally {
+      _loadingMore = false;
+    }
+  }
+}
 
 class PatientListScreen extends ConsumerStatefulWidget {
   const PatientListScreen({super.key});
@@ -66,7 +141,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final patientsAsync = ref.watch(_filteredPatientsProvider);
+    final patientsAsync = ref.watch(paginatedPatientsProvider);
+    final canLoadMore =
+        ref.watch(paginatedPatientsProvider.notifier).hasMore;
     final countAsync = ref.watch(patientCountProvider);
     final activeFilter = ref.watch(_activeFilterProvider);
     final canManageClinicalData = ref.watch(canManageClinicalDataProvider);
@@ -324,18 +401,51 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       );
                     }
                     return RefreshIndicator(
-                      onRefresh: () async => ref.invalidate(_filteredPatientsProvider),
+                      onRefresh: () async =>
+                          ref.invalidate(paginatedPatientsProvider),
                       color: AiraColors.woodDk,
                       child: ListView.separated(
                         padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                        itemCount: patients.length,
-                        separatorBuilder: (context, i) => const SizedBox(height: 8),
+                        // +1 trailing item is the load-more sentinel that
+                        // (a) auto-triggers `loadMore()` on first build and
+                        // (b) shows a small spinner while the next page is
+                        // fetched. We only add it when there's actually a
+                        // next page; otherwise the list ends cleanly.
+                        itemCount: patients.length + (canLoadMore ? 1 : 0),
+                        separatorBuilder: (context, i) =>
+                            const SizedBox(height: 8),
                         itemBuilder: (context, index) {
+                          if (index >= patients.length) {
+                            // Schedule the page fetch outside the build
+                            // phase so we don't mutate provider state while
+                            // the widget tree is being constructed.
+                            WidgetsBinding.instance
+                                .addPostFrameCallback((_) {
+                              ref
+                                  .read(paginatedPatientsProvider.notifier)
+                                  .loadMore();
+                            });
+                            return const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AiraColors.woodMid,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
                           return _PatientCard(
                             patient: patients[index],
-                            onTap: () => context.push('/patients/${patients[index].id}'),
+                            onTap: () => context
+                                .push('/patients/${patients[index].id}'),
                             onDelete: effectiveRole == StaffRole.owner
-                                ? () => _confirmDelete(context, ref, patients[index])
+                                ? () => _confirmDelete(
+                                    context, ref, patients[index])
                                 : null,
                           );
                         },
@@ -354,7 +464,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         Text('$e', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.muted), textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () => ref.invalidate(_filteredPatientsProvider),
+                          onPressed: () =>
+                              ref.invalidate(paginatedPatientsProvider),
                           icon: const Icon(Icons.refresh_rounded, size: 18),
                           label: Text(l.retry),
                         ),
@@ -387,7 +498,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
               Navigator.pop(ctx);
               try {
                 await ref.read(patientListProvider.notifier).deletePatient(patient.id);
-                ref.invalidate(_filteredPatientsProvider);
+                ref.invalidate(paginatedPatientsProvider);
                 ref.invalidate(patientCountProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

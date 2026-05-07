@@ -79,25 +79,17 @@ class FinancialRepository extends BaseRepository {
   }
 
   /// Calculate today's revenue for a clinic.
+  ///
+  /// Pushes the SUM down to Postgres via the `get_today_revenue` RPC
+  /// (migration 009) so the dashboard does a single round trip even on
+  /// clinics with thousands of daily transactions, instead of fetching every
+  /// row to the client and summing in Dart.
   Future<double> todayRevenue(String clinicId) async {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    final records = await getByDateRange(
-      clinicId: clinicId,
-      from: startOfDay,
-      to: endOfDay,
+    final result = await client.rpc(
+      'get_today_revenue',
+      params: {'p_clinic_id': clinicId},
     );
-
-    double total = 0;
-    for (final r in records) {
-      if (r.type == FinancialType.payment) {
-        total += r.amount;
-      } else if (r.type == FinancialType.refund) {
-        total -= r.amount;
-      }
-    }
-    return total;
+    if (result == null) return 0;
+    return (result as num).toDouble();
   }
 }

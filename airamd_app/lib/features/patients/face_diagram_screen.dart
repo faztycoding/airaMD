@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,7 @@ import '../../core/widgets/aira_premium_form.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'face_outline_painter.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/repositories/repository_exceptions.dart';
 
 /// Face Diagram — Clinical Illustration / Skin Mapping screen
 /// Modeled after MEKO Hospital "Dermatology Consultation and Progress Record"
@@ -297,7 +299,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
     final picture = recorder.endRecording();
     final img = await picture.toImage(width, height);
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) throw Exception('Failed to render diagram to PNG');
+    if (byteData == null) throw const RenderFailureException();
     return byteData.buffer.asUint8List();
   }
 
@@ -307,7 +309,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
 
     try {
       final clinicId = ref.read(currentClinicIdProvider);
-      if (clinicId == null) throw Exception('No clinic ID');
+      if (clinicId == null) throw const MissingContextException('clinic_id');
       final now = DateTime.now();
       final ts = now.millisecondsSinceEpoch;
       final storage = ref.read(supabaseClientProvider).storage;
@@ -319,7 +321,11 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
           .toList();
 
       if (viewsWithStrokes.isEmpty) {
-        throw Exception('ยังไม่ได้วาด Diagram — กรุณาวาดอย่างน้อย 1 view');
+        // Bilingual message — UI passes it through verbatim via the
+        // typed exception's `.message`.
+        throw const DomainValidationException(
+          'ยังไม่ได้วาด Diagram — กรุณาวาดอย่างน้อย 1 view',
+        );
       }
 
       // Process each view: render → upload → save record
@@ -635,56 +641,97 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Face diagram image (gender-aware)
+            // Face diagram image (gender-aware) — wrapped in RepaintBoundary so
+            // it does not re-rasterize on every stroke update (perf + Apple Pencil
+            // tracking smoothness).
             Positioned.fill(
-              child: _buildDiagramImage(_currentView),
-            ),
-            // User strokes
-            CustomPaint(
-              painter: _StrokesPainter(
-                strokes: _strokes[_currentView] ?? [],
-                currentStroke: _currentStroke,
+              child: RepaintBoundary(
+                child: _buildDiagramImage(_currentView),
               ),
             ),
-            // Touch handler — blocked in read-only mode
+            // User strokes
+            RepaintBoundary(
+              child: CustomPaint(
+                painter: _StrokesPainter(
+                  strokes: _strokes[_currentView] ?? [],
+                  currentStroke: _currentStroke,
+                ),
+              ),
+            ),
+            // Touch handler — blocked in read-only mode.
+            //
+            // We use a `Listener` (raw PointerEvents) instead of a `GestureDetector`
+            // so the canvas does NOT compete in the gesture arena with the parent
+            // ScrollView. Apple Pencil / finger drawing now starts immediately on
+            // the very first contact instead of waiting for kTouchSlop to be
+            // exceeded — which is what made it feel like the user had to "press
+            // hard" before strokes appeared.
+            //
+            // The wrapping `RawGestureDetector` with an `EagerGestureRecognizer`
+            // claims the gesture arena on pointer-down so the parent
+            // `SingleChildScrollView` cannot hijack vertical drags as a scroll.
+            // `Listener` is independent of the arena and still receives every
+            // pointer move event for stroke building.
             if (!_isReadOnly)
-              GestureDetector(
-                onPanStart: (details) {
-                  if (_isEraser) {
-                    _eraseStrokeAt(details.localPosition);
-                  } else {
-                    setState(() {
-                      _currentStroke = _Stroke(
-                        points: [details.localPosition],
-                        color: _penColor,
-                        size: _penSize,
-                      );
-                    });
-                  }
-                },
-                onPanUpdate: (details) {
-                  if (_isEraser) {
-                    _eraseStrokeAt(details.localPosition);
-                  } else {
-                    if (_currentStroke == null) return;
-                    setState(() {
-                      _currentStroke = _Stroke(
-                        points: [..._currentStroke!.points, details.localPosition],
-                        color: _currentStroke!.color,
-                        size: _currentStroke!.size,
-                      );
-                    });
-                  }
-                },
-                onPanEnd: (_) {
-                  if (!_isEraser && _currentStroke != null) {
-                    setState(() {
-                      _strokes[_currentView]!.add(_currentStroke!);
-                      _redoStack[_currentView]!.clear();
-                      _currentStroke = null;
-                    });
-                  }
-                },
+              Positioned.fill(
+                child: RawGestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  gestures: <Type, GestureRecognizerFactory>{
+                    EagerGestureRecognizer:
+                        GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+                      () => EagerGestureRecognizer(),
+                      (instance) {},
+                    ),
+                  },
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (event) {
+                      if (_isEraser) {
+                        _eraseStrokeAt(event.localPosition);
+                      } else {
+                        setState(() {
+                          _currentStroke = _Stroke(
+                            points: [event.localPosition],
+                            color: _penColor,
+                            size: _penSize,
+                          );
+                        });
+                      }
+                    },
+                    onPointerMove: (event) {
+                      if (_isEraser) {
+                        _eraseStrokeAt(event.localPosition);
+                      } else {
+                        if (_currentStroke == null) return;
+                        setState(() {
+                          _currentStroke = _Stroke(
+                            points: [..._currentStroke!.points, event.localPosition],
+                            color: _currentStroke!.color,
+                            size: _currentStroke!.size,
+                          );
+                        });
+                      }
+                    },
+                    onPointerUp: (_) {
+                      if (!_isEraser && _currentStroke != null) {
+                        setState(() {
+                          _strokes[_currentView]!.add(_currentStroke!);
+                          _redoStack[_currentView]!.clear();
+                          _currentStroke = null;
+                        });
+                      }
+                    },
+                    onPointerCancel: (_) {
+                      if (!_isEraser && _currentStroke != null) {
+                        setState(() {
+                          _strokes[_currentView]!.add(_currentStroke!);
+                          _redoStack[_currentView]!.clear();
+                          _currentStroke = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
               ),
             // View label
             Positioned(

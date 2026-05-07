@@ -180,11 +180,75 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                           validator: (v) => v == null || v.trim().isEmpty ? 'กรุณาระบุชื่อคอร์ส' : null,
                         ),
                         const SizedBox(height: 14),
+                        // Per-course total price (saved to DB).
                         TextFormField(
                           controller: _priceCtrl,
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'ราคา (฿)', hint: 'เช่น 15000', prefixIcon: Icons.payments_rounded),
+                          decoration: airaFieldDecoration(
+                            label: '${context.l10n.pricePerCourse} (฿) *',
+                            hint: 'เช่น 15000',
+                            prefixIcon: Icons.payments_rounded,
+                          ),
                           keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 14),
+                        // Read-only computed price-per-session for instant
+                        // visibility while pricing the course. Updates as
+                        // either the price or session counts change.
+                        Builder(
+                          builder: (_) {
+                            final total = double.tryParse(_priceCtrl.text.trim()) ?? 0;
+                            final bought = int.tryParse(_sessionsBoughtCtrl.text.trim()) ?? 0;
+                            final bonus = int.tryParse(_sessionsBonusCtrl.text.trim()) ?? 0;
+                            final sessions = bought + bonus;
+                            final perSession = sessions > 0 ? total / sessions : 0;
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AiraColors.gold.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AiraColors.gold.withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calculate_rounded,
+                                      size: 18, color: AiraColors.gold),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          context.l10n.pricePerSession,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AiraColors.muted,
+                                          ),
+                                        ),
+                                        Text(
+                                          sessions > 0
+                                              ? '฿${perSession.toStringAsFixed(0)} × $sessions ${context.l10n.sessionsCountLabel.toLowerCase()}'
+                                              : context.l10n.pricePerSessionHint,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AiraColors.charcoal,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                       ]),
@@ -229,6 +293,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                             style: airaFieldTextStyle,
                             decoration: airaFieldDecoration(label: 'ซื้อ (ครั้ง)', prefixIcon: Icons.shopping_bag_rounded),
                             keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
                           )),
                           const SizedBox(width: 14),
                           Expanded(child: TextFormField(
@@ -236,6 +301,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                             style: airaFieldTextStyle,
                             decoration: airaFieldDecoration(label: 'แถม (ครั้ง)', prefixIcon: Icons.card_giftcard_rounded),
                             keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
                           )),
                         ]),
                         const SizedBox(height: 10),

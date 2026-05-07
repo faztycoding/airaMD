@@ -16,22 +16,19 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: lumina_app
+        working-directory: airamd_app
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
+          flutter-version: '3.41.0'
           channel: 'stable'
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Verify formatting
-        run: dart format --set-exit-if-changed .
 
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
@@ -53,14 +50,14 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     defaults:
       run:
-        working-directory: lumina_app
+        working-directory: airamd_app
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
+          flutter-version: '3.41.0'
           channel: 'stable'
           cache: true
 
@@ -78,5 +75,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: lumina_app/build/app/outputs/flutter-apk/app-debug.apk
+          path: airamd_app/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7

@@ -1,3 +1,5 @@
+import '../repositories/_helpers.dart';
+
 class TreatmentRule {
   final String id;
   final String clinicId;
@@ -27,7 +29,7 @@ class TreatmentRule {
         treatmentType: json['treatment_type'] as String,
         repeatMinDays: json['repeat_min_days'] as int? ?? 30,
         repeatIdealDays: json['repeat_ideal_days'] as int? ?? 60,
-        contraindications: _parseStringList(json['contraindications']),
+        contraindications: parseStringList(json['contraindications']),
         notes: json['notes'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
@@ -53,10 +55,4 @@ class TreatmentRule {
         'contraindications': contraindications,
         'notes': notes,
       };
-
-  static List<String> _parseStringList(dynamic value) {
-    if (value == null) return [];
-    if (value is List) return value.map((e) => e.toString()).toList();
-    return [];
-  }
 }

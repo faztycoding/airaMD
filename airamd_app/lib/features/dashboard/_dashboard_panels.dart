@@ -670,8 +670,32 @@ class _PatientSearchBarState extends ConsumerState<_PatientSearchBar> {
   final _focusNode = FocusNode();
   bool _showResults = false;
 
+  // 250 ms debounce window — long enough to coalesce typing bursts, short
+  // enough that the suggestions feel live. Each keystroke cancels the
+  // pending timer so we only fire one search RPC after the user pauses.
+  Timer? _debounce;
+  static const Duration _debounceDuration = Duration(milliseconds: 250);
+
+  void _onSearchChanged(String value) {
+    final trimmedLen = value.trim().length;
+    setState(() => _showResults = trimmedLen >= 2);
+
+    _debounce?.cancel();
+    if (trimmedLen < 2) {
+      // Clear immediately — empty/short input shouldn't wait for the
+      // debounce window to release stale results from view.
+      ref.read(_dashSearchQueryProvider.notifier).state = '';
+      return;
+    }
+    _debounce = Timer(_debounceDuration, () {
+      if (!mounted) return;
+      ref.read(_dashSearchQueryProvider.notifier).state = value;
+    });
+  }
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _ctrl.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -725,6 +749,7 @@ class _PatientSearchBarState extends ConsumerState<_PatientSearchBar> {
                   ? IconButton(
                       icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: () {
+                        _debounce?.cancel();
                         _ctrl.clear();
                         ref.read(_dashSearchQueryProvider.notifier).state = '';
                         setState(() => _showResults = false);
@@ -737,10 +762,7 @@ class _PatientSearchBarState extends ConsumerState<_PatientSearchBar> {
                 vertical: 14,
               ),
             ),
-            onChanged: (v) {
-              ref.read(_dashSearchQueryProvider.notifier).state = v;
-              setState(() => _showResults = v.trim().length >= 2);
-            },
+            onChanged: _onSearchChanged,
           ),
         ),
 
@@ -856,6 +878,7 @@ class _PatientSearchBarState extends ConsumerState<_PatientSearchBar> {
                         color: AiraColors.muted,
                       ),
                       onTap: () {
+                        _debounce?.cancel();
                         _ctrl.clear();
                         ref.read(_dashSearchQueryProvider.notifier).state = '';
                         setState(() => _showResults = false);

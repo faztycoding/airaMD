@@ -22,3 +22,4 @@ export 'message_log.dart';
 export 'audit_log.dart';
 export 'digital_notepad.dart';
 export 'treatment_rule.dart';
+export 'patient_profile_bundle.dart';

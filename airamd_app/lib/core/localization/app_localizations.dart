@@ -102,6 +102,17 @@ class AppL10n {
   String get laser => isThai ? 'เลเซอร์' : 'Laser';
   String get treatment => isThai ? 'ทรีทเมนต์' : 'Treatment';
   String get antiAging => 'Anti-aging';
+  String get dermatology => isThai ? 'การรักษา (ผิวหนัง)' : 'Dermatology';
+  String get allCategories => isThai ? 'ทั้งหมด' : 'All';
+  String get createFollowUpAppt => isThai ? 'สร้างนัดติดตามผล' : 'Create follow-up appointment';
+  String get followUpCreated => isThai ? 'สร้างนัดติดตามผลและเชื่อมกับการรักษาเรียบร้อย' : 'Follow-up appointment created and linked to this treatment';
+  String get pricePerSession => isThai ? 'ราคาต่อครั้ง' : 'Price per session';
+  String get pricePerCourse => isThai ? 'ราคาต่อคอร์ส' : 'Price per course';
+  String get pricePerSessionHint => isThai ? 'คำนวณอัตโนมัติ' : 'Computed automatically';
+  String get sessionsCountLabel => isThai ? 'จำนวนครั้ง' : 'Sessions';
+  String get supplementsAndMeds => isThai ? 'อาหารเสริม & ยา' : 'Supplements & Medications';
+  String get surgeryHistory => isThai ? 'ประวัติศัลยกรรม' : 'Surgery History';
+  String get noSurgeryHistory => isThai ? 'ไม่มีประวัติศัลยกรรม' : 'No surgery history';
   String get courseTable => isThai ? 'ตารางคอร์ส' : 'Course Table';
   String get beforeAfter => 'Before & After';
   String get consentForm => 'Consent Form';

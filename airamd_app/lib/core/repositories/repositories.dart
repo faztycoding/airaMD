@@ -2,6 +2,8 @@
 library;
 
 export 'base_repository.dart';
+export 'repository_exceptions.dart';
+export 'inventory_op.dart';
 export 'patient_repository.dart';
 export 'appointment_repository.dart';
 export 'staff_repository.dart';

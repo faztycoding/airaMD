@@ -60,6 +60,19 @@ final patientByIdProvider =
   return repo.get(id);
 });
 
+/// Aggregated patient profile bundle — patient row + recent treatments +
+/// recent appointments + active courses + outstanding balance.
+///
+/// Fetched in a single round trip via the `get_patient_full` RPC. Tabs that
+/// only need a slice of this data (e.g. the messages tab) keep their own
+/// providers; the dashboard / header / Dermatology / finance tabs read from
+/// here so opening a profile is one network call instead of five.
+final patientProfileBundleProvider =
+    FutureProvider.family<PatientProfileBundle?, String>((ref, id) async {
+  final repo = ref.watch(patientRepoProvider);
+  return repo.getFullProfile(id);
+});
+
 /// Patient count for current clinic.
 final patientCountProvider = FutureProvider<int>((ref) async {
   final clinicId = ref.watch(currentClinicIdProvider);

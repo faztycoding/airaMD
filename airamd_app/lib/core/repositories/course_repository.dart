@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import 'base_repository.dart';
+import 'repository_exceptions.dart';
 
 class CourseRepository extends BaseRepository {
   CourseRepository(SupabaseClient client) : super(client, 'courses');
@@ -52,24 +53,33 @@ class CourseRepository extends BaseRepository {
     return data.map(Course.fromJson).toList();
   }
 
-  /// Increment sessions_used by 1.
+  /// Atomically increment `sessions_used` by 1 and refresh status.
+  ///
+  /// Backed by the `use_course_session` RPC (migration 015). Two
+  /// concurrent calls are serialised by a row-level lock inside the
+  /// RPC — the previous client-side read-modify-write could double-
+  /// spend a session when two staff members clicked at the same time.
+  ///
+  /// Throws [NotFoundException] when the course id is unknown and
+  /// [UnknownRepositoryException] for the `course_exhausted` case
+  /// (all sessions already used) — callers can `toString()` to
+  /// surface the server message.
   Future<Course> useSession(String courseId) async {
-    final course = await get(courseId);
-    if (course == null) throw Exception('Course not found');
-
-    final newUsed = course.sessionsUsed + 1;
-    final total = course.sessionsTotal ?? (course.sessionsBought + course.sessionsBonus);
-    String newStatus = course.status.dbValue;
-    if (newUsed >= total) {
-      newStatus = CourseStatus.completed.dbValue;
-    } else if (total - newUsed <= 1) {
-      newStatus = CourseStatus.low.dbValue;
+    try {
+      final result = await client.rpc(
+        'use_course_session',
+        params: {'p_course_id': courseId},
+      );
+      if (result == null) {
+        throw const NotFoundException('course');
+      }
+      // The RPC returns a single courses row (as JSONB via PostgREST).
+      return Course.fromJson(Map<String, dynamic>.from(result as Map));
+    } on PostgrestException catch (e) {
+      if (e.code == 'P0002' || e.message.contains('not found')) {
+        throw const NotFoundException('course');
+      }
+      throw UnknownRepositoryException(e.message, e);
     }
-
-    final data = await update(courseId, {
-      'sessions_used': newUsed,
-      'status': newStatus,
-    });
-    return Course.fromJson(data);
   }
 }
