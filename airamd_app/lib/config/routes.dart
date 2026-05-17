@@ -87,8 +87,11 @@ List<RouteBase> get appRoutes => [
     GoRoute(
       path: '/patients/:id',
       parentNavigatorKey: rootNavigatorKey,
-      builder: (context, state) => PatientProfileScreen(
-        patientId: state.pathParameters['id']!,
+      builder: (context, state) => AccessGuard(
+        permission: AiraPermission.patients,
+        child: PatientProfileScreen(
+          patientId: state.pathParameters['id']!,
+        ),
       ),
     ),
     GoRoute(

@@ -11,6 +11,7 @@ enum AiraPermission {
   settings,
   financial,
   clinical,
+  patients,
 }
 
 class AccessGuard extends ConsumerWidget {
@@ -50,6 +51,8 @@ class AccessGuard extends ConsumerWidget {
         return ref.watch(canAccessFinancialDataProvider);
       case AiraPermission.clinical:
         return ref.watch(canManageClinicalDataProvider);
+      case AiraPermission.patients:
+        return ref.watch(canViewPatientsProvider);
     }
   }
 
@@ -61,6 +64,8 @@ class AccessGuard extends ConsumerWidget {
         return context.l10n.noAccessFinancial;
       case AiraPermission.clinical:
         return context.l10n.noAccessClinical;
+      case AiraPermission.patients:
+        return context.l10n.isThai ? 'ไม่พบข้อมูลพนักงาน' : 'Staff profile not found';
     }
   }
 
@@ -79,6 +84,10 @@ class AccessGuard extends ConsumerWidget {
         return l.isThai
             ? 'การสร้างหรือแก้ไขข้อมูลการรักษา, consent และ face diagram จำกัดเฉพาะบัญชีหมอหรือเจ้าของระบบ'
             : 'Creating or editing treatment records, consent, and face diagrams is limited to doctor or owner accounts.';
+      case AiraPermission.patients:
+        return l.isThai
+            ? 'กรุณาเข้าสู่ระบบด้วยบัญชีพนักงานที่มีสิทธิ์เข้าถึงข้อมูลผู้ป่วย'
+            : 'Please sign in with a staff account that has access to patient data.';
     }
   }
 }
@@ -97,11 +106,13 @@ class InlineAccessGuard extends ConsumerWidget {
           AiraPermission.settings => isThai ? 'ส่วนนี้ถูกจำกัดสิทธิ์' : 'This section is restricted',
           AiraPermission.financial => isThai ? 'ข้อมูลการเงินถูกจำกัดสิทธิ์' : 'Financial data is restricted',
           AiraPermission.clinical => isThai ? 'ข้อมูลการรักษาถูกจำกัดสิทธิ์' : 'Clinical data is restricted',
+          AiraPermission.patients => isThai ? 'ไม่พบข้อมูลพนักงาน' : 'Staff profile not found',
         },
         description: switch (permission) {
           AiraPermission.settings => isThai ? 'ใช้บัญชีหมอหรือเจ้าของระบบเพื่อเข้าถึงส่วนนี้' : 'Use a doctor or owner account to open this section.',
           AiraPermission.financial => isThai ? 'ใช้บัญชีหมอหรือเจ้าของระบบเพื่อดู spending และ payment history' : 'Use a doctor or owner account to view spending and payment history.',
           AiraPermission.clinical => isThai ? 'ใช้บัญชีหมอหรือเจ้าของระบบเพื่อบันทึกหรือแก้ไขข้อมูลการรักษา' : 'Use a doctor or owner account to create or edit clinical records.',
+          AiraPermission.patients => isThai ? 'กรุณาเข้าสู่ระบบด้วยบัญชีพนักงานที่มีสิทธิ์' : 'Please sign in with a staff account that has access to patient data.',
         },
       ),
     );

@@ -63,6 +63,11 @@ final canAccessSettingsProvider = Provider<bool>((ref) {
   return role == StaffRole.owner || role == StaffRole.doctor;
 });
 
+final canViewPatientsProvider = Provider<bool>((ref) {
+  final staffAsync = ref.watch(currentStaffProvider);
+  return staffAsync.valueOrNull != null;
+});
+
 final isLimitedStaffProvider = Provider<bool>((ref) {
   return !ref.watch(canManageClinicalDataProvider);
 });
