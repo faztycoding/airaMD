@@ -94,6 +94,7 @@ class StaffManagementScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController(text: existing?.fullName ?? '');
     final nickCtrl = TextEditingController(text: existing?.nickname ?? '');
     final salaryCtrl = TextEditingController(text: existing?.baseSalary?.toStringAsFixed(0) ?? '');
+    final licenseCtrl = TextEditingController(text: existing?.licenseNumber ?? '');
     final roleNotifier = ValueNotifier<StaffRole>(existing?.role ?? StaffRole.receptionist);
     final activeNotifier = ValueNotifier<bool>(existing?.isActive ?? true);
     final isEdit = existing != null;
@@ -170,6 +171,31 @@ class StaffManagementScreen extends ConsumerWidget {
                           )).toList(),
                           onChanged: (v) { if (v != null) roleNotifier.value = v; },
                         ),
+                      ),
+                      const SizedBox(height: 14),
+                      // License number (เลข ว.) — only meaningful for
+                      // doctors / owners but the field is always available
+                      // so a clinic can plan ahead. Empty string → null.
+                      ValueListenableBuilder<StaffRole>(
+                        valueListenable: roleNotifier,
+                        builder: (_, role, __) {
+                          final isClinical = role == StaffRole.owner ||
+                              role == StaffRole.doctor;
+                          return TextField(
+                            controller: licenseCtrl,
+                            style: airaFieldTextStyle,
+                            decoration: airaFieldDecoration(
+                              label: context.l10n.isThai
+                                  ? 'เลขใบอนุญาต (ว.) ${isClinical ? "*" : ""}'
+                                  : 'License Number (ว.) ${isClinical ? "*" : ""}',
+                              hint: context.l10n.isThai
+                                  ? 'เช่น 12345'
+                                  : 'e.g. 12345',
+                              prefixIcon: Icons.badge_rounded,
+                            ),
+                            keyboardType: TextInputType.text,
+                          );
+                        },
                       ),
                       const SizedBox(height: 14),
                       TextField(
@@ -251,6 +277,9 @@ class StaffManagementScreen extends ConsumerWidget {
                           isActive: activeNotifier.value,
                           pinHash: existing?.pinHash,
                           avatarUrl: existing?.avatarUrl,
+                          licenseNumber: licenseCtrl.text.trim().isEmpty
+                              ? null
+                              : licenseCtrl.text.trim(),
                         );
 
                         try {

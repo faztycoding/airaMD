@@ -636,25 +636,25 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                       _buildSoapSection(),
                       const SizedBox(height: 28),
 
-                      // ─── Device / Laser section ───
-                      if (_category == TreatmentCategory.laser) ...[
-                        const AiraSectionHeader(
-                          step: 0,
-                          icon: Icons.settings_suggest_rounded,
-                          title: 'อุปกรณ์ / เลเซอร์',
-                          subtitle: 'Device, Energy, Pulse, Shots',
-                        ),
-                        _buildDeviceSection(),
-                        const SizedBox(height: 28),
-                      ],
-
-                      // ─── Section 3: Products used ───
-                      const AiraSectionHeader(
+                      // ─── Section 3: อุปกรณ์ + ผลิตภัณฑ์ที่ใช้ (รวมกลุ่มเดียว) ───
+                      // Per client feedback (May 17): "ผลิตภัณฑ์ที่ใช้ ให้อยู่
+                      // ส่วนเดียวกัน" — device parameters and products are now
+                      // shown under one section header so the user sees them
+                      // as a single "what was used" group.
+                      AiraSectionHeader(
                         step: 3,
                         icon: Icons.inventory_2_rounded,
-                        title: 'ผลิตภัณฑ์ที่ใช้',
-                        subtitle: 'ผลิตภัณฑ์, จำนวน, หน่วย',
+                        title: context.l10n.isThai
+                            ? 'อุปกรณ์ + ผลิตภัณฑ์ที่ใช้'
+                            : 'Devices + Products Used',
+                        subtitle: context.l10n.isThai
+                            ? 'เครื่อง, พารามิเตอร์, ผลิตภัณฑ์, จำนวน'
+                            : 'Device, parameters, products, quantity',
                       ),
+                      if (_category == TreatmentCategory.laser) ...[
+                        _buildDeviceSection(),
+                        const SizedBox(height: 14),
+                      ],
                       _buildProductsSection(),
                       const SizedBox(height: 28),
 
@@ -947,46 +947,85 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         ],
         const SizedBox(height: 14),
         doctorsAsync.when(
-          data: (doctors) => DropdownButtonFormField<String>(
-            value: doctors.any((option) => option.staff.id == _selectedDoctorId)
-                ? _selectedDoctorId
-                : null,
-            style: airaFieldTextStyle,
-            decoration: airaFieldDecoration(
-              label: context.l10n.responsibleDoctor,
-              hint: context.l10n.doctorHint,
-              prefixIcon: Icons.person_rounded,
-            ),
-            items: doctors
-                .map(
-                  (option) => DropdownMenuItem(
-                    value: option.staff.id,
-                    child: Text(
-                      '${option.staff.fullName} • ${_doctorStatusLabel(option.schedule?.status)}',
-                      style: airaFieldTextStyle,
-                      overflow: TextOverflow.ellipsis,
+          data: (doctors) {
+            final selectedDoctor = doctors.firstWhere(
+              (o) => o.staff.id == _selectedDoctorId,
+              orElse: () => doctors.isNotEmpty
+                  ? doctors.first
+                  : _DoctorOption(
+                      staff: Staff(
+                        id: '',
+                        clinicId: '',
+                        fullName: '',
+                      ),
                     ),
+            );
+            final hasSelection = doctors.any((o) => o.staff.id == _selectedDoctorId);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: hasSelection ? _selectedDoctorId : null,
+                  isExpanded: true,
+                  style: airaFieldTextStyle,
+                  decoration: airaFieldDecoration(
+                    // Clearer label so the client knows this IS the doctor field.
+                    label: context.l10n.isThai
+                        ? 'แพทย์ผู้รักษา (Treating Doctor) *'
+                        : 'Treating Doctor *',
+                    hint: context.l10n.isThai
+                        ? 'เลือกแพทย์ที่ทำหัตถการ'
+                        : 'Select the treating doctor',
+                    prefixIcon: Icons.person_rounded,
                   ),
-                )
-                .toList(),
-            onChanged: doctors.isEmpty
-                ? null
-                : (value) {
-                    setState(() {
-                      _selectedDoctorId = value;
-                      _doctorSelectionPrimed = true;
-                    });
+                  items: doctors.map((option) {
+                    final lic = option.staff.licenseNumber;
+                    final licLabel = (lic != null && lic.trim().isNotEmpty)
+                        ? ' • ว.${lic.trim()}'
+                        : '';
+                    return DropdownMenuItem(
+                      value: option.staff.id,
+                      child: Text(
+                        '${option.staff.fullName}$licLabel',
+                        style: airaFieldTextStyle,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: doctors.isEmpty
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedDoctorId = value;
+                            _doctorSelectionPrimed = true;
+                          });
+                        },
+                  validator: (_) {
+                    if (doctors.isEmpty) {
+                      return context.l10n.isThai
+                          ? 'ยังไม่มีข้อมูลแพทย์ในระบบ'
+                          : 'No doctors in the system yet';
+                    }
+                    if (_selectedDoctorId == null || _selectedDoctorId!.isEmpty) {
+                      return context.l10n.isThai
+                          ? 'กรุณาเลือกแพทย์ผู้รักษา'
+                          : 'Please select a treating doctor';
+                    }
+                    return null;
                   },
-            validator: (_) {
-              if (doctors.isEmpty) {
-                return 'ยังไม่มีข้อมูลแพทย์ในระบบ';
-              }
-              if (_selectedDoctorId == null || _selectedDoctorId!.isEmpty) {
-                return 'กรุณาเลือกแพทย์ผู้รับผิดชอบ';
-              }
-              return null;
-            },
-          ),
+                ),
+                if (hasSelection) ...[
+                  const SizedBox(height: 12),
+                  _DoctorInfoCard(
+                    fullName: selectedDoctor.staff.fullName,
+                    licenseNumber: selectedDoctor.staff.licenseNumber,
+                    statusLabel: _doctorStatusLabel(selectedDoctor.schedule?.status),
+                    isThai: context.l10n.isThai,
+                  ),
+                ],
+              ],
+            );
+          },
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
@@ -1565,5 +1604,127 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       case TreatmentResponse.notApplicable:
         return 'ไม่ระบุ (N/A)';
     }
+  }
+}
+
+/// Read-only summary card shown beneath the doctor dropdown so the doctor's
+/// name, schedule status and medical license number (เลข ว.) are clearly
+/// visible side-by-side. Per client request — they couldn't tell the
+/// dropdown was the doctor field, and wanted the license number on its
+/// own line.
+class _DoctorInfoCard extends StatelessWidget {
+  final String fullName;
+  final String? licenseNumber;
+  final String statusLabel;
+  final bool isThai;
+
+  const _DoctorInfoCard({
+    required this.fullName,
+    required this.licenseNumber,
+    required this.statusLabel,
+    required this.isThai,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLicense =
+        licenseNumber != null && licenseNumber!.trim().isNotEmpty;
+    final licenseDisplay = hasLicense ? licenseNumber!.trim() : '—';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AiraColors.woodPale.withValues(alpha: 0.12),
+            AiraColors.gold.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AiraColors.woodMid.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.person_pin_rounded,
+                  size: 18, color: AiraColors.woodMid),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  fullName.isEmpty
+                      ? (isThai ? 'ไม่ระบุชื่อ' : 'Unnamed')
+                      : fullName,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AiraColors.charcoal,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AiraColors.sage.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AiraColors.sage,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.badge_rounded,
+                size: 16,
+                color: hasLicense ? AiraColors.gold : AiraColors.terra,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isThai ? 'เลข ว.' : 'License No.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AiraColors.muted,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                licenseDisplay,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: hasLicense ? AiraColors.charcoal : AiraColors.terra,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+          if (!hasLicense) ...[
+            const SizedBox(height: 4),
+            Text(
+              isThai
+                  ? 'หมอท่านนี้ยังไม่ได้บันทึกเลข ว. — แก้ที่ "จัดการพนักงาน"'
+                  : 'No license number on file — set it in "Staff Management"',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: AiraColors.terra,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

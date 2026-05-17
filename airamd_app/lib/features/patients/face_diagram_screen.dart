@@ -307,6 +307,9 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
+    final isThai = ref.read(isThaiProvider);
+    bool storageUploadFailed = false;
+
     try {
       final clinicId = ref.read(currentClinicIdProvider);
       if (clinicId == null) throw const MissingContextException('clinic_id');
@@ -321,11 +324,25 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
           .toList();
 
       if (viewsWithStrokes.isEmpty) {
-        // Bilingual message — UI passes it through verbatim via the
-        // typed exception's `.message`.
-        throw const DomainValidationException(
-          'ยังไม่ได้วาด Diagram — กรุณาวาดอย่างน้อย 1 view',
-        );
+        // Soft warning — not a red error. Reset state and bail.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isThai
+                    ? 'ยังไม่ได้วาด Diagram — แตะที่ภาพแล้วลากเพื่อวาดก่อนกดบันทึก'
+                    : "You haven't drawn anything yet — tap and drag on the face to draw before saving",
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+              ),
+              backgroundColor: AiraColors.gold,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+        return;
       }
 
       // Process each view: render → upload → save record
@@ -352,8 +369,13 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                 ),
               );
           imageUrl = storagePath;
-        } catch (_) {
-          // Storage upload failed (bucket may not exist) — save strokes only
+        } catch (uploadError, st) {
+          // Surface upload errors to console while still letting the
+          // strokes save. Helps the dev team diagnose RLS / bucket
+          // misconfiguration when the user reports "save didn't work".
+          storageUploadFailed = true;
+          debugPrint('[FaceDiagram] Storage upload failed for $view: '
+              '$uploadError\n$st');
         }
 
         // 3. Create FaceDiagram record (strokes always saved)
@@ -372,26 +394,52 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
 
       // Success
       if (mounted) {
+        final msg = storageUploadFailed
+            ? (isThai
+                ? 'บันทึกข้อมูลแล้ว แต่ภาพยังอัปโหลดไม่สำเร็จ — ลายเส้นยังเปิดดูย้อนหลังได้'
+                : 'Saved (strokes only) — PNG upload failed, will retry next save')
+            : (isThai
+                ? 'บันทึก Diagram เรียบร้อย (${viewsWithStrokes.length} views)'
+                : 'Diagram saved successfully (${viewsWithStrokes.length} views)');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'บันทึก Diagram เรียบร้อย (${viewsWithStrokes.length} views)',
+              msg,
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: AiraColors.sage,
+            backgroundColor:
+                storageUploadFailed ? AiraColors.gold : AiraColors.sage,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         context.pop();
       }
-    } catch (e) {
+    } catch (e, st) {
+      // Always log to console — invaluable when the client says "the
+      // save button doesn't do anything".
+      debugPrint('[FaceDiagram] Save failed: $e\n$st');
       if (mounted) {
-        final msg = e.toString().contains('Bucket not found')
-            ? 'กรุณาสร้าง Storage Bucket "face-diagrams" ใน Supabase Dashboard ก่อน'
-            : 'Error: $e';
+        final body = e.toString();
+        final friendly = body.contains('Bucket not found')
+            ? (isThai
+                ? 'ไม่พบ Storage Bucket "face-diagrams" — กรุณาแจ้งทีมหลังบ้าน'
+                : 'Storage bucket "face-diagrams" missing — contact support')
+            : body.contains('row-level security') ||
+                    body.contains('permission denied')
+                ? (isThai
+                    ? 'สิทธิ์ไม่พอในการบันทึก — เข้าด้วยบัญชีหมอ/Owner แล้วลองอีกครั้ง'
+                    : 'Permission denied — sign in as Doctor/Owner and retry')
+                : 'Error: $e';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AiraColors.terra),
+          SnackBar(
+            content: Text(friendly),
+            backgroundColor: AiraColors.terra,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } finally {

@@ -38,6 +38,14 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   CourseStatus _status = CourseStatus.active;
   DateTime? _expiryDate;
 
+  // Per client request (May 17): courses now carry their own treatment
+  // category, responsible doctor and a list of products consumed per
+  // session. This mirrors the treatment form so the clinic can plan a
+  // course end-to-end in one place.
+  TreatmentCategory _treatmentCategory = TreatmentCategory.injectable;
+  String? _selectedDoctorId;
+  final List<Map<String, dynamic>> _productsUsed = [];
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +76,16 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       _selectedPatientId = course.patientId;
       _status = course.status;
       _expiryDate = course.expiryDate;
+      if (course.treatmentCategory != null) {
+        _treatmentCategory =
+            TreatmentCategory.fromDb(course.treatmentCategory!.toUpperCase());
+      }
+      _selectedDoctorId = course.responsibleDoctorId;
+      for (final p in course.productsUsed) {
+        if (p is Map) {
+          _productsUsed.add(Map<String, dynamic>.from(p));
+        }
+      }
     });
   }
 
@@ -104,6 +122,12 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       status: _status,
       expiryDate: _expiryDate,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      treatmentCategory: _treatmentCategory.dbValue.toLowerCase(),
+      responsibleDoctorId:
+          (_selectedDoctorId != null && _selectedDoctorId!.isNotEmpty)
+              ? _selectedDoctorId
+              : null,
+      productsUsed: _productsUsed,
     );
 
     try {
@@ -254,32 +278,49 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                       ]),
                       const SizedBox(height: 28),
 
-                      // ─── Treatment Details ───
-                      AiraSectionHeader(step: 0, icon: Icons.medical_services_rounded, title: context.l10n.treatmentDetails, subtitle: context.l10n.treatmentDetailsSubtitle),
+                      // ─── Treatment Details + Products (รวมเป็นกลุ่มเดียว) ───
+                      // Per client feedback (May 17): they want product
+                      // picker INSIDE the course form, grouped under the
+                      // treatment category. Selecting "Injectable" shows
+                      // injectables; "Laser" shows devices; "Treatment"
+                      // shows treatment products.
+                      AiraSectionHeader(
+                        step: 0,
+                        icon: Icons.medical_services_rounded,
+                        title: context.l10n.treatmentDetails,
+                        subtitle: context.l10n.isThai
+                            ? 'ประเภท, แพทย์, ผลิตภัณฑ์ที่ใช้ในคอร์ส'
+                            : 'Category, doctor and products used per session',
+                      ),
                       AiraPremiumCard(accentColor: AiraColors.terra, children: [
-                        DropdownButtonFormField<String>(
+                        DropdownButtonFormField<TreatmentCategory>(
+                          value: _treatmentCategory,
+                          isExpanded: true,
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: context.l10n.treatmentCategory, prefixIcon: Icons.category_rounded),
-                          items: [
-                            DropdownMenuItem(value: 'laser', child: Text('Laser', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'injectable', child: Text('Injectable', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'treatment', child: Text('Treatment', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'anti_aging', child: Text('Anti-aging', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'skincare', child: Text('Skincare', style: airaFieldTextStyle)),
-                            DropdownMenuItem(value: 'other', child: Text(context.l10n.other, style: airaFieldTextStyle)),
-                          ],
-                          onChanged: (_) {},
+                          decoration: airaFieldDecoration(
+                            label: context.l10n.treatmentCategory,
+                            prefixIcon: Icons.category_rounded,
+                          ),
+                          items: TreatmentCategory.values
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                    _treatmentCategoryLabel(c),
+                                    style: airaFieldTextStyle,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _treatmentCategory = v);
+                          },
                         ),
                         const SizedBox(height: 14),
-                        TextFormField(
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: context.l10n.responsibleDoctor, hint: context.l10n.doctorHint, prefixIcon: Icons.person_rounded),
-                        ),
+                        _buildDoctorDropdown(),
                         const SizedBox(height: 14),
-                        TextFormField(
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: context.l10n.treatmentArea, hint: context.l10n.areaHint, prefixIcon: Icons.face_rounded),
-                        ),
+                        _buildProductsPicker(),
                         const SizedBox(height: 8),
                       ]),
                       const SizedBox(height: 28),
@@ -456,4 +497,384 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       ],
     );
   }
+
+  // ─── Helpers added in May 17 round ─────────────────────────
+
+  String _treatmentCategoryLabel(TreatmentCategory c) {
+    final isThai = context.l10n.isThai;
+    switch (c) {
+      case TreatmentCategory.injectable:
+        return isThai ? 'ฉีด (Injectable)' : 'Injectable';
+      case TreatmentCategory.laser:
+        return isThai ? 'เลเซอร์ / เครื่อง (Laser)' : 'Laser / Device';
+      case TreatmentCategory.treatment:
+        return isThai ? 'ทรีทเมนต์ (Treatment)' : 'Treatment';
+      case TreatmentCategory.other:
+        return isThai ? 'อื่นๆ (Other)' : 'Other';
+    }
+  }
+
+  /// Maps a course-level treatment category to the product category
+  /// shown in the picker. "Treatment" courses include all skincare-style
+  /// SKUs except the obvious laser machines.
+  bool _matchesCategory(Product product) {
+    switch (_treatmentCategory) {
+      case TreatmentCategory.injectable:
+        return product.category == ProductCategory.botox ||
+            product.category == ProductCategory.filler ||
+            product.category == ProductCategory.biostimulator ||
+            product.category == ProductCategory.polynucleotide ||
+            product.category == ProductCategory.skinbooster;
+      case TreatmentCategory.laser:
+        return product.category == ProductCategory.laser;
+      case TreatmentCategory.treatment:
+        // Anything that isn't a laser machine is fair game.
+        return product.category != ProductCategory.laser;
+      case TreatmentCategory.other:
+        return true;
+    }
+  }
+
+  Widget _buildDoctorDropdown() {
+    final clinicId = ref.watch(currentClinicIdProvider);
+    if (clinicId == null) {
+      return const SizedBox.shrink();
+    }
+    final doctorsAsync = ref.watch(_courseDoctorsProvider);
+    return doctorsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
+      ),
+      error: (e, _) => Text(
+        '${context.l10n.isThai ? "โหลดรายชื่อแพทย์ไม่สำเร็จ" : "Could not load doctors"}: $e',
+        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.terra),
+      ),
+      data: (doctors) {
+        final hasSelection = doctors.any((d) => d.id == _selectedDoctorId);
+        final selected = hasSelection
+            ? doctors.firstWhere((d) => d.id == _selectedDoctorId)
+            : null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DropdownButtonFormField<String>(
+              value: hasSelection ? _selectedDoctorId : null,
+              isExpanded: true,
+              style: airaFieldTextStyle,
+              decoration: airaFieldDecoration(
+                label: context.l10n.isThai
+                    ? 'แพทย์ผู้รับผิดชอบ (Treating Doctor)'
+                    : 'Treating Doctor',
+                hint: context.l10n.doctorHint,
+                prefixIcon: Icons.person_rounded,
+              ),
+              items: doctors.map((d) {
+                final lic = d.licenseNumber;
+                final licLabel = (lic != null && lic.trim().isNotEmpty)
+                    ? ' • ว.${lic.trim()}'
+                    : '';
+                return DropdownMenuItem(
+                  value: d.id,
+                  child: Text(
+                    '${d.fullName}$licLabel',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: doctors.isEmpty
+                  ? null
+                  : (v) => setState(() => _selectedDoctorId = v),
+            ),
+            if (selected != null && selected.licenseNumber != null &&
+                selected.licenseNumber!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.badge_rounded,
+                      size: 16, color: AiraColors.gold),
+                  const SizedBox(width: 6),
+                  Text(
+                    context.l10n.isThai ? 'เลข ว.' : 'License No.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AiraColors.muted,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    selected.licenseNumber!.trim(),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AiraColors.charcoal,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildProductsPicker() {
+    final productsAsync = ref.watch(productListProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.l10n.isThai
+              ? 'ผลิตภัณฑ์ที่ใช้ในคอร์ส (ต่อครั้ง)'
+              : 'Products Used (Per Session)',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AiraColors.charcoal,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ..._productsUsed.asMap().entries.map((entry) {
+          final i = entry.key;
+          final p = entry.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AiraColors.parchment.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2_rounded,
+                    size: 16, color: AiraColors.woodLt),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    p['name']?.toString() ?? '',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AiraColors.charcoal,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${p['quantity'] ?? 0} ${p['unit'] ?? 'U'}',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AiraColors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AiraTapEffect(
+                  onTap: () =>
+                      setState(() => _productsUsed.removeAt(i)),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AiraColors.terra.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.close_rounded,
+                        size: 14, color: AiraColors.terra),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        productsAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+                child: SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AiraColors.woodMid))),
+          ),
+          error: (e, _) => Text(
+            '${context.l10n.isThai ? "โหลดผลิตภัณฑ์ไม่สำเร็จ" : "Could not load products"}: $e',
+            style: GoogleFonts.plusJakartaSans(
+                fontSize: 12, color: AiraColors.terra),
+          ),
+          data: (products) {
+            final filtered = products.where(_matchesCategory).toList();
+            return AiraTapEffect(
+              onTap: filtered.isEmpty
+                  ? null
+                  : () => _showProductPicker(filtered),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: filtered.isEmpty
+                      ? AiraColors.muted.withValues(alpha: 0.06)
+                      : AiraColors.gold.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AiraColors.gold.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded,
+                        size: 18,
+                        color: filtered.isEmpty
+                            ? AiraColors.muted
+                            : AiraColors.gold),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        filtered.isEmpty
+                            ? (context.l10n.isThai
+                                ? 'ยังไม่มีผลิตภัณฑ์ในหมวดนี้ — เพิ่มได้ที่หน้าคลังสินค้า'
+                                : 'No products in this category yet — add some in Inventory')
+                            : (context.l10n.isThai
+                                ? 'เพิ่มผลิตภัณฑ์ (${filtered.length} รายการ)'
+                                : 'Add Product (${filtered.length} available)'),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: filtered.isEmpty
+                              ? AiraColors.muted
+                              : AiraColors.gold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showProductPicker(List<Product> products) async {
+    final qtyCtrl = TextEditingController(text: '1');
+    Product? selected = products.first;
+    final isThai = context.l10n.isThai;
+
+    final added = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
+        ),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                isThai ? 'เลือกผลิตภัณฑ์' : 'Select Product',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AiraColors.charcoal,
+                ),
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<Product>(
+                value: selected,
+                isExpanded: true,
+                decoration: airaFieldDecoration(
+                  label: isThai ? 'ผลิตภัณฑ์' : 'Product',
+                  prefixIcon: Icons.inventory_2_rounded,
+                ),
+                items: products
+                    .map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(
+                            '${p.name}${p.brand != null ? " (${p.brand})" : ""}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (v) => setSheet(() => selected = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: qtyCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: airaFieldTextStyle,
+                decoration: airaFieldDecoration(
+                  label: isThai ? 'จำนวนต่อครั้ง' : 'Quantity per session',
+                  prefixIcon: Icons.tag_rounded,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(context.l10n.cancel),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AiraColors.woodMid,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (selected == null) {
+                          Navigator.pop(ctx);
+                          return;
+                        }
+                        Navigator.pop(ctx, {
+                          'product_id': selected!.id,
+                          'name': selected!.name,
+                          'unit': selected!.unit,
+                          'quantity':
+                              double.tryParse(qtyCtrl.text.trim()) ?? 1,
+                        });
+                      },
+                      child: Text(
+                        context.l10n.save,
+                        style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (added != null && mounted) {
+      setState(() => _productsUsed.add(added));
+    }
+  }
 }
+
+// ─── Provider: doctors for the current clinic ────────────────
+final _courseDoctorsProvider = FutureProvider<List<Staff>>((ref) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return const [];
+  final staffRepo = ref.watch(staffRepoProvider);
+  return staffRepo.getDoctors(clinicId);
+});

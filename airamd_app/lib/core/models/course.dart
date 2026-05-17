@@ -14,6 +14,15 @@ class Course {
   final CourseStatus status;
   final DateTime? expiryDate;
   final String? notes;
+  /// Treatment category — drives which products / devices are pickable.
+  /// Mirrors TreatmentCategory.dbValue: 'injectable' | 'laser' | 'treatment'
+  /// | 'anti_aging' | 'skincare' | 'other'.
+  final String? treatmentCategory;
+  /// Doctor responsible for course delivery. Optional.
+  final String? responsibleDoctorId;
+  /// JSON array of products consumed per session of this course.
+  /// Format: [{ 'product_id': uuid, 'name': str, 'quantity': num }].
+  final List<dynamic> productsUsed;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -31,6 +40,9 @@ class Course {
     this.status = CourseStatus.active,
     this.expiryDate,
     this.notes,
+    this.treatmentCategory,
+    this.responsibleDoctorId,
+    this.productsUsed = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -60,6 +72,10 @@ class Course {
             ? DateTime.tryParse(json['expiry_date'].toString())
             : null,
         notes: json['notes'] as String?,
+        treatmentCategory: json['treatment_category'] as String?,
+        responsibleDoctorId: json['responsible_doctor_id'] as String?,
+        productsUsed:
+            (json['products_used'] as List<dynamic>?) ?? const [],
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
@@ -82,6 +98,10 @@ class Course {
         if (expiryDate != null)
           'expiry_date': expiryDate!.toIso8601String().split('T').first,
         if (notes != null) 'notes': notes,
+        if (treatmentCategory != null) 'treatment_category': treatmentCategory,
+        if (responsibleDoctorId != null)
+          'responsible_doctor_id': responsibleDoctorId,
+        'products_used': productsUsed,
       };
 
   Map<String, dynamic> toUpdateJson() => {
@@ -94,5 +114,8 @@ class Course {
         'status': status.dbValue,
         'expiry_date': expiryDate?.toIso8601String().split('T').first,
         'notes': notes,
+        'treatment_category': treatmentCategory,
+        'responsible_doctor_id': responsibleDoctorId,
+        'products_used': productsUsed,
       };
 }

@@ -187,31 +187,6 @@ class _AiraAppState extends ConsumerState<AiraApp> {
   }
 }
 
-/// Placeholder that redirects based on auth state.
-/// The actual login UI is in login_screen.dart imported via auth_gate.dart.
-class _LoginPlaceholder extends ConsumerWidget {
-  const _LoginPlaceholder();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // This is a placeholder; the router redirect handles the actual flow.
-    // When auth completes, the router will redirect away.
-    final authAsync = ref.watch(isAuthenticatedProvider);
-
-    // Show loading while auth state resolves
-    if (authAsync.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Should not reach here due to redirect, but show error if it does
-    return const Scaffold(
-      body: Center(child: Text('Redirecting...')),
-    );
-  }
-}
-
 /// Refresh listenable that notifies GoRouter when auth/PIN state changes.
 class _RouterRefresh extends ChangeNotifier {
   _RouterRefresh(WidgetRef ref) {

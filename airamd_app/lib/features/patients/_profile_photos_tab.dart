@@ -194,8 +194,108 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
   }
 
   // ─── Pick & upload photo for a slot ───
+  // Per client feedback (May 17): they wanted to take photos directly with
+  // the iPad camera in addition to picking from gallery. Show a bottom
+  // sheet with both options instead of jumping straight into the picker.
+  Future<ImageSource?> _askPhotoSource(bool isThai) async {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AiraColors.muted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                isThai ? 'เพิ่มรูปจาก' : 'Add photo from',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AiraColors.charcoal,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AiraColors.woodMid.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded,
+                      color: AiraColors.woodMid),
+                ),
+                title: Text(
+                  isThai ? 'ถ่ายรูป' : 'Take Photo',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  isThai
+                      ? 'ใช้กล้องของ iPad ถ่ายตอนนี้'
+                      : "Use the iPad's camera right now",
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12, color: AiraColors.muted),
+                ),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AiraColors.gold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child:
+                      const Icon(Icons.photo_library_rounded, color: AiraColors.gold),
+                ),
+                title: Text(
+                  isThai ? 'เลือกจากแกลอรี่' : 'Choose from Gallery',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  isThai
+                      ? 'เลือกรูปที่บันทึกไว้แล้ว'
+                      : 'Pick a photo already in your library',
+                  style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12, color: AiraColors.muted),
+                ),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _uploadPhoto(String setLabel, PhotoType type, bool isThai) async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048, imageQuality: 85);
+    final source = await _askPhotoSource(isThai);
+    if (source == null) return;
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 2048,
+      imageQuality: 85,
+      preferredCameraDevice: CameraDevice.rear,
+    );
     if (picked == null) return;
     setState(() => _uploading = true);
     try {

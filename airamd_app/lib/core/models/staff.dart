@@ -11,6 +11,9 @@ class Staff {
   final bool isActive;
   final String? pinHash;
   final String? avatarUrl;
+  /// Medical license number (เลข ว.) — stored as nullable text so
+  /// non-clinical staff (e.g. receptionists) need not provide one.
+  final String? licenseNumber;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -25,6 +28,7 @@ class Staff {
     this.isActive = true,
     this.pinHash,
     this.avatarUrl,
+    this.licenseNumber,
     this.createdAt,
     this.updatedAt,
   });
@@ -40,6 +44,7 @@ class Staff {
         isActive: json['is_active'] as bool? ?? true,
         pinHash: json['pin_hash'] as String?,
         avatarUrl: json['avatar_url'] as String?,
+        licenseNumber: json['license_number'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
@@ -58,6 +63,7 @@ class Staff {
         'is_active': isActive,
         if (pinHash != null) 'pin_hash': pinHash,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
+        if (licenseNumber != null) 'license_number': licenseNumber,
       };
 
   Map<String, dynamic> toUpdateJson() => {
@@ -68,6 +74,7 @@ class Staff {
         'is_active': isActive,
         'pin_hash': pinHash,
         'avatar_url': avatarUrl,
+        'license_number': licenseNumber,
       };
 
   Staff copyWith({
@@ -81,6 +88,7 @@ class Staff {
     bool? isActive,
     String? pinHash,
     String? avatarUrl,
+    String? licenseNumber,
   }) =>
       Staff(
         id: id ?? this.id,
@@ -93,6 +101,7 @@ class Staff {
         isActive: isActive ?? this.isActive,
         pinHash: pinHash ?? this.pinHash,
         avatarUrl: avatarUrl ?? this.avatarUrl,
+        licenseNumber: licenseNumber ?? this.licenseNumber,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
