@@ -1,0 +1,14 @@
+#!/bin/sh
+# This is a generated file; do not edit or check into version control.
+export "FLUTTER_ROOT=/Users/faztycoding/development/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/faztycoding/Documents/GitHub/airaMD/airamd_app"
+export "COCOAPODS_PARALLEL_CODE_SIGN=true"
+export "FLUTTER_TARGET=lib/main.dart"
+export "FLUTTER_BUILD_DIR=build"
+export "FLUTTER_BUILD_NAME=1.0.0"
+export "FLUTTER_BUILD_NUMBER=6"
+export "DART_DEFINES=U1VQQUJBU0VfVVJMPWh0dHBzOi8vcHpxanFxYWVreG1mZGxyeGJnbWsuc3VwYWJhc2UuY28=,U1VQQUJBU0VfQU5PTl9LRVk9ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5CNmNXcHhjV0ZsYTNodFptUnNjbmhpWjIxcklpd2ljbTlzWlNJNkltRnViMjRpTENKcFlYUWlPakUzTnpReU9UVXpOVEFzSW1WNGNDSTZNakE0T1RnM01UTTFNSDAuLTFHRWpLb2JCa3kwcHNJbW5Da2hCWmNhRnpPM1JRWjRnRHlRVjBNT1VlTQ==,RU5WPXByb2Q=,RkxVVFRFUl9WRVJTSU9OPTMuNDEuNg==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049ZGI1MGUyMDE2OA==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049NDI1Y2ZiNTRkMA==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMS40"
+export "DART_OBFUSCATION=false"
+export "TRACK_WIDGET_CREATION=false"
+export "TREE_SHAKE_ICONS=true"
+export "PACKAGE_CONFIG=/Users/faztycoding/Documents/GitHub/airaMD/airamd_app/.dart_tool/package_config.json"
