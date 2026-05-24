@@ -79,6 +79,13 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   // Products used — list of {name, quantity}
   final List<Map<String, dynamic>> _productsUsed = [];
 
+  // Additional machines used (laser/device sessions) — list of
+  // {name, parameters}. Parallel controllers keep cursor position
+  // stable while typing. Added in Round 4 (May 24 2026).
+  final List<Map<String, dynamic>> _machinesUsed = [];
+  final List<TextEditingController> _machineNameCtrls = [];
+  final List<TextEditingController> _machineParamCtrls = [];
+
   // Adverse events & instructions
   final List<String> _adverseEvents = [];
   final List<String> _instructions = [];
@@ -101,6 +108,12 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     _followUpTimeCtrl.dispose();
     _adverseCtrl.dispose();
     _instructionCtrl.dispose();
+    for (final c in _machineNameCtrls) {
+      c.dispose();
+    }
+    for (final c in _machineParamCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -144,7 +157,33 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           _productsUsed.add(Map<String, dynamic>.from(p));
         }
       }
+      for (final m in record.machinesUsed) {
+        if (m is Map) {
+          final entry = Map<String, dynamic>.from(m);
+          _machinesUsed.add(entry);
+          _machineNameCtrls
+              .add(TextEditingController(text: (entry['name'] ?? '').toString()));
+          _machineParamCtrls.add(
+              TextEditingController(text: (entry['parameters'] ?? '').toString()));
+        }
+      }
       _safetyChecked = true; // Skip safety for edits
+    });
+  }
+
+  void _addMachine() {
+    setState(() {
+      _machinesUsed.add({'name': '', 'parameters': ''});
+      _machineNameCtrls.add(TextEditingController());
+      _machineParamCtrls.add(TextEditingController());
+    });
+  }
+
+  void _removeMachine(int index) {
+    setState(() {
+      _machinesUsed.removeAt(index);
+      _machineNameCtrls.removeAt(index).dispose();
+      _machineParamCtrls.removeAt(index).dispose();
     });
   }
 
@@ -299,6 +338,12 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           ? null
           : _totalShotsCtrl.text.trim(),
       productsUsed: _productsUsed,
+      // Drop entries where both fields are empty so the DB row stays clean.
+      machinesUsed: _machinesUsed.where((m) {
+        final n = (m['name'] ?? '').toString().trim();
+        final p = (m['parameters'] ?? '').toString().trim();
+        return n.isNotEmpty || p.isNotEmpty;
+      }).toList(),
       actualUnitsUsed: double.tryParse(_unitsUsedCtrl.text.trim()),
       responseToPrevious: _response,
       adverseEvents: _adverseEvents,
@@ -1004,6 +1049,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   }
 
   Widget _buildDeviceSection() {
+    final isThai = context.l10n.isThai;
     return AiraPremiumCard(
       accentColor: AiraColors.gold,
       children: [
@@ -1017,6 +1063,82 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           const SizedBox(width: 14),
           Expanded(child: _premiumField('จำนวน Shots', _totalShotsCtrl, icon: Icons.tag_rounded, keyboard: TextInputType.number)),
         ]),
+        // ── Additional machines list (Round 4 feedback) ───────────────
+        // Lets the user log MORE machines used in the same session, each
+        // with a free-text parameters string. Backed by `machines_used`
+        // JSONB column (migration 020).
+        if (_machinesUsed.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Divider(color: AiraColors.woodPale.withValues(alpha: 0.3), height: 24),
+          Text(
+            isThai ? 'เครื่องเพิ่มเติม' : 'Additional Machines',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AiraColors.charcoal,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ..._machinesUsed.asMap().entries.map((entry) {
+            final i = entry.key;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 4),
+              decoration: BoxDecoration(
+                color: AiraColors.parchment.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AiraColors.woodPale.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _premiumField(
+                          isThai ? 'เครื่อง' : 'Machine',
+                          _machineNameCtrls[i],
+                          icon: Icons.precision_manufacturing_rounded,
+                          onChanged: (v) => _machinesUsed[i]['name'] = v,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        tooltip: isThai ? 'ลบ' : 'Remove',
+                        icon: const Icon(Icons.close_rounded,
+                            color: AiraColors.terra, size: 20),
+                        onPressed: () => _removeMachine(i),
+                      ),
+                    ],
+                  ),
+                  _premiumField(
+                    isThai ? 'พารามิเตอร์' : 'Parameters',
+                    _machineParamCtrls[i],
+                    icon: Icons.tune_rounded,
+                    onChanged: (v) => _machinesUsed[i]['parameters'] = v,
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _addMachine,
+            icon: const Icon(Icons.add_circle_outline_rounded,
+                color: AiraColors.woodMid, size: 20),
+            label: Text(
+              isThai ? 'เพิ่มเครื่อง' : 'Add machine',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AiraColors.woodDk,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1498,7 +1620,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     );
   }
 
-  Widget _premiumField(String label, TextEditingController ctrl, {String? hint, IconData? icon, TextInputType? keyboard}) {
+  Widget _premiumField(String label, TextEditingController ctrl, {String? hint, IconData? icon, TextInputType? keyboard, ValueChanged<String>? onChanged}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
@@ -1506,6 +1628,7 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         keyboardType: keyboard,
         style: airaFieldTextStyle,
         decoration: airaFieldDecoration(label: label, hint: hint, prefixIcon: icon),
+        onChanged: onChanged,
       ),
     );
   }

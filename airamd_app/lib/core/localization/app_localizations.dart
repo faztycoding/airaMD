@@ -212,8 +212,8 @@ class AppL10n {
   String get otherSpecify => isThai ? 'อื่นๆ (ระบุ)...' : 'Other (Specify)...';
   String get newPatientRegistration => isThai ? 'ลงทะเบียนผู้รับบริการใหม่' : 'New Patient Registration';
   String get contact => isThai ? 'ติดต่อ' : 'Contact';
-  String get statusAndId => isThai ? 'สถานะ & เอกสาร' : 'Status & Identification';
-  String get statusAndIdDesc => isThai ? 'สถานะผู้รับบริการ, เลขบัตร' : 'Patient status and ID documents';
+  String get statusAndId => isThai ? 'เอกสารแสดงตน' : 'Identification Documents';
+  String get statusAndIdDesc => isThai ? 'เลขบัตรประชาชน, Passport' : 'National ID, Passport';
   String get medicalHistory => isThai ? 'ประวัติทางการแพทย์' : 'Medical History';
   String get medicalConditionsLabel => isThai ? 'โรคประจำตัว (คั่นด้วย ,)' : 'Medical conditions (comma-separated)';
   String get medicalConditionsHint => isThai ? 'เช่น ไมเกรน, เบาหวาน' : 'e.g., migraine, diabetes';

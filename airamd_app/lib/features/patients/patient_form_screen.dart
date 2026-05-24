@@ -379,7 +379,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       AiraPremiumCard(
                         accentColor: AiraColors.gold,
                         children: [
-                          _statusPicker(),
+                          // Status picker removed per client feedback (May 24,
+                          // 2026): NORMAL/VIP/STAR is editable from the
+                          // patient profile screen — no need on registration.
                           Row(
                             children: [
                               Expanded(
@@ -591,46 +593,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   Widget _smokingPicker() => _dropdownRow<SmokingType>('สูบบุหรี่', _smoking, SmokingType.values, (v) => setState(() => _smoking = v), (v) => v.label());
   Widget _alcoholPicker() => _dropdownRow<AlcoholType>('แอลกอฮอล์', _alcohol, AlcoholType.values, (v) => setState(() => _alcohol = v), (v) => v.label());
   Widget _channelPicker() => _dropdownRow<PreferredChannel>('ช่องทางที่ต้องการ', _channel, PreferredChannel.values, (v) => setState(() => _channel = v), (v) => v.label());
-
-  Widget _statusPicker() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(context.l10n.patientStatus, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.muted)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: PatientStatus.values.map((s) {
-              final selected = _status == s;
-              return AiraTapEffect(
-                onTap: () => setState(() => _status = s),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: selected ? AiraColors.primaryGradient : null,
-                    color: selected ? null : AiraColors.parchment,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: selected ? Colors.transparent : AiraColors.woodPale.withValues(alpha: 0.3)),
-                    boxShadow: selected
-                        ? [BoxShadow(color: AiraColors.woodDk.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 2))]
-                        : null,
-                  ),
-                  child: Text(
-                    s.dbValue,
-                    style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? Colors.white : AiraColors.muted),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _dropdownRow<T>(String label, T? value, List<T> items, ValueChanged<T> onChanged, String Function(T) display) {
     return Padding(

@@ -20,6 +20,10 @@ class TreatmentRecord {
   final String? pulseSpot;
   final String? totalShots;
   final List<dynamic> productsUsed;
+  /// List of {name, parameters} entries for additional laser/device
+  /// machines used in a session. Stored as JSONB in `machines_used`.
+  /// Added in migration 020 (Round 4 client feedback, May 24 2026).
+  final List<dynamic> machinesUsed;
   final double? actualUnitsUsed;
   final TreatmentResponse responseToPrevious;
   final List<String> adverseEvents;
@@ -61,6 +65,7 @@ class TreatmentRecord {
     this.pulseSpot,
     this.totalShots,
     this.productsUsed = const [],
+    this.machinesUsed = const [],
     this.actualUnitsUsed,
     this.responseToPrevious = TreatmentResponse.notApplicable,
     this.adverseEvents = const [],
@@ -96,6 +101,7 @@ class TreatmentRecord {
         pulseSpot: json['pulse_spot'] as String?,
         totalShots: json['total_shots'] as String?,
         productsUsed: (json['products_used'] as List<dynamic>?) ?? [],
+        machinesUsed: (json['machines_used'] as List<dynamic>?) ?? [],
         actualUnitsUsed: (json['actual_units_used'] as num?)?.toDouble(),
         responseToPrevious: TreatmentResponse.fromDb(
             json['response_to_previous'] as String?),
@@ -137,6 +143,7 @@ class TreatmentRecord {
         if (pulseSpot != null) 'pulse_spot': pulseSpot,
         if (totalShots != null) 'total_shots': totalShots,
         'products_used': productsUsed,
+        'machines_used': machinesUsed,
         if (actualUnitsUsed != null) 'actual_units_used': actualUnitsUsed,
         'response_to_previous': responseToPrevious.dbValue,
         'adverse_events': adverseEvents,
@@ -164,6 +171,7 @@ class TreatmentRecord {
         'pulse_spot': pulseSpot,
         'total_shots': totalShots,
         'products_used': productsUsed,
+        'machines_used': machinesUsed,
         'actual_units_used': actualUnitsUsed,
         'response_to_previous': responseToPrevious.dbValue,
         'adverse_events': adverseEvents,
