@@ -50,7 +50,7 @@ DROP POLICY IF EXISTS treatment_templates_select ON treatment_templates;
 CREATE POLICY treatment_templates_select ON treatment_templates
   FOR SELECT USING (
     clinic_id IN (
-      SELECT clinic_id FROM staff WHERE auth_user_id = auth.uid()
+      SELECT clinic_id FROM staff WHERE user_id = auth.uid()
     )
   );
 
@@ -58,7 +58,7 @@ DROP POLICY IF EXISTS treatment_templates_insert ON treatment_templates;
 CREATE POLICY treatment_templates_insert ON treatment_templates
   FOR INSERT WITH CHECK (
     clinic_id IN (
-      SELECT clinic_id FROM staff WHERE auth_user_id = auth.uid()
+      SELECT clinic_id FROM staff WHERE user_id = auth.uid()
     )
   );
 
@@ -66,7 +66,7 @@ DROP POLICY IF EXISTS treatment_templates_update ON treatment_templates;
 CREATE POLICY treatment_templates_update ON treatment_templates
   FOR UPDATE USING (
     clinic_id IN (
-      SELECT clinic_id FROM staff WHERE auth_user_id = auth.uid()
+      SELECT clinic_id FROM staff WHERE user_id = auth.uid()
     )
   );
 
@@ -74,7 +74,7 @@ DROP POLICY IF EXISTS treatment_templates_delete ON treatment_templates;
 CREATE POLICY treatment_templates_delete ON treatment_templates
   FOR DELETE USING (
     clinic_id IN (
-      SELECT clinic_id FROM staff WHERE auth_user_id = auth.uid()
+      SELECT clinic_id FROM staff WHERE user_id = auth.uid()
     )
   );
 
