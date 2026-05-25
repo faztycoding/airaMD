@@ -14,6 +14,7 @@ import '../../core/widgets/aira_feedback.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+import 'smart_pickers.dart';
 import 'treatment_post_save_service.dart';
 
 part '_treatment_form_providers.dart';
@@ -185,6 +186,99 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       _machineNameCtrls.removeAt(index).dispose();
       _machineParamCtrls.removeAt(index).dispose();
     });
+  }
+
+  // ─── Phase 5: Smart picker integration ──────────────────────────────
+
+  /// Maps a `ServiceCategory` (catalog) → `TreatmentCategory` (record).
+  /// `HA` and `INJECTABLE` both become injectable; everything else
+  /// passes straight through.
+  TreatmentCategory _serviceToTreatmentCategory(ServiceCategory c) {
+    switch (c) {
+      case ServiceCategory.ha:
+      case ServiceCategory.injectable:
+        return TreatmentCategory.injectable;
+      case ServiceCategory.laser:
+        return TreatmentCategory.laser;
+      case ServiceCategory.treatment:
+        return TreatmentCategory.treatment;
+      case ServiceCategory.other:
+        return TreatmentCategory.other;
+    }
+  }
+
+  Future<void> _onPickService() async {
+    final selected = await pickService(context: context, ref: ref);
+    if (selected == null || !mounted) return;
+    setState(() {
+      _treatmentNameCtrl.text = selected.name;
+      _category = _serviceToTreatmentCategory(selected.category);
+      _safetyChecked = false;
+    });
+  }
+
+  Future<void> _onPickProductFromCatalog() async {
+    final entry = await pickProductForUse(context: context, ref: ref);
+    if (entry == null || !mounted) return;
+    setState(() {
+      _productsUsed.add(entry);
+      _safetyChecked = false;
+    });
+  }
+
+  Future<void> _onPickTemplate() async {
+    final tpl = await pickTreatmentTemplate(context: context, ref: ref);
+    if (tpl == null || !mounted) return;
+
+    // Resolve service-name suggestions → real Service rows (so we get
+    // pricing + the canonical name) and append them to the treatment
+    // name if the field is empty.
+    final services = await ref.read(serviceListProvider.future);
+    final matchedServices = <Service>[];
+    for (final name in tpl.suggestedServices) {
+      try {
+        matchedServices.add(services.firstWhere(
+          (s) => s.name.toLowerCase() == name.toLowerCase(),
+        ));
+      } catch (_) {
+        // No matching service — skip silently.
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      // Treatment name: prefer template name, but if user already typed
+      // something, keep theirs and append the combo as a hint.
+      if (_treatmentNameCtrl.text.trim().isEmpty) {
+        _treatmentNameCtrl.text = tpl.name;
+      }
+      _category = tpl.category;
+
+      // Append suggested products to the existing list.
+      for (final raw in tpl.suggestedProducts) {
+        if (raw is Map) {
+          _productsUsed.add(Map<String, dynamic>.from(raw));
+        }
+      }
+
+      // Append default instructions (deduplicated).
+      for (final ins in tpl.defaultInstructions) {
+        if (!_instructions.contains(ins)) _instructions.add(ins);
+      }
+
+      _safetyChecked = false;
+    });
+
+    if (mounted && matchedServices.isNotEmpty) {
+      final isThai = context.l10n.isThai;
+      final names = matchedServices.map((s) => s.name).join(', ');
+      AiraFeedback.success(
+        context,
+        isThai
+            ? 'ใช้ template "${tpl.name}" แล้ว • บริการ: $names'
+            : 'Applied "${tpl.name}" template • Services: $names',
+      );
+    }
   }
 
   Future<void> _runSafetyCheck() async {
@@ -590,6 +684,13 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                     children: [
                       // Safety warnings banner
                       if (_warnings.isNotEmpty) _buildWarningsBanner(),
+
+                      // ─── Quick Start (Phase 5) ─────────────────────────
+                      // Combo template + service catalog pickers — let the
+                      // doctor fill the entire form with one tap when the
+                      // procedure matches a saved combo or seeded service.
+                      _buildQuickStartRow(),
+                      const SizedBox(height: 24),
 
                       // ─── Section 1: Treatment Info ───
                       const AiraSectionHeader(
@@ -1182,25 +1283,99 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
           );
         }),
         _premiumField('จำนวนหน่วยรวมที่ใช้ (Units)', _unitsUsedCtrl, hint: 'เช่น 20 หรือ 2.5', icon: Icons.straighten_rounded, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-        AiraTapEffect(
-          onTap: _showAddProductDialog,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: AiraColors.woodWash.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.3), style: BorderStyle.solid),
+        // ─── Catalog vs manual product entry (Phase 5) ──────────────
+        // Two complementary actions: catalog picker (search + filter)
+        // for seeded products, and the legacy free-text dialog for
+        // anything not yet in the inventory.
+        Row(
+          children: [
+            Expanded(
+              child: AiraTapEffect(
+                onTap: _onPickProductFromCatalog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: AiraColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.search_rounded,
+                          size: 18, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(
+                        context.l10n.isThai
+                            ? 'เลือกจากคลัง'
+                            : 'Pick from Catalog',
+                        style: GoogleFonts.plusJakartaSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_circle_outline_rounded, size: 18, color: AiraColors.woodMid),
-                const SizedBox(width: 8),
-                Text(context.l10n.addProduct, style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600, color: AiraColors.woodMid)),
-              ],
+            const SizedBox(width: 10),
+            AiraTapEffect(
+              onTap: _showAddProductDialog,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AiraColors.woodWash.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AiraColors.woodPale.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded,
+                        size: 18, color: AiraColors.woodMid),
+                    const SizedBox(width: 6),
+                    Text(
+                      context.l10n.isThai ? 'พิมพ์เอง' : 'Manual',
+                      style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AiraColors.woodMid),
+                    ),
+                  ],
+                ),
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ─── Quick Start row (Phase 5) ─────────────────────────────────────
+  Widget _buildQuickStartRow() {
+    final isThai = context.l10n.isThai;
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickStartButton(
+            icon: Icons.auto_awesome_rounded,
+            title: isThai ? 'ใช้ Combo' : 'Use Combo',
+            subtitle: isThai ? 'เลือก template' : 'Pick template',
+            color: AiraColors.gold,
+            onTap: _onPickTemplate,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _QuickStartButton(
+            icon: Icons.medical_services_rounded,
+            title: isThai ? 'เลือกบริการ' : 'Pick Service',
+            subtitle: isThai ? 'จากแคตตาล็อก' : 'From catalog',
+            color: AiraColors.woodMid,
+            onTap: _onPickService,
           ),
         ),
       ],
@@ -1657,5 +1832,80 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
       case TreatmentResponse.notApplicable:
         return 'ไม่ระบุ (N/A)';
     }
+  }
+}
+
+// ─── Quick Start button (Phase 5) ────────────────────────────────────
+class _QuickStartButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickStartButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AiraTapEffect(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AiraColors.charcoal,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: AiraColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

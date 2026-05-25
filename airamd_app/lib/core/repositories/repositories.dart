@@ -21,3 +21,4 @@ export 'message_repository.dart';
 export 'notepad_repository.dart';
 export 'schedule_repository.dart';
 export 'treatment_rule_repository.dart';
+export 'treatment_template_repository.dart';

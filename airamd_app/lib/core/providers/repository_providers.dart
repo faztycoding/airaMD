@@ -80,3 +80,8 @@ final scheduleRepoProvider = Provider<ScheduleRepository>((ref) {
 final treatmentRuleRepoProvider = Provider<TreatmentRuleRepository>((ref) {
   return TreatmentRuleRepository(ref.watch(supabaseClientProvider));
 });
+
+final treatmentTemplateRepoProvider =
+    Provider<TreatmentTemplateRepository>((ref) {
+  return TreatmentTemplateRepository(ref.watch(supabaseClientProvider));
+});

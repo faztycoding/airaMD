@@ -10,5 +10,6 @@ export 'treatment_providers.dart';
 export 'product_providers.dart';
 export 'course_providers.dart';
 export 'financial_providers.dart';
+export 'treatment_template_providers.dart';
 export 'locale_provider.dart';
 export 'connectivity_provider.dart';

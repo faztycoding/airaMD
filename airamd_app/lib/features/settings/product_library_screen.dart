@@ -303,6 +303,7 @@ class ProductLibraryScreen extends ConsumerWidget {
       case ProductCategory.biostimulator: return 'Biostimulator';
       case ProductCategory.polynucleotide: return 'Polynucleotide';
       case ProductCategory.skinbooster: return 'Skinbooster';
+      case ProductCategory.lipolytic: return 'Lipolytic';
       case ProductCategory.laser: return 'Laser';
       case ProductCategory.other: return 'อื่นๆ';
     }
@@ -422,6 +423,7 @@ class _ProductCard extends StatelessWidget {
       case ProductCategory.biostimulator: return AiraColors.gold;
       case ProductCategory.polynucleotide: return const Color(0xFF6A8CAF);
       case ProductCategory.skinbooster: return const Color(0xFF9B7FB8);
+      case ProductCategory.lipolytic: return const Color(0xFFD68360);
       case ProductCategory.laser: return AiraColors.terra;
       case ProductCategory.other: return AiraColors.muted;
     }

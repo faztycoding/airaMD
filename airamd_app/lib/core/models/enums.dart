@@ -267,6 +267,7 @@ enum ProductCategory {
   biostimulator('BIOSTIMULATOR'),
   polynucleotide('POLYNUCLEOTIDE'),
   skinbooster('SKINBOOSTER'),
+  lipolytic('LIPOLYTIC'),
   laser('LASER'),
   other('OTHER');
 
