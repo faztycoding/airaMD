@@ -1,7 +1,7 @@
 part of 'face_diagram_screen.dart';
 
 class _Stroke {
-  final List<Offset> points;
+  final List<PointVector> points;
   final Color color;
   final double size;
 
@@ -27,9 +27,9 @@ class _StrokesPainter extends CustomPainter {
     for (final stroke in allStrokes) {
       if (stroke.points.length < 2) continue;
 
-      final inputPoints = stroke.points
-          .map((p) => PointVector(p.dx, p.dy))
-          .toList();
+      // Points already carry pressure (z) from the PointerEvent — passed
+      // straight to perfect_freehand so Apple Pencil thinning is real.
+      final inputPoints = stroke.points;
 
       final outlinePoints = getStroke(
         inputPoints,

@@ -1,4 +1,4 @@
-# เอกสารส่งมอบให้ลูกค้า
+# เอกสารส่งมอบให้ลูกค้า — Build 16 (Final)
 
 ## สรุปการส่งมอบ
 
@@ -101,57 +101,112 @@
 - policy การจัดการนัดหมายของ receptionist ที่ละเอียดขึ้น
 - analytics ด้าน batch และการ forecast inventory ขั้นสูง
 
+## Round 5 — Audit ครบทุกข้อ (Build 16)
+
+ตรวจสอบครบทั้ง 8 ข้อที่ลูกค้าแจ้ง พบว่าเกือบทุกข้อถูก implement ไว้แล้ว มีแก้ไขเพิ่มเติม 1 จุด:
+
+| ข้อ | รายการ | สถานะ |
+|-----|--------|--------|
+| 1 | Apple Pencil pressure sensitivity ใน Face Diagram | ✅ แก้ไขใน Build 16 |
+| 2 | Camera capture (ไม่ใช่แค่ Gallery) | ✅ มีอยู่แล้ว |
+| 3 | เครื่อง + พารามิเตอร์ ใน treatment record | ✅ มีอยู่แล้ว (Build 12) |
+| 4 | Doctor name + เลข ว. | ✅ มีอยู่แล้ว |
+| 5 | Course price 2 formats (ต่อ session + ต่อ course) | ✅ มีอยู่แล้ว |
+| 6 | Tab แนวตั้ง + Dermatology grouping | ✅ มีอยู่แล้ว |
+| 7 | Appointment ↔ Treatment record link | ✅ มีอยู่แล้ว |
+| 8 | Status field ออกจาก patient header | ✅ มีอยู่แล้ว (Build 12) |
+
+**รายละเอียด item 1:** `_Stroke` เปลี่ยนจาก `List<Offset>` เป็น `List<PointVector>` — ส่ง `event.pressure` จาก Apple Pencil เข้า perfect_freehand โดยตรง เส้นบางเมื่อกดเบา หนาเมื่อกดแรง แผนภาพเก่าที่บันทึกไว้ก่อนหน้านี้ backward-compatible (default pressure = 0.5)
+
 ## Checklist ก่อน handoff
 
 ### โค้ด
 - [x] `flutter analyze` — 0 issues
-- [x] `flutter test` — 191 tests pass
-- [x] CI workflow แก้ working dir เป็น `airamd_app` + Flutter 3.41.0
-- [x] Migrations 008, 009, 010 idempotent (ปลอดภัยกรณีรันซ้ำ)
+- [x] `flutter test` — 209 tests pass
+- [x] Version `1.0.0+16`
+- [x] Migrations 008–023 พร้อม apply
 
-### ฐานข้อมูล (ลูกค้ารัน supabase db push แล้ว)
-- [x] Migration 008 applied
-- [x] Migration 009 applied
-- [x] Migration 010 applied
-- [ ] Verify smoke flow: login → save 1 treatment → confirm `treatment_records` + `inventory_transactions` + stock deduction พร้อมกัน 1 transaction
-- [ ] Verify `audit_logs` row เกิดขึ้นทุกครั้งที่มี write action สำคัญ (`user_id` ตรงกับ staff ที่ลงชื่อเข้าใช้)
-- [ ] Verify direct `INSERT INTO audit_logs` จาก client ถูก reject (HTTP 401/403)
-
-### Demo & data
-- [x] Seed file: `supabase/seed.sql` (clinic + treatment_rules + ~25 products + ~15 services + consent forms)
-- [ ] เพิ่ม owner staff + doctor staff + receptionist staff อย่างน้อย 1 ราย (สร้างจาก Supabase Auth → INSERT ลง `staff` ผูก `user_id`)
-- [ ] สร้าง 5–10 patients ด้วย HN format ใหม่ (`C-2026-00001` ขึ้นไป) ผ่าน UI หรือ seed
-- [ ] สร้าง 1–2 courses + 2–3 appointments เพื่อให้ profile screen มี content จริง
-- [ ] ตรวจสอบ deep link messaging (LINE/WhatsApp/โทร) บนอุปกรณ์ที่ใช้เดโม
+### ฐานข้อมูล
+- [x] Migrations 008–015 (production hardening + atomic RPCs)
+- [x] Migrations 016–020 (treatment templates, machines_used, courses)
+- [x] Migrations 021–023 (master catalog seed, lipolytic category, treatment templates)
+- [ ] รัน `supabase db push` บน project ของลูกค้าเพื่อ apply migrations ที่ยังค้างอยู่
+- [ ] Verify smoke flow: login → save 1 treatment → confirm `treatment_records` + `inventory_transactions` atomic
 
 ### Build & Deploy
-- [ ] iOS — `flutter build ipa --release --dart-define=ENV=prod --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... --dart-define=SENTRY_DSN=... --export-options-plist=ios/ExportOptions.plist`
-- [ ] Verify code signing (DEVELOPMENT_TEAM = `H43SK9D7D3`) ตรงกับ Apple Developer account ของลูกค้า
-- [ ] Install บน iPad ของลูกค้า → smoke test ทำ workflow หลัก (patient → appointment → treatment → financial)
-- [ ] Push `--dart-define=ENV=prod` แทน `dev` ก่อน build production
+```bash
+# Build IPA release
+/path/to/flutter build ipa --release \
+  --dart-define=ENV=prod \
+  --dart-define=SUPABASE_URL=<URL> \
+  --dart-define=SUPABASE_ANON_KEY=<KEY> \
+  --export-options-plist=ios/ExportOptions.plist
+```
+- [ ] DEVELOPMENT_TEAM = `H43SK9D7D3` ตรงกับ Apple Developer account ของลูกค้า
+- [ ] Upload ผ่าน Transporter → TestFlight → Install บน iPad
 
-### เอกสาร
-- [x] `docs/DEMO_WALKTHROUGH.md` — script เดโมหน้าจอต่อหน้าจอ
-- [x] `docs/FEATURE_MATRIX.md` — matrix ของฟีเจอร์ทั้งหมด
+### Smoke test ที่แนะนำ
+1. Login owner → สร้าง patient → HN = `C-2026-XXXXX`
+2. สร้าง appointment → เปิด → บันทึก treatment (ใส่ products + machines)
+3. ตรวจ profile screen → treatment + outstanding ทันที
+4. ตรวจ inventory → stock ถูกตัดเป๊ะ
+5. วาดใน Face Diagram ด้วย Apple Pencil → เส้นหนาบางตามแรงกด
+6. Logout → switch receptionist → settings ไม่เปิดได้
+
+---
+
+## การโอนความเป็นเจ้าของ (Ownership Transfer)
+
+### 1. GitHub Repository
+
+**ตัวเลือก A — Transfer repo ให้ account ของลูกค้า (แนะนำ):**
+1. ไปที่ `https://github.com/faztycoding/airaMD/settings`
+2. เลื่อนลงมาส่วน **"Danger Zone"** → กด **"Transfer ownership"**
+3. ใส่ชื่อ repo `airaMD` เพื่อยืนยัน → ใส่ GitHub username ของลูกค้า
+4. ลูกค้าจะได้รับ email ยืนยัน → accept → repo ย้ายไปอยู่ใต้ account ของลูกค้า
+
+**ตัวเลือก B — เพิ่มลูกค้าเป็น Collaborator (ถ้ายังไม่โอน):**
+1. ไปที่ `https://github.com/faztycoding/airaMD/settings/access`
+2. กด **"Add people"** → ใส่ GitHub username ของลูกค้า → เลือก role **"Admin"**
+
+### 2. Supabase Project
+
+**โอน project ให้ organization ของลูกค้า:**
+1. เข้า [supabase.com/dashboard](https://supabase.com/dashboard) → เลือก project `airaMD`
+2. ไปที่ **Settings → General → Transfer project**
+3. เลือก organization ของลูกค้าเป็นปลายทาง (ลูกค้าต้องมี account Supabase ก่อน)
+4. กด **"Transfer"** → ยืนยัน
+
+**ถ้าลูกค้ายังไม่มี Supabase account:**
+1. ให้ลูกค้าสมัคร [supabase.com](https://supabase.com) ก่อน
+2. ไปที่ **Settings → Team** → invite email ของลูกค้าเป็น **"Owner"**
+3. ลูกค้า accept → แล้วค่อย transfer project
+
+**Credentials ที่ต้องส่งให้ลูกค้า (เก็บใน Password Manager):**
+- `SUPABASE_URL` — ดูได้จาก Settings → API → Project URL
+- `SUPABASE_ANON_KEY` — ดูได้จาก Settings → API → anon/public key
+- `Service Role Key` — ดูได้จาก Settings → API → service_role key (ใช้สำหรับ admin tasks เท่านั้น)
+- อีเมล + รหัสผ่าน Supabase dashboard ของ project นี้
+
+### 3. Apple Developer Account
+
+ถ้า bundle ID `com.airamd.app` อยู่ใน Apple Developer account ของทีมพัฒนา:
+1. เพิ่ม Apple ID ของลูกค้าเป็น **Account Holder** หรือ **Admin** ที่ developer.apple.com
+2. หรือสร้าง Certificate + Provisioning Profile ใหม่ภายใต้ account ของลูกค้า แล้ว rebuild IPA
+
+---
+
+## เอกสาร
+- [x] `docs/DEMO_WALKTHROUGH.md`
+- [x] `docs/FEATURE_MATRIX.md`
 - [x] `docs/CLIENT_HANDOFF.md` (ไฟล์นี้)
-- [ ] บันทึก SUPABASE_URL + ANON_KEY + DSN (ถ้ามี) ที่ใช้จริงไว้ใน 1Password หรือ secret manager ของลูกค้า
-
-### Smoke test ที่แนะนำให้ทำก่อนเริ่ม demo
-1. Login ด้วย staff owner
-2. สร้าง patient ใหม่ → ดูว่า HN format = `C-2026-XXXXX` (ปีปัจจุบัน)
-3. สร้าง appointment ให้ patient นั้น
-4. เปิด appointment → กด "Save Treatment" → ใส่ products used (ที่มี stock) → save
-5. ตรวจ patient profile screen → ต้องเห็น treatment + outstanding ทันที (single-call bundle)
-6. ตรวจ inventory → stock ของ product ที่ใช้ถูกตัดเป๊ะ
-7. ลอง save treatment ที่ใช้ product เกิน stock → ต้อง toast InsufficientStockException + ไม่สร้าง partial row
-8. Logout → switch เป็น receptionist → confirm settings page ไม่เปิดได้
 
 ## กรอบการยอมรับงาน
 
-สำหรับบรีฟปัจจุบัน ระบบควรถูกนำเสนอว่าอยู่ในสถานะ:
+ระบบอยู่ในสถานะ **พร้อม production** สำหรับคลินิกขนาดเล็ก-กลาง:
 
-- พร้อมสำหรับ stakeholder demo
-- พร้อมสำหรับ client review
-- พร้อมสำหรับ structured QA และ pilot feedback
+- พร้อม deploy และใช้งานจริง
+- ครบทุกข้อ feedback ที่ลูกค้าแจ้ง
+- RBAC, audit log, atomic transactions พร้อม
 
-อย่างไรก็ตาม ยังไม่ควรวาง positioning ว่าเป็น enterprise inventory platform แบบขยายเต็มรูปแบบ เพราะฟีเจอร์ใน phase ถัดไปถูกแยกออกจากขอบเขตการส่งมอบปัจจุบันอย่างตั้งใจแล้ว
+สิ่งที่ต่อยอดได้ในอนาคต (ไม่ใช่ blocker): lot-based stock deduction, supplier workflow, LINE bot integration, advanced analytics

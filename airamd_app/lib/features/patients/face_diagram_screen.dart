@@ -227,10 +227,16 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         for (final s in diagram.strokesData) {
           if (s is Map<String, dynamic>) {
             final points = (s['points'] as List<dynamic>?)
-                    ?.map((p) => Offset(
-                          (p as List<dynamic>)[0].toDouble(),
-                          p[1].toDouble(),
-                        ))
+                    ?.map((p) {
+                          final pts = p as List<dynamic>;
+                          return PointVector(
+                            pts[0].toDouble(),
+                            pts[1].toDouble(),
+                            // pressure stored at index 2 — default 0.5 for
+                            // old diagrams that were saved without pressure.
+                            pts.length > 2 ? pts[2].toDouble() : 0.5,
+                          );
+                        })
                     .toList() ??
                 [];
             final colorStr = s['color'] as String? ?? '#FFD32F2F';
@@ -268,7 +274,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
 
   /// Convert a single stroke to a JSON-serializable map.
   Map<String, dynamic> _strokeToJson(_Stroke stroke) => {
-        'points': stroke.points.map((p) => [p.dx, p.dy]).toList(),
+        'points': stroke.points.map((p) => [p.x, p.y, p.pressure ?? 0.5]).toList(),
         'color': '#${stroke.color.value.toRadixString(16).padLeft(8, '0')}',
         'size': stroke.size,
       };
@@ -750,9 +756,12 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                       if (_isEraser) {
                         _eraseStrokeAt(event.localPosition);
                       } else {
+                        // Use event.pressure for Apple Pencil (0.0–1.0);
+                        // fall back to 0.5 for finger touch (pressure == 0).
+                        final pressure = event.pressure > 0 ? event.pressure : 0.5;
                         setState(() {
                           _currentStroke = _Stroke(
-                            points: [event.localPosition],
+                            points: [PointVector(event.localPosition.dx, event.localPosition.dy, pressure)],
                             color: _penColor,
                             size: _penSize,
                           );
@@ -764,9 +773,13 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
                         _eraseStrokeAt(event.localPosition);
                       } else {
                         if (_currentStroke == null) return;
+                        final pressure = event.pressure > 0 ? event.pressure : 0.5;
                         setState(() {
                           _currentStroke = _Stroke(
-                            points: [..._currentStroke!.points, event.localPosition],
+                            points: [
+                              ..._currentStroke!.points,
+                              PointVector(event.localPosition.dx, event.localPosition.dy, pressure),
+                            ],
                             color: _currentStroke!.color,
                             size: _currentStroke!.size,
                           );
@@ -828,7 +841,7 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
     const threshold = 20.0;
     for (int i = strokes.length - 1; i >= 0; i--) {
       for (final p in strokes[i].points) {
-        if ((p - pos).distance < threshold + strokes[i].size) {
+        if ((Offset(p.x, p.y) - pos).distance < threshold + strokes[i].size) {
           setState(() {
             final removed = strokes.removeAt(i);
             _redoStack[_currentView]!.add(removed);

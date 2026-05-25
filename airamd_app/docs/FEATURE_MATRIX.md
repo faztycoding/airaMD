@@ -25,6 +25,13 @@
 | Inventory Validation | ตรวจสอบจำนวนสต็อกและป้องกัน overstock deduction | พร้อมใช้ | ครอบคลุม used, wastage, stock-in, adjustment |
 | Supabase DI | inject SupabaseClient ผ่าน provider แทน Supabase.instance ตรง | พร้อมใช้ | เหลือเฉพาะ infrastructure (push notification, config) |
 | Treatment Post-Save | orchestrate appointment completion + stock sync ผ่าน service | พร้อมใช้ | testable, collect failures แทน throw |
+| Apple Pencil Pressure | แรงกดจาก Apple Pencil ส่งผลต่อขนาดเส้นใน Face Diagram | พร้อมใช้ | ใช้ PointVector.pressure จาก PointerEvent, fallback 0.5 สำหรับนิ้ว |
+| Camera Capture | ถ่ายรูปจากกล้องโดยตรง (ไม่ต้องเลือกจาก Gallery) | พร้อมใช้ | Bottom sheet เลือกกล้อง / Gallery ใน Photos tab |
+| Doctor License เลข ว. | แสดงชื่อแพทย์ + เลข ว. ใน treatment form | พร้อมใช้ | _DoctorInfoCard + Staff Management field |
+| Course Price 2 Formats | ราคาต่อ course + ราคาต่อ session คำนวณอัตโนมัติ | พร้อมใช้ | แสดงใน Finance tab + Course form |
+| เครื่อง + พารามิเตอร์ | รายการเครื่องและพารามิเตอร์ใน treatment record | พร้อมใช้ | list-based เพิ่ม/ลบได้ ใน Laser category |
+| Appointment-Treatment Link | เชื่อมนัดหมาย ↔ บันทึกการรักษาแบบสองทาง | พร้อมใช้ | treatmentRecordId บน Appointment + followUpAppointmentId บน Treatment |
+| Vertical Tab Sidebar | sidebar แนวตั้งพร้อมกลุ่ม Dermatology sub-tabs | พร้อมใช้ | Layout สำหรับ screen ≥600px, sub-tabs Injectable/Laser/Treatment |
 
 ## ตารางสิทธิ์การมองเห็นตามบทบาท
 
