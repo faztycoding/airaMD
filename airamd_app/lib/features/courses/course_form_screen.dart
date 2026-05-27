@@ -46,6 +46,19 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   String? _selectedDoctorId;
   final List<Map<String, dynamic>> _productsUsed = [];
 
+  // ─── Discount + auto-charge UX (added per client feedback May 27) ───
+  // Quick discount chips on the price field so receptionists can apply
+  // 5/10/20% promos without a calculator. Final discounted price is what
+  // gets saved to `course.price`; the original subtotal + discount note
+  // is appended to the course notes for audit trail.
+  int _discountPct = 0; // 0 / 5 / 10 / 20
+  // When ON (default for new courses), saving the course also creates an
+  // outstanding `charge` record in financial_records so the receptionist
+  // does NOT have to open the Financial screen separately. This was the
+  // single biggest pain point flagged by the clinic team — they kept
+  // saying "there's only USE service, not BUY/PRICE/COURSE".
+  bool _autoCreateCharge = true;
+
   @override
   void initState() {
     super.initState();
@@ -111,17 +124,32 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       return;
     }
 
+    // Apply discount to the saved price. Original subtotal is preserved
+    // in notes for audit trail.
+    final basePrice = double.tryParse(_priceCtrl.text.trim());
+    final finalPrice = (basePrice != null && _discountPct > 0)
+        ? basePrice * (1 - _discountPct / 100)
+        : basePrice;
+    final discountTag = (basePrice != null && _discountPct > 0)
+        ? 'ส่วนลด $_discountPct% (฿${basePrice.toStringAsFixed(0)} → ฿${finalPrice!.toStringAsFixed(0)})'
+        : '';
+    final userNotes = _notesCtrl.text.trim();
+    final finalNotes = [userNotes, discountTag]
+        .where((s) => s.isNotEmpty)
+        .join(' • ');
+
+    final courseId = widget.isEdit ? widget.courseId! : const Uuid().v4();
     final course = Course(
-      id: widget.isEdit ? widget.courseId! : const Uuid().v4(),
+      id: courseId,
       clinicId: clinicId,
       patientId: _selectedPatientId!,
       name: _nameCtrl.text.trim(),
-      price: double.tryParse(_priceCtrl.text.trim()),
+      price: finalPrice,
       sessionsBought: int.tryParse(_sessionsBoughtCtrl.text.trim()) ?? 1,
       sessionsBonus: int.tryParse(_sessionsBonusCtrl.text.trim()) ?? 0,
       status: _status,
       expiryDate: _expiryDate,
-      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      notes: finalNotes.isEmpty ? null : finalNotes,
       treatmentCategory: _treatmentCategory.dbValue.toLowerCase(),
       responsibleDoctorId:
           (_selectedDoctorId != null && _selectedDoctorId!.isNotEmpty)
@@ -137,6 +165,30 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
         ref.invalidate(courseByIdProvider(widget.courseId!));
       } else {
         await repo.create(course);
+        // Optional: auto-create outstanding charge so the receptionist
+        // doesn't have to open the Financial screen separately.
+        if (_autoCreateCharge && finalPrice != null && finalPrice > 0) {
+          try {
+            final finRepo = ref.read(financialRepoProvider);
+            await finRepo.create(FinancialRecord(
+              id: const Uuid().v4(),
+              clinicId: clinicId,
+              patientId: _selectedPatientId!,
+              courseId: courseId,
+              type: FinancialType.charge,
+              amount: finalPrice,
+              description:
+                  'ค่าคอร์ส: ${_nameCtrl.text.trim()}${discountTag.isNotEmpty ? ' • $discountTag' : ''}',
+              isOutstanding: true,
+            ));
+            ref.invalidate(financialListProvider);
+            ref.invalidate(outstandingRecordsProvider);
+            ref.invalidate(financialsByPatientProvider(_selectedPatientId!));
+          } catch (_) {
+            // Don't block course creation if charge fails — receptionist
+            // can still add the charge manually.
+          }
+        }
       }
       ref.invalidate(courseListProvider);
       ref.invalidate(coursesByPatientProvider(_selectedPatientId!));
@@ -216,6 +268,73 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                           keyboardType: TextInputType.number,
                           onChanged: (_) => setState(() {}),
                         ),
+                        const SizedBox(height: 12),
+                        // ─── Discount preset chips (5/10/20%) ───
+                        Row(
+                          children: [
+                            const Icon(Icons.local_offer_rounded, size: 16, color: AiraColors.muted),
+                            const SizedBox(width: 6),
+                            Text(
+                              context.l10n.isThai ? 'ส่วนลด' : 'Discount',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.muted),
+                            ),
+                            const SizedBox(width: 10),
+                            ...[0, 5, 10, 20].map((pct) {
+                              final selected = _discountPct == pct;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: AiraTapEffect(
+                                  onTap: () => setState(() => _discountPct = pct),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: selected ? AiraColors.gold : AiraColors.creamDk,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: selected ? AiraColors.gold : AiraColors.woodPale.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Text(
+                                      pct == 0 ? (context.l10n.isThai ? 'ไม่มี' : 'None') : '$pct%',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: selected ? Colors.white : AiraColors.charcoal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                        Builder(builder: (_) {
+                          final base = double.tryParse(_priceCtrl.text.trim()) ?? 0;
+                          if (_discountPct == 0 || base <= 0) return const SizedBox(height: 14);
+                          final finalAmt = base * (1 - _discountPct / 100);
+                          final saved = base - finalAmt;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AiraColors.sage.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AiraColors.sage.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.check_circle_rounded, size: 16, color: AiraColors.sage),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    context.l10n.isThai
+                                        ? 'ราคาหลังหัก $_discountPct%: ฿${finalAmt.toStringAsFixed(0)}  (ลด ฿${saved.toStringAsFixed(0)})'
+                                        : 'After $_discountPct% off: ฿${finalAmt.toStringAsFixed(0)}  (saved ฿${saved.toStringAsFixed(0)})',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.sage),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          );
+                        }),
                         const SizedBox(height: 14),
                         // Read-only computed price-per-session for instant
                         // visibility while pricing the course. Updates as
@@ -275,6 +394,52 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                           },
                         ),
                         const SizedBox(height: 8),
+                        // ─── Auto-create outstanding charge toggle ───
+                        // Hidden when editing — only meaningful at sale time.
+                        if (!widget.isEdit) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _autoCreateCharge
+                                  ? AiraColors.gold.withValues(alpha: 0.08)
+                                  : AiraColors.creamDk,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _autoCreateCharge
+                                    ? AiraColors.gold.withValues(alpha: 0.35)
+                                    : AiraColors.woodPale.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(children: [
+                              Icon(Icons.receipt_long_rounded, size: 18, color: _autoCreateCharge ? AiraColors.gold : AiraColors.muted),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      context.l10n.isThai ? 'บันทึกเป็นค่าใช้จ่ายค้างชำระอัตโนมัติ' : 'Auto-create outstanding charge',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      context.l10n.isThai
+                                          ? 'ลูกค้าจะมีรายการค้างชำระเท่ากับราคาคอร์สทันที — ไม่ต้องไปกดเองที่หน้า Financial'
+                                          : 'Patient will have an outstanding balance equal to course price — no need to add it manually',
+                                      style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted, height: 1.3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _autoCreateCharge,
+                                activeColor: AiraColors.gold,
+                                onChanged: (v) => setState(() => _autoCreateCharge = v),
+                              ),
+                            ]),
+                          ),
+                        ],
                       ]),
                       const SizedBox(height: 28),
 
