@@ -80,6 +80,7 @@ class FinancialScreen extends ConsumerWidget {
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String? selectedPatientId;
+    int discountPct = 0; // 0 / 5 / 10 / 20 — applied at save time
 
     showDialog(
       context: context,
@@ -155,7 +156,72 @@ class FinancialScreen extends ConsumerWidget {
                               style: airaFieldTextStyle,
                               decoration: airaFieldDecoration(label: 'จำนวนเงิน (฿) *', hint: '0.00', prefixIcon: Icons.payments_rounded),
                               keyboardType: TextInputType.number,
+                              onChanged: (_) => setDialogState(() {}),
                             ),
+                            const SizedBox(height: 12),
+                            // ─── Discount presets (5/10/20%) ───
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Icon(Icons.local_offer_rounded, size: 16, color: AiraColors.muted),
+                                const SizedBox(width: 6),
+                                Text('ส่วนลด', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.muted)),
+                                const SizedBox(width: 10),
+                                ...[0, 5, 10, 20].map((pct) {
+                                  final selected = discountPct == pct;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: AiraTapEffect(
+                                      onTap: () => setDialogState(() => discountPct = pct),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: selected ? AiraColors.gold : AiraColors.creamDk,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: selected ? AiraColors.gold : AiraColors.woodPale.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(
+                                          pct == 0 ? 'ไม่มี' : '$pct%',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: selected ? Colors.white : AiraColors.charcoal,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                            // Live final amount preview when discount > 0
+                            Builder(builder: (_) {
+                              final base = double.tryParse(amountCtrl.text.trim()) ?? 0;
+                              if (discountPct == 0 || base <= 0) return const SizedBox(height: 14);
+                              final finalAmt = base * (1 - discountPct / 100);
+                              final saved = base - finalAmt;
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 10, bottom: 4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AiraColors.sage.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: AiraColors.sage.withValues(alpha: 0.25)),
+                                  ),
+                                  child: Row(children: [
+                                    Icon(Icons.check_circle_rounded, size: 16, color: AiraColors.sage),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'ราคาหลังหัก $discountPct%: ฿${finalAmt.toStringAsFixed(0)}  (ลด ฿${saved.toStringAsFixed(0)})',
+                                        style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.sage),
+                                      ),
+                                    ),
+                                  ]),
+                                ),
+                              );
+                            }),
                             const SizedBox(height: 14),
                             // Payment method
                             ValueListenableBuilder<PaymentMethod>(
@@ -230,7 +296,20 @@ class FinancialScreen extends ConsumerWidget {
                                 }
                                 return;
                               }
-                              final amount = parseFinancialAmount(amountCtrl.text);
+                              final base = parseFinancialAmount(amountCtrl.text);
+                              final amount = discountPct > 0
+                                  ? base * (1 - discountPct / 100)
+                                  : base;
+                              // Auto-tag the description with the discount so
+                              // the receptionist can see why the saved amount
+                              // is lower than the entered subtotal.
+                              final userDesc = descCtrl.text.trim();
+                              final discountTag = discountPct > 0
+                                  ? 'ส่วนลด $discountPct% (฿${base.toStringAsFixed(0)} → ฿${amount.toStringAsFixed(0)})'
+                                  : '';
+                              final finalDesc = [userDesc, discountTag]
+                                  .where((s) => s.isNotEmpty)
+                                  .join(' • ');
 
                               final record = FinancialRecord(
                                 id: const Uuid().v4(),
@@ -239,7 +318,7 @@ class FinancialScreen extends ConsumerWidget {
                                 type: typeNotifier.value,
                                 amount: amount,
                                 paymentMethod: methodNotifier.value,
-                                description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                                description: finalDesc.isEmpty ? null : finalDesc,
                                 isOutstanding: typeNotifier.value == FinancialType.charge,
                               );
 

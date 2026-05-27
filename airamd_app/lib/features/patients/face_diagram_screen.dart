@@ -222,38 +222,44 @@ class _FaceDiagramScreenState extends ConsumerState<FaceDiagramScreen> {
         final diagram = FaceDiagram.fromJson(data);
         _savedDiagram = diagram;
         _currentView = diagram.viewType;
-        // Reconstruct strokes from JSON
+        // Reconstruct strokes from JSON.
+        // PostgREST sometimes hands nested JSONB objects back as
+        // Map<dynamic, dynamic> (not Map<String, dynamic>), so the
+        // old strict `is Map<String, dynamic>` check silently dropped
+        // every stroke — leaving the canvas blank when reopened.
         final restoredStrokes = <_Stroke>[];
         for (final s in diagram.strokesData) {
-          if (s is Map<String, dynamic>) {
-            final points = (s['points'] as List<dynamic>?)
-                    ?.map((p) {
-                          final pts = p as List<dynamic>;
-                          return PointVector(
-                            pts[0].toDouble(),
-                            pts[1].toDouble(),
-                            // pressure stored at index 2 — default 0.5 for
-                            // old diagrams that were saved without pressure.
-                            pts.length > 2 ? pts[2].toDouble() : 0.5,
-                          );
-                        })
-                    .toList() ??
-                [];
-            final colorStr = s['color'] as String? ?? '#FFD32F2F';
-            final colorVal =
-                int.tryParse(colorStr.replaceFirst('#', ''), radix: 16) ??
-                    0xFFD32F2F;
-            restoredStrokes.add(_Stroke(
-              points: points,
-              color: Color(colorVal),
-              size: (s['size'] as num?)?.toDouble() ?? 3.0,
-            ));
-          }
+          if (s is! Map) continue;
+          final m = Map<String, dynamic>.from(s);
+          final points = (m['points'] as List<dynamic>?)
+                  ?.map((p) {
+                        final pts = p as List<dynamic>;
+                        return PointVector(
+                          (pts[0] as num).toDouble(),
+                          (pts[1] as num).toDouble(),
+                          // pressure stored at index 2 — default 0.5 for
+                          // old diagrams that were saved without pressure.
+                          pts.length > 2 ? (pts[2] as num).toDouble() : 0.5,
+                        );
+                      })
+                  .toList() ??
+              [];
+          final colorStr = m['color'] as String? ?? '#FFD32F2F';
+          final colorVal =
+              int.tryParse(colorStr.replaceFirst('#', ''), radix: 16) ??
+                  0xFFD32F2F;
+          restoredStrokes.add(_Stroke(
+            points: points,
+            color: Color(colorVal),
+            size: (m['size'] as num?)?.toDouble() ?? 3.0,
+          ));
         }
         _strokes[diagram.viewType] = restoredStrokes;
       }
-    } catch (_) {
-      // Silently fail — read-only view will show empty
+    } catch (e, st) {
+      // Surface the failure to the console so the dev team can see
+      // what went wrong when the user reports a blank diagram.
+      debugPrint('[FaceDiagram] Load failed: $e\n$st');
     } finally {
       if (mounted) setState(() => _isLoadingSaved = false);
     }
