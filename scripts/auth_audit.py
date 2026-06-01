@@ -154,6 +154,53 @@ def reset(email, pw):
     print(f"password reset OK for {d.get('email')} (id {uid[:8]})")
 
 
+def create_owner(email, pw, full_name="airaMD Clinic Owner", clinic_id=None):
+    """Create (or repair) an OWNER account linked to the given clinic.
+
+    Idempotent: if the auth user already exists, its password is reset and
+    email re-confirmed; if a staff row already exists it is reactivated as
+    OWNER instead of creating a duplicate.
+    """
+    # Resolve target clinic — default to the only remaining clinic.
+    clinics = req("GET", "/rest/v1/clinics?select=id,name")
+    if clinic_id is None:
+        if len(clinics) != 1:
+            sys.exit(f"expected exactly 1 clinic, found {len(clinics)} — pass clinic_id explicitly")
+        clinic_id = clinics[0]["id"]
+    clinic_name = next((c["name"] for c in clinics if c["id"] == clinic_id), "?")
+    print(f"target clinic: {clinic_name} ({clinic_id[:8]})")
+
+    # 1. auth user (create or update)
+    users = list_users()
+    existing = next((x for x in users if x.get("email") == email), None)
+    if existing:
+        uid = existing["id"]
+        req("PUT", f"/auth/v1/admin/users/{uid}",
+            {"password": pw, "email_confirm": True})
+        print(f"auth user existed -> password reset + confirmed ({uid[:8]})")
+    else:
+        d = req("POST", "/auth/v1/admin/users",
+                {"email": email, "password": pw, "email_confirm": True})
+        uid = d["id"]
+        print(f"auth user created + confirmed ({uid[:8]})")
+
+    # 2. staff row (create or reactivate as OWNER)
+    staff = req("GET", f"/rest/v1/staff?select=id,full_name,role,is_active&user_id=eq.{uid}")
+    if staff:
+        sid = staff[0]["id"]
+        req("PATCH", f"/rest/v1/staff?id=eq.{sid}",
+            {"role": "OWNER", "is_active": True, "clinic_id": clinic_id})
+        print(f"staff row existed -> set OWNER + active ({sid[:8]})")
+    else:
+        req("POST", "/rest/v1/staff",
+            {"clinic_id": clinic_id, "user_id": uid, "full_name": full_name,
+             "role": "OWNER", "is_active": True})
+        print(f"staff row created: {full_name} OWNER")
+
+    # 3. verify login
+    test_login(email, pw)
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 4 and sys.argv[1] == "test":
         test_login(sys.argv[2], sys.argv[3])
@@ -166,6 +213,10 @@ if __name__ == "__main__":
     elif len(sys.argv) >= 3 and sys.argv[1] == "purge":
         H = _svc_headers()
         purge(sys.argv[2])
+    elif len(sys.argv) >= 4 and sys.argv[1] == "create_owner":
+        H = _svc_headers()
+        name = sys.argv[4] if len(sys.argv) >= 5 else "airaMD Clinic Owner"
+        create_owner(sys.argv[2], sys.argv[3], full_name=name)
     else:
         H = _svc_headers()
         audit()
