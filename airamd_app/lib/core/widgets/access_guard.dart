@@ -21,6 +21,28 @@ class AccessGuard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Not signed in (e.g. mid-logout): never show the "restricted" panel.
+    // The router redirects to /login — render a neutral placeholder so the
+    // role-fallback (receptionist) deny state can't flash or get stuck.
+    final session = ref.watch(authSessionProvider).valueOrNull;
+    if (session == null) {
+      return const Scaffold(
+        backgroundColor: AiraColors.cream,
+        body: SizedBox.shrink(),
+      );
+    }
+
+    // Signed in but staff profile still resolving: show loading, not denial.
+    final staffAsync = ref.watch(currentStaffProvider);
+    if (staffAsync.isLoading) {
+      return const Scaffold(
+        backgroundColor: AiraColors.cream,
+        body: Center(
+          child: CircularProgressIndicator(color: AiraColors.gold),
+        ),
+      );
+    }
+
     final allowed = _isAllowed(ref);
     if (allowed) return child;
     return Scaffold(

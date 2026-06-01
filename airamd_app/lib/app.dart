@@ -1,5 +1,4 @@
-﻿import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+﻿import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,31 +22,15 @@ final autoLockEnabledProvider = StateProvider<bool>((ref) => true);
 
 /// Auth session provider — watches Supabase auth state.
 /// Returns null when not authenticated.
-final authSessionProvider = StreamProvider<Session?>((ref) {
+///
+/// Yields the current session synchronously (so the router resolves
+/// immediately for auto-logged-in sessions), then tracks every auth event —
+/// including `initialSession` and `signedOut` — so the redirect reliably
+/// fires on logout.
+final authSessionProvider = StreamProvider<Session?>((ref) async* {
   final client = ref.watch(supabaseClientProvider);
-  final controller = StreamController<Session?>.broadcast();
-
-  // Emit current session first
-  controller.add(client.auth.currentSession);
-
-  // Then listen to auth state changes
-  final sub = client.auth.onAuthStateChange
-      .where((e) =>
-          e.event == AuthChangeEvent.signedIn ||
-          e.event == AuthChangeEvent.signedOut ||
-          e.event == AuthChangeEvent.tokenRefreshed)
-      .map((e) => e.session)
-      .listen(
-        (session) => controller.add(session),
-        onError: (e) => controller.addError(e),
-      );
-
-  ref.onDispose(() {
-    sub.cancel();
-    controller.close();
-  });
-
-  return controller.stream;
+  yield client.auth.currentSession;
+  yield* client.auth.onAuthStateChange.map((state) => state.session);
 });
 
 /// Whether user is authenticated (has valid session).
