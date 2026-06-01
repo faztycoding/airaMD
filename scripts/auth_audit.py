@@ -154,6 +154,39 @@ def reset(email, pw):
     print(f"password reset OK for {d.get('email')} (id {uid[:8]})")
 
 
+def delete_user(email):
+    """Delete a single account by email: its staff row(s) then the auth user.
+
+    Does NOT delete the clinic or any clinic-owned data. Refuses if the user
+    is the sole OWNER of a clinic that still has other active staff (would
+    orphan that clinic).
+    """
+    users = list_users()
+    match = [x for x in users if x.get("email") == email]
+    if not match:
+        sys.exit(f"no auth user with email {email}")
+    uid = match[0]["id"]
+
+    staff = req("GET", f"/rest/v1/staff?select=id,full_name,role,clinic_id&user_id=eq.{uid}")
+    for s in staff:
+        cid = s["clinic_id"]
+        if s["role"] == "OWNER":
+            other_owners = req("GET",
+                f"/rest/v1/staff?select=id&clinic_id=eq.{cid}&is_active=eq.true"
+                f"&role=eq.OWNER&user_id=neq.{uid}")
+            if not other_owners:
+                sys.exit(
+                    f"refusing: {email} is the SOLE active OWNER of clinic "
+                    f"{cid[:8]} — deleting it would orphan the clinic")
+        req("DELETE", f"/rest/v1/staff?id=eq.{s['id']}")
+        print(f"  deleted staff row {s['full_name']} ({s['role']}, {s['id'][:8]})")
+
+    req("DELETE", f"/auth/v1/admin/users/{uid}")
+    print(f"  deleted auth user {email} ({uid[:8]})")
+    print("\n--- post-delete state ---")
+    audit()
+
+
 def create_owner(email, pw, full_name="airaMD Clinic Owner", clinic_id=None):
     """Create (or repair) an OWNER account linked to the given clinic.
 
@@ -207,6 +240,9 @@ if __name__ == "__main__":
     elif len(sys.argv) >= 4 and sys.argv[1] == "reset":
         H = _svc_headers()
         reset(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) >= 3 and sys.argv[1] == "delete":
+        H = _svc_headers()
+        delete_user(sys.argv[2])
     elif len(sys.argv) >= 2 and sys.argv[1] == "counts":
         H = _svc_headers()
         counts()
