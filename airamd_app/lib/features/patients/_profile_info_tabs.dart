@@ -393,6 +393,51 @@ class _DermatologyTab extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            // ─── + เพิ่มบริการ / คอร์ส (single/course + ราคา) ───
+            // ลูกค้าขอให้ "กดจากหน้าฉีด/ทรีทเมนต์/เลเซอร์" ได้เลย
+            // โดยไม่ต้องไปหา Settings → คลังบริการ (Jun 2026).
+            AiraTapEffect(
+              onTap: () {
+                if (newCategory != null) {
+                  context.push('/courses/new?patientId=$patientId&category=$newCategory');
+                  return;
+                }
+                showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _TreatmentCategoryPicker(
+                    onSelected: (cat) => context.push(
+                      '/courses/new?patientId=$patientId&category=$cat',
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: AiraColors.gold.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AiraColors.gold.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.card_membership_rounded, size: 18, color: AiraColors.gold),
+                    const SizedBox(width: 8),
+                    Text(
+                      l.isThai ? 'เพิ่มบริการ / คอร์ส (ราคา)' : 'Add Service / Course (price)',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AiraColors.woodDk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             // ─── Records (filtered) ───
             ...filtered.map((t) {

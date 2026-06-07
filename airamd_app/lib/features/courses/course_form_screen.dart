@@ -10,12 +10,16 @@ import '../../core/providers/providers.dart';
 import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
+import '../treatments/smart_pickers.dart';
 
 class CourseFormScreen extends ConsumerStatefulWidget {
   final String? courseId;
   final String? initialPatientId;
+  /// Pre-selects the treatment category when launched from the
+  /// injection / laser / treatment tabs (per client request Jun 2026).
+  final TreatmentCategory? initialCategory;
 
-  const CourseFormScreen({super.key, this.courseId, this.initialPatientId});
+  const CourseFormScreen({super.key, this.courseId, this.initialPatientId, this.initialCategory});
 
   bool get isEdit => courseId != null && courseId != 'new';
 
@@ -52,6 +56,9 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   // gets saved to `course.price`; the original subtotal + discount note
   // is appended to the course notes for audit trail.
   int _discountPct = 0; // 0 / 5 / 10 / 20
+  // ครั้งเดียว (single) vs คอร์ส (course) — per client requirement (Jun 2026).
+  // single => sessionsBought ล็อกเป็น 1, ป้ายราคาเป็น "ราคาต่อครั้ง".
+  bool _isCourse = true;
   // When ON (default for new courses), saving the course also creates an
   // outstanding `charge` record in financial_records so the receptionist
   // does NOT have to open the Financial screen separately. This was the
@@ -63,6 +70,9 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
   void initState() {
     super.initState();
     _selectedPatientId = widget.initialPatientId;
+    if (widget.initialCategory != null) {
+      _treatmentCategory = widget.initialCategory!;
+    }
     if (widget.isEdit) _loadExisting();
   }
 
@@ -85,6 +95,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       _priceCtrl.text = course.price?.toStringAsFixed(0) ?? '';
       _sessionsBoughtCtrl.text = course.sessionsBought.toString();
       _sessionsBonusCtrl.text = course.sessionsBonus.toString();
+      _isCourse = (course.sessionsBought + course.sessionsBonus) > 1;
       _notesCtrl.text = course.notes ?? '';
       _selectedPatientId = course.patientId;
       _status = course.status;
@@ -145,10 +156,10 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
       patientId: _selectedPatientId!,
       name: _nameCtrl.text.trim(),
       price: finalPrice,
-      sessionsBought: int.tryParse(_sessionsBoughtCtrl.text.trim()) ?? 1,
-      sessionsBonus: int.tryParse(_sessionsBonusCtrl.text.trim()) ?? 0,
+      sessionsBought: _isCourse ? (int.tryParse(_sessionsBoughtCtrl.text.trim()) ?? 1) : 1,
+      sessionsBonus: _isCourse ? (int.tryParse(_sessionsBonusCtrl.text.trim()) ?? 0) : 0,
       status: _status,
-      expiryDate: _expiryDate,
+      expiryDate: _isCourse ? _expiryDate : null,
       notes: finalNotes.isEmpty ? null : finalNotes,
       treatmentCategory: _treatmentCategory.dbValue.toLowerCase(),
       responsibleDoctorId:
@@ -208,6 +219,80 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
     }
   }
 
+  // ─── ครั้งเดียว / คอร์ส segmented toggle ───
+  Widget _buildTypeToggle() {
+    final isThai = context.l10n.isThai;
+    Widget seg(String label, IconData icon, bool selected, VoidCallback onTap) {
+      return Expanded(
+        child: AiraTapEffect(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: selected ? AiraColors.woodDk : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: 18, color: selected ? Colors.white : AiraColors.muted),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : AiraColors.muted,
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AiraColors.creamDk,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.3)),
+      ),
+      child: Row(children: [
+        seg(isThai ? 'ครั้งเดียว' : 'Single', Icons.bolt_rounded, !_isCourse,
+            () => setState(() => _isCourse = false)),
+        seg(isThai ? 'คอร์ส' : 'Course', Icons.card_membership_rounded, _isCourse,
+            () => setState(() => _isCourse = true)),
+      ]),
+    );
+  }
+
+  // ─── เลือกจากคลังบริการ → auto-fill ชื่อ + ประเภท + ราคา default ───
+  Future<void> _onPickService() async {
+    final selected = await pickService(context: context, ref: ref);
+    if (selected == null || !mounted) return;
+    setState(() {
+      _nameCtrl.text = selected.name;
+      _treatmentCategory = _serviceToTreatmentCategory(selected.category);
+      if (selected.defaultPrice != null && selected.defaultPrice! > 0) {
+        _priceCtrl.text = selected.defaultPrice!.toStringAsFixed(0);
+      }
+    });
+  }
+
+  TreatmentCategory _serviceToTreatmentCategory(ServiceCategory c) {
+    switch (c) {
+      case ServiceCategory.ha:
+      case ServiceCategory.injectable:
+        return TreatmentCategory.injectable;
+      case ServiceCategory.laser:
+        return TreatmentCategory.laser;
+      case ServiceCategory.treatment:
+        return TreatmentCategory.treatment;
+      case ServiceCategory.other:
+        return TreatmentCategory.other;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientListProvider);
@@ -228,8 +313,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
             saveLabel: context.l10n.save,
             steps: premiumSteps([
               (1, context.l10n.patient),
-              (2, context.l10n.course),
-              (3, context.l10n.sessions),
+              (2, context.l10n.isThai ? 'บริการ / คอร์ส' : 'Service / Course'),
             ]),
           ),
           Expanded(
@@ -246,22 +330,130 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                       _buildPatientSelector(patientsAsync),
                       const SizedBox(height: 28),
 
-                      // ─── Course info ───
-                      AiraSectionHeader(step: 2, icon: Icons.card_membership_rounded, title: context.l10n.course, subtitle: context.l10n.courseManagementSubtitle),
+                      // ─── บริการ / คอร์ส (ล็อคเดียว — ตาม requirement ลูกค้า Jun 2026) ───
+                      AiraSectionHeader(
+                        step: 2,
+                        icon: Icons.card_membership_rounded,
+                        title: context.l10n.isThai ? 'บริการ / คอร์ส' : 'Service / Course',
+                        subtitle: context.l10n.isThai
+                            ? 'ชื่อบริการ • ครั้ง/คอร์ส • ประเภท • จำนวนครั้ง • ราคา • แพทย์ — ในที่เดียว'
+                            : 'Name • single/course • category • sessions • price • doctor — in one place',
+                      ),
                       AiraPremiumCard(accentColor: AiraColors.woodMid, children: [
+                        // 1) ชื่อบริการ
                         TextFormField(
                           controller: _nameCtrl,
                           style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(label: 'ชื่อคอร์ส *', hint: 'เช่น Botox Forehead x10', prefixIcon: Icons.card_membership_rounded),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'กรุณาระบุชื่อคอร์ส' : null,
+                          decoration: airaFieldDecoration(
+                            label: context.l10n.isThai ? 'ชื่อบริการ *' : 'Service name *',
+                            hint: context.l10n.isThai ? 'เช่น Oligio 600 shots, Botox' : 'e.g. Oligio 600 shots',
+                            prefixIcon: Icons.medical_services_rounded,
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty
+                              ? (context.l10n.isThai ? 'กรุณาระบุชื่อบริการ' : 'Please enter a service name')
+                              : null,
+                        ),
+                        const SizedBox(height: 10),
+                        // เลือกจากคลังบริการ → auto-fill ราคา/ประเภท
+                        AiraTapEffect(
+                          onTap: _onPickService,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AiraColors.woodWash.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AiraColors.woodMid.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(children: [
+                              const Icon(Icons.search_rounded, size: 18, color: AiraColors.woodMid),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  context.l10n.isThai
+                                      ? 'เลือกจากคลังบริการ (เติมราคาให้อัตโนมัติ)'
+                                      : 'Pick from Service Library (auto-fills price)',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.woodDk),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 18, color: AiraColors.woodMid),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // 2) ครั้งเดียว / คอร์ส
+                        _buildTypeToggle(),
+                        const SizedBox(height: 16),
+                        // 3) ประเภท
+                        DropdownButtonFormField<TreatmentCategory>(
+                          value: _treatmentCategory,
+                          isExpanded: true,
+                          style: airaFieldTextStyle,
+                          decoration: airaFieldDecoration(
+                            label: context.l10n.treatmentCategory,
+                            prefixIcon: Icons.category_rounded,
+                          ),
+                          items: TreatmentCategory.values
+                              .map((c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(_treatmentCategoryLabel(c), style: airaFieldTextStyle),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _treatmentCategory = v);
+                          },
                         ),
                         const SizedBox(height: 14),
-                        // Per-course total price (saved to DB).
+                        // 4) จำนวนครั้ง + แถม (เฉพาะคอร์ส)
+                        if (_isCourse) ...[
+                          Row(children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _sessionsBoughtCtrl,
+                                style: airaFieldTextStyle,
+                                decoration: airaFieldDecoration(label: context.l10n.isThai ? 'จำนวนครั้ง' : 'Sessions', prefixIcon: Icons.confirmation_number_rounded),
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _sessionsBonusCtrl,
+                                style: airaFieldTextStyle,
+                                decoration: airaFieldDecoration(label: context.l10n.isThai ? 'แถม (ครั้ง)' : 'Bonus', prefixIcon: Icons.card_giftcard_rounded),
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 10),
+                          Builder(builder: (_) {
+                            final bought = int.tryParse(_sessionsBoughtCtrl.text) ?? 0;
+                            final bonus = int.tryParse(_sessionsBonusCtrl.text) ?? 0;
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: AiraColors.sage.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AiraColors.sage.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.summarize_rounded, size: 16, color: AiraColors.sage),
+                                const SizedBox(width: 8),
+                                Text(context.l10n.totalSessions(bought, bonus), style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.sage)),
+                              ]),
+                            );
+                          }),
+                          const SizedBox(height: 14),
+                        ],
+                        // 5) ราคา (label สลับตาม single/course)
                         TextFormField(
                           controller: _priceCtrl,
                           style: airaFieldTextStyle,
                           decoration: airaFieldDecoration(
-                            label: '${context.l10n.pricePerCourse} (฿) *',
+                            label: '${_isCourse ? context.l10n.pricePerCourse : context.l10n.pricePerSession} (฿) *',
                             hint: 'เช่น 15000',
                             prefixIcon: Icons.payments_rounded,
                           ),
@@ -335,10 +527,9 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                             ),
                           );
                         }),
+                        // Read-only computed price-per-session (เฉพาะคอร์ส)
+                        if (_isCourse) ...[
                         const SizedBox(height: 14),
-                        // Read-only computed price-per-session for instant
-                        // visibility while pricing the course. Updates as
-                        // either the price or session counts change.
                         Builder(
                           builder: (_) {
                             final total = double.tryParse(_priceCtrl.text.trim()) ?? 0;
@@ -393,6 +584,10 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                             );
                           },
                         ),
+                        ],
+                        const SizedBox(height: 14),
+                        // 6) แพทย์ที่ทำหัตถการ (อยู่ในล็อคเดียวกัน — ตาม requirement ลูกค้า)
+                        _buildDoctorDropdown(),
                         const SizedBox(height: 8),
                         // ─── Auto-create outstanding charge toggle ───
                         // Hidden when editing — only meaningful at sale time.
@@ -443,97 +638,23 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                       ]),
                       const SizedBox(height: 28),
 
-                      // ─── Treatment Details + Products (รวมเป็นกลุ่มเดียว) ───
-                      // Per client feedback (May 17): they want product
-                      // picker INSIDE the course form, grouped under the
-                      // treatment category. Selecting "Injectable" shows
-                      // injectables; "Laser" shows devices; "Treatment"
-                      // shows treatment products.
+                      // ─── ผลิตภัณฑ์ที่ใช้ (ต่อครั้ง) — ส่วนเสริม ───
                       AiraSectionHeader(
                         step: 0,
-                        icon: Icons.medical_services_rounded,
-                        title: context.l10n.treatmentDetails,
+                        icon: Icons.inventory_2_rounded,
+                        title: context.l10n.isThai ? 'ผลิตภัณฑ์ที่ใช้' : 'Products Used',
                         subtitle: context.l10n.isThai
-                            ? 'ประเภท, แพทย์, ผลิตภัณฑ์ที่ใช้ในคอร์ส'
-                            : 'Category, doctor and products used per session',
+                            ? 'ผลิตภัณฑ์/ยา ที่ใช้ต่อครั้ง (ไม่บังคับ)'
+                            : 'Products / meds used per session (optional)',
                       ),
                       AiraPremiumCard(accentColor: AiraColors.terra, children: [
-                        DropdownButtonFormField<TreatmentCategory>(
-                          value: _treatmentCategory,
-                          isExpanded: true,
-                          style: airaFieldTextStyle,
-                          decoration: airaFieldDecoration(
-                            label: context.l10n.treatmentCategory,
-                            prefixIcon: Icons.category_rounded,
-                          ),
-                          items: TreatmentCategory.values
-                              .map(
-                                (c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(
-                                    _treatmentCategoryLabel(c),
-                                    style: airaFieldTextStyle,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() => _treatmentCategory = v);
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _buildDoctorDropdown(),
-                        const SizedBox(height: 14),
                         _buildProductsPicker(),
                         const SizedBox(height: 8),
                       ]),
                       const SizedBox(height: 28),
 
-                      // ─── Sessions ───
-                      const AiraSectionHeader(step: 3, icon: Icons.confirmation_number_rounded, title: 'จำนวนเซสชั่น', subtitle: 'ซื้อ + แถม'),
-                      AiraPremiumCard(accentColor: AiraColors.sage, children: [
-                        Row(children: [
-                          Expanded(child: TextFormField(
-                            controller: _sessionsBoughtCtrl,
-                            style: airaFieldTextStyle,
-                            decoration: airaFieldDecoration(label: 'ซื้อ (ครั้ง)', prefixIcon: Icons.shopping_bag_rounded),
-                            keyboardType: TextInputType.number,
-                            onChanged: (_) => setState(() {}),
-                          )),
-                          const SizedBox(width: 14),
-                          Expanded(child: TextFormField(
-                            controller: _sessionsBonusCtrl,
-                            style: airaFieldTextStyle,
-                            decoration: airaFieldDecoration(label: 'แถม (ครั้ง)', prefixIcon: Icons.card_giftcard_rounded),
-                            keyboardType: TextInputType.number,
-                            onChanged: (_) => setState(() {}),
-                          )),
-                        ]),
-                        const SizedBox(height: 10),
-                        Builder(builder: (_) {
-                          final bought = int.tryParse(_sessionsBoughtCtrl.text) ?? 0;
-                          final bonus = int.tryParse(_sessionsBonusCtrl.text) ?? 0;
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: AiraColors.sage.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AiraColors.sage.withValues(alpha: 0.2)),
-                            ),
-                            child: Row(children: [
-                              Icon(Icons.summarize_rounded, size: 16, color: AiraColors.sage),
-                              const SizedBox(width: 8),
-                              Text(context.l10n.totalSessions(bought, bonus), style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.sage)),
-                            ]),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                      ]),
-                      const SizedBox(height: 28),
-
-                      // ─── Expiry ───
+                      // ─── Expiry (เฉพาะคอร์ส) ───
+                      if (_isCourse) ...[
                       const AiraSectionHeader(step: 0, icon: Icons.event_rounded, title: 'วันหมดอายุ'),
                       AiraPremiumCard(accentColor: AiraColors.gold, children: [
                         AiraTapEffect(
@@ -569,6 +690,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
                         const SizedBox(height: 8),
                       ]),
                       const SizedBox(height: 28),
+                      ],
 
                       // ─── Notes ───
                       const AiraSectionHeader(step: 0, icon: Icons.note_rounded, title: 'หมายเหตุ'),

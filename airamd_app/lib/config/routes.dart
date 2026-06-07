@@ -170,9 +170,11 @@ List<RouteBase> get appRoutes => [
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) {
         final patientId = state.uri.queryParameters['patientId'];
+        final catStr = state.uri.queryParameters['category'];
+        final category = catStr != null ? TreatmentCategory.fromDb(catStr) : null;
         return AccessGuard(
           permission: AiraPermission.financial,
-          child: CourseFormScreen(initialPatientId: patientId),
+          child: CourseFormScreen(initialPatientId: patientId, initialCategory: category),
         );
       },
     ),

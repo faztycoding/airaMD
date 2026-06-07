@@ -93,6 +93,17 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
   final _adverseCtrl = TextEditingController();
   final _instructionCtrl = TextEditingController();
 
+  // ─── Optional embedded service/course sale (per client Jun 2026) ───
+  // Lets the doctor record the SOAP treatment AND sell a single service or
+  // course (with price + outstanding charge) in one screen — no need to
+  // open the separate course form.
+  bool _sellService = false;
+  bool _svcIsCourse = false;
+  int _svcDiscountPct = 0;
+  final _svcPriceCtrl = TextEditingController();
+  final _svcSessionsCtrl = TextEditingController(text: '5');
+  final _svcBonusCtrl = TextEditingController(text: '0');
+
   @override
   void dispose() {
     _treatmentNameCtrl.dispose();
@@ -109,6 +120,9 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     _followUpTimeCtrl.dispose();
     _adverseCtrl.dispose();
     _instructionCtrl.dispose();
+    _svcPriceCtrl.dispose();
+    _svcSessionsCtrl.dispose();
+    _svcBonusCtrl.dispose();
     for (final c in _machineNameCtrls) {
       c.dispose();
     }
@@ -622,6 +636,71 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         newData: {'treatment_name': record.treatmentName, 'patient_id': record.patientId, 'category': record.category.dbValue, 'doctor_id': record.doctorId, 'appointment_id': record.appointmentId},
       );
 
+      // ─── Optional: sell single service / course + outstanding charge ───
+      // Only on new records, only when the user enabled the pricing block and
+      // entered a positive price. Non-fatal: a failure here must not roll back
+      // the clinical record (mirrors the follow-up appointment side-effect).
+      var serviceSold = false;
+      if (!widget.isEdit && _sellService) {
+        final base = double.tryParse(_svcPriceCtrl.text.trim());
+        if (base != null && base > 0) {
+          final finalPrice =
+              _svcDiscountPct > 0 ? base * (1 - _svcDiscountPct / 100) : base;
+          final bought = _svcIsCourse
+              ? (int.tryParse(_svcSessionsCtrl.text.trim()) ?? 1)
+              : 1;
+          final bonus = _svcIsCourse
+              ? (int.tryParse(_svcBonusCtrl.text.trim()) ?? 0)
+              : 0;
+          final discountTag =
+              _svcDiscountPct > 0 ? 'ส่วนลด $_svcDiscountPct%' : '';
+          try {
+            final courseId = const Uuid().v4();
+            await ref.read(courseRepoProvider).create(Course(
+                  id: courseId,
+                  clinicId: clinicId,
+                  patientId: widget.patientId,
+                  name: record.treatmentName,
+                  price: finalPrice,
+                  sessionsBought: bought,
+                  sessionsBonus: bonus,
+                  treatmentCategory: _category.dbValue.toLowerCase(),
+                  responsibleDoctorId:
+                      (_selectedDoctorId != null && _selectedDoctorId!.isNotEmpty)
+                          ? _selectedDoctorId
+                          : null,
+                  notes: discountTag.isEmpty ? null : discountTag,
+                ));
+            await ref.read(financialRepoProvider).create(FinancialRecord(
+                  id: const Uuid().v4(),
+                  clinicId: clinicId,
+                  patientId: widget.patientId,
+                  courseId: courseId,
+                  type: FinancialType.charge,
+                  amount: finalPrice,
+                  description:
+                      'ค่าบริการ: ${record.treatmentName}${discountTag.isNotEmpty ? ' • $discountTag' : ''}',
+                  isOutstanding: true,
+                ));
+            serviceSold = true;
+            ref.invalidate(courseListProvider);
+            ref.invalidate(coursesByPatientProvider(widget.patientId));
+            ref.invalidate(financialListProvider);
+            ref.invalidate(outstandingRecordsProvider);
+            ref.invalidate(financialsByPatientProvider(widget.patientId));
+          } catch (e) {
+            if (mounted) {
+              AiraFeedback.warning(
+                context,
+                context.l10n.isThai
+                    ? 'บันทึกการรักษาสำเร็จ แต่สร้างรายการบริการ/ค่าใช้จ่ายไม่สำเร็จ: $e'
+                    : 'Treatment saved, but creating the service/charge failed: $e',
+              );
+            }
+          }
+        }
+      }
+
       if (mounted) {
         AiraFeedback.success(
           context,
@@ -632,6 +711,14 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
         if (followUpAppointmentCreated) {
           AiraFeedback.info(context, context.l10n.followUpCreated);
         }
+        if (serviceSold) {
+          AiraFeedback.info(
+            context,
+            context.l10n.isThai
+                ? 'สร้างรายการบริการ/คอร์ส และค่าใช้จ่ายค้างชำระเรียบร้อย'
+                : 'Service/course and outstanding charge created',
+          );
+        }
         context.pop();
       }
     } catch (e) {
@@ -641,6 +728,195 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  // ─── ครั้งเดียว / คอร์ส toggle (embedded sale) ───
+  Widget _buildSvcTypeToggle() {
+    final isThai = context.l10n.isThai;
+    Widget seg(String label, IconData icon, bool selected, VoidCallback onTap) {
+      return Expanded(
+        child: AiraTapEffect(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? AiraColors.woodDk : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: 16, color: selected ? Colors.white : AiraColors.muted),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: selected ? Colors.white : AiraColors.muted),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AiraColors.creamDk,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.3)),
+      ),
+      child: Row(children: [
+        seg(isThai ? 'ครั้งเดียว' : 'Single', Icons.bolt_rounded, !_svcIsCourse,
+            () => setState(() => _svcIsCourse = false)),
+        seg(isThai ? 'คอร์ส' : 'Course', Icons.card_membership_rounded, _svcIsCourse,
+            () => setState(() => _svcIsCourse = true)),
+      ]),
+    );
+  }
+
+  // ─── บริการ / ค่าใช้จ่าย (ขายบริการ/คอร์ส ในหน้าเดียวกับการบันทึกหัตถการ) ───
+  Widget _buildServiceSaleSection() {
+    final l = context.l10n;
+    final isThai = l.isThai;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AiraSectionHeader(
+          step: 0,
+          icon: Icons.sell_rounded,
+          title: isThai ? 'บริการ / ค่าใช้จ่าย' : 'Service / Charge',
+          subtitle: isThai
+              ? 'ขายบริการครั้งเดียวหรือคอร์ส + ตั้งราคา (ไม่บังคับ)'
+              : 'Sell a single service or course + set price (optional)',
+        ),
+        AiraPremiumCard(accentColor: AiraColors.gold, children: [
+          Row(children: [
+            Icon(Icons.receipt_long_rounded, size: 18, color: _sellService ? AiraColors.gold : AiraColors.muted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isThai ? 'คิดราคา / ขายบริการนี้' : 'Charge / sell this service',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AiraColors.charcoal),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isThai ? 'สร้างรายการค้างชำระให้อัตโนมัติเมื่อบันทึก' : 'Auto-creates an outstanding charge on save',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted, height: 1.3),
+                  ),
+                ],
+              ),
+            ),
+            Switch(value: _sellService, activeColor: AiraColors.gold, onChanged: (v) => setState(() => _sellService = v)),
+          ]),
+          if (_sellService) ...[
+            const SizedBox(height: 14),
+            _buildSvcTypeToggle(),
+            const SizedBox(height: 14),
+            if (_svcIsCourse) ...[
+              Row(children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _svcSessionsCtrl,
+                    style: airaFieldTextStyle,
+                    decoration: airaFieldDecoration(label: isThai ? 'จำนวนครั้ง' : 'Sessions', prefixIcon: Icons.confirmation_number_rounded),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: TextFormField(
+                    controller: _svcBonusCtrl,
+                    style: airaFieldTextStyle,
+                    decoration: airaFieldDecoration(label: isThai ? 'แถม (ครั้ง)' : 'Bonus', prefixIcon: Icons.card_giftcard_rounded),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 14),
+            ],
+            TextFormField(
+              controller: _svcPriceCtrl,
+              style: airaFieldTextStyle,
+              decoration: airaFieldDecoration(
+                label: '${_svcIsCourse ? l.pricePerCourse : l.pricePerSession} (฿)',
+                hint: isThai ? 'เช่น 15000' : 'e.g. 15000',
+                prefixIcon: Icons.payments_rounded,
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              const Icon(Icons.local_offer_rounded, size: 16, color: AiraColors.muted),
+              const SizedBox(width: 6),
+              Text(isThai ? 'ส่วนลด' : 'Discount', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.muted)),
+              const SizedBox(width: 10),
+              ...[0, 5, 10, 20].map((pct) {
+                final selected = _svcDiscountPct == pct;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: AiraTapEffect(
+                    onTap: () => setState(() => _svcDiscountPct = pct),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: selected ? AiraColors.gold : AiraColors.creamDk,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: selected ? AiraColors.gold : AiraColors.woodPale.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        pct == 0 ? (isThai ? 'ไม่มี' : 'None') : '$pct%',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? Colors.white : AiraColors.charcoal),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ]),
+            Builder(builder: (_) {
+              final base = double.tryParse(_svcPriceCtrl.text.trim()) ?? 0;
+              if (base <= 0) return const SizedBox.shrink();
+              final finalAmt = _svcDiscountPct > 0 ? base * (1 - _svcDiscountPct / 100) : base;
+              final sessions = _svcIsCourse
+                  ? ((int.tryParse(_svcSessionsCtrl.text.trim()) ?? 0) + (int.tryParse(_svcBonusCtrl.text.trim()) ?? 0))
+                  : 1;
+              final perSession = sessions > 0 ? finalAmt / sessions : finalAmt;
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AiraColors.sage.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AiraColors.sage.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.check_circle_rounded, size: 16, color: AiraColors.sage),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _svcIsCourse
+                            ? (isThai
+                                ? 'รวม ฿${finalAmt.toStringAsFixed(0)} • ฿${perSession.toStringAsFixed(0)}/ครั้ง × $sessions'
+                                : 'Total ฿${finalAmt.toStringAsFixed(0)} • ฿${perSession.toStringAsFixed(0)}/session × $sessions')
+                            : (isThai ? 'ราคาสุทธิ ฿${finalAmt.toStringAsFixed(0)}' : 'Net ฿${finalAmt.toStringAsFixed(0)}'),
+                        style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: AiraColors.sage),
+                      ),
+                    ),
+                  ]),
+                ),
+              );
+            }),
+          ],
+        ]),
+        const SizedBox(height: 28),
+      ],
+    );
   }
 
   @override
@@ -701,6 +977,9 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
                       ),
                       _buildTreatmentInfoSection(doctorsAsync, preferredAppointment),
                       const SizedBox(height: 28),
+
+                      // ─── Service / Course sale (optional, new records only) ───
+                      if (!widget.isEdit) _buildServiceSaleSection(),
 
                       // ─── Section 2: SOAP Notes ───
                       const AiraSectionHeader(
