@@ -798,15 +798,46 @@ class _CourseOverviewSection extends ConsumerWidget {
               CourseStatus.expired => 'หมดอายุ',
               CourseStatus.active => 'ใช้อยู่',
             };
+            final remaining = total - course.sessionsUsed;
+            final canUse = remaining > 0 &&
+                (course.status == CourseStatus.active ||
+                    course.status == CourseStatus.low);
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _CourseCard(
-                name: course.name,
-                detail: detail,
-                sessionsTotal: total,
-                sessionsUsed: course.sessionsUsed,
-                color: color,
-                statusLabel: statusLabel,
+              child: Column(
+                children: [
+                  _CourseCard(
+                    name: course.name,
+                    detail: detail,
+                    sessionsTotal: total,
+                    sessionsUsed: course.sessionsUsed,
+                    color: color,
+                    statusLabel: statusLabel,
+                  ),
+                  if (canUse) ...[
+                    const SizedBox(height: 8),
+                    AiraTapEffect(
+                      onTap: () => _useOneSession(context, ref, course),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AiraColors.woodDk,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'ใช้ 1 ครั้ง  •  เหลือ $remaining ครั้ง',
+                            style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             );
           }),
@@ -825,6 +856,47 @@ class _CourseOverviewSection extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
       error: (e, _) => Center(child: Text('Error: $e')),
     );
+  }
+}
+
+/// Consume one course session via the atomic `use_course_session` RPC.
+/// Confirms first, then refreshes the patient + global course lists. The
+/// server clamps over-spend and flips status to completed when full.
+Future<void> _useOneSession(
+    BuildContext context, WidgetRef ref, Course course) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('ยืนยันตัดครั้งคอร์ส'),
+      content: Text('ตัดการใช้คอร์ส "${course.name}" 1 ครั้งใช่ไหม?'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('ยกเลิก')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ใช้ 1 ครั้ง')),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    final updated = await ref.read(courseRepoProvider).useSession(course.id);
+    ref.invalidate(coursesByPatientProvider(course.patientId));
+    ref.invalidate(courseListProvider);
+    final total = updated.sessionsTotal ??
+        (updated.sessionsBought + updated.sessionsBonus);
+    messenger.showSnackBar(SnackBar(
+      content:
+          Text('ตัดครั้งสำเร็จ — ใช้แล้ว ${updated.sessionsUsed}/$total ครั้ง'),
+      backgroundColor: AiraColors.sage,
+    ));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(
+      content: Text('ตัดครั้งไม่สำเร็จ: $e'),
+      backgroundColor: AiraColors.terra,
+    ));
   }
 }
 
