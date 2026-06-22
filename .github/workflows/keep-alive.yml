@@ -25,10 +25,10 @@ concurrency:
 
 jobs:
   ping:
-    name: Ping Supabase REST
+    name: Ping Supabase
     runs-on: ubuntu-latest
     steps:
-      - name: Hit Supabase REST root
+      - name: Hit Supabase auth settings
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -37,7 +37,10 @@ jobs:
             echo "::error::Missing SUPABASE_URL or SUPABASE_ANON_KEY secret."
             exit 1
           fi
-          echo "Pinging ${SUPABASE_URL}/rest/v1/ ..."
+          # Use /auth/v1/settings: it returns 200 with a valid anon apikey
+          # and counts as API activity. (The /rest/v1/ root only accepts the
+          # service_role key and returns 401, which would falsely fail --fail.)
+          echo "Pinging ${SUPABASE_URL}/auth/v1/settings ..."
           # --fail makes the step (and thus the run) go red if the project
           # is paused/unreachable, so you get an email alert.
           http_code=$(curl --silent --show-error --fail \
@@ -45,6 +48,5 @@ jobs:
             --output /dev/null \
             --write-out '%{http_code}' \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/")
+            "${SUPABASE_URL}/auth/v1/settings")
           echo "Supabase responded with HTTP ${http_code} — project is awake."
