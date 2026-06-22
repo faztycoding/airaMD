@@ -1,34 +1,8 @@
--- Migration 022: Add LIPOLYTIC value to product_category enum
---
--- Phase 5 introduces fat-dissolving / body-contouring solutions
--- (Fat Bomb Face/Body, V Face/Body Solution). These were seeded
--- under 'OTHER' in migration 021; this migration adds a proper
--- LIPOLYTIC category and re-tags the seeded rows.
---
--- Safe to re-run: ADD VALUE IF NOT EXISTS is idempotent (PG 12+).
+⚠️ เงื่อนไขสำคัญ — ต้อง re-seed
+template ที่ "เป๊ะ" นี้คือ ค่า default ที่ใช้ตอน seed เท่านั้น ถ้าพี่ เคยกด seed ไปแล้ว ของเก่าใน DB ยังเป็นเวอร์ชันที่ผม normalize → ยังไม่เป๊ะ
 
-BEGIN;
+วิธีให้เป๊ะในแอพจริง:
 
--- 1. Extend the enum
-ALTER TYPE product_category ADD VALUE IF NOT EXISTS 'LIPOLYTIC';
-
-COMMIT;
-
--- ─────────────────────────────────────────────────────────────────────
--- 2. Re-tag seeded lipolytic rows (separate txn — new enum value cannot
---    be used in the same transaction it was added in)
--- ─────────────────────────────────────────────────────────────────────
-
-BEGIN;
-
-UPDATE products
-   SET category = 'LIPOLYTIC'::product_category
- WHERE category = 'OTHER'::product_category
-   AND lower(name) IN (
-     'fat bomb face',
-     'fat bomb body',
-     'v face solution',
-     'v body solution'
-   );
-
-COMMIT;
+ไป Settings → เทมเพลตใบยินยอม → ลบเทมเพลตเก่าทั้ง 2 อัน
+กด "ใช้เทมเพลตมาตรฐาน" (seed) ใหม่ → จะได้เวอร์ชัน verbatim
+ตั้งชื่อคลินิกใน Settings = "บลิส คลินิก"

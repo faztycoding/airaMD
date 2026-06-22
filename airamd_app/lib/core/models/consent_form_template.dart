@@ -27,7 +27,10 @@ class ConsentFormTemplate {
         clinicId: json['clinic_id'] as String,
         name: json['name'] as String,
         category: json['category'] as String?,
-        content: json['content'] as String,
+        // Normalize legacy data: some older rows stored the literal two-char
+        // sequence "\n" instead of a real newline, which broke line-based
+        // rendering (editor, consent form, PDF, parseRiskItems).
+        content: (json['content'] as String).replaceAll(r'\n', '\n'),
         isActive: json['is_active'] as bool? ?? true,
         version: json['version'] as int? ?? 1,
         createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,

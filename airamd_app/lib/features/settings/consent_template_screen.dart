@@ -116,12 +116,15 @@ class ConsentTemplateScreen extends ConsumerWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(20),
                   itemCount: templates.length,
-                  itemBuilder: (context, i) => _TemplateCard(
-                    template: templates[i],
-                    isThai: isThai,
-                    onEdit: () =>
-                        _showEditor(context, ref, existing: templates[i]),
-                    onDelete: () => _confirmDelete(context, ref, templates[i]),
+                  itemBuilder: (context, i) => AiraTapEffect(
+                    onTap: () => _showPreview(context, templates[i], isThai),
+                    child: _TemplateCard(
+                      template: templates[i],
+                      isThai: isThai,
+                      onEdit: () =>
+                          _showEditor(context, ref, existing: templates[i]),
+                      onDelete: () => _confirmDelete(context, ref, templates[i]),
+                    ),
                   ),
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                 );
@@ -139,6 +142,89 @@ class ConsentTemplateScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) _showError(context, e);
     }
+  }
+
+  /// Read-only full-document preview (tap a template card).
+  void _showPreview(
+      BuildContext context, ConsentFormTemplate t, bool isThai) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (ctx, scrollCtrl) => Container(
+            decoration: const BoxDecoration(
+              color: AiraColors.cream,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AiraColors.woodPale,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  t.name,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AiraColors.charcoal,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isThai
+                      ? 'ตัวอย่างเอกสาร — {clinic_name} จะถูกแทนด้วยชื่อคลินิกจริงตอนใช้งาน'
+                      : 'Document preview — {clinic_name} is replaced with the real clinic name in use',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: AiraColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: AiraColors.woodPale.withValues(alpha: 0.3)),
+                    ),
+                    child: SingleChildScrollView(
+                      controller: scrollCtrl,
+                      child: SelectableText(
+                        t.content,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          height: 1.7,
+                          color: AiraColors.charcoal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _confirmDelete(
