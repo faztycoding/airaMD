@@ -1,0 +1,50 @@
+name: Supabase Keep-Alive
+
+# Supabase Free tier pauses a project after ~7 days with no API activity.
+# A paused project stops resolving DNS, so the app fails with
+# "SocketException: Failed host lookup". This workflow pings the REST API
+# twice a day so the idle timer never reaches the pause threshold.
+#
+# Requires repo Actions secrets (already used by ci.yml):
+#   - SUPABASE_URL      e.g. https://<ref>.supabase.co
+#   - SUPABASE_ANON_KEY the public anon key
+#
+# CAVEAT: GitHub auto-disables scheduled workflows after 60 days with no
+# repo commits. Push something periodically (or upgrade to Supabase Pro)
+# to keep this alive long-term.
+
+on:
+  schedule:
+    # Every 12 hours (00:00 and 12:00 UTC). Two pings/day for redundancy.
+    - cron: '0 */12 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping Supabase REST
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit Supabase REST root
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Missing SUPABASE_URL or SUPABASE_ANON_KEY secret."
+            exit 1
+          fi
+          echo "Pinging ${SUPABASE_URL}/rest/v1/ ..."
+          # --fail makes the step (and thus the run) go red if the project
+          # is paused/unreachable, so you get an email alert.
+          http_code=$(curl --silent --show-error --fail \
+            --max-time 30 \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/rest/v1/")
+          echo "Supabase responded with HTTP ${http_code} — project is awake."

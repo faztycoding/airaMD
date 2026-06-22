@@ -49,6 +49,8 @@ class AppL10n {
   String get emailAlreadyUsed => isThai ? 'อีเมลนี้ถูกใช้งานแล้ว' : 'This email is already registered';
   String get weakPassword => isThai ? 'รหัสผ่านไม่แข็งแรงพอ' : 'Password is too weak';
   String get tooManyAttempts => isThai ? 'ลองมากเกินไป กรุณารอสักครู่' : 'Too many attempts. Please wait a moment.';
+  String get serviceUnavailable => isThai ? 'เซิร์ฟเวอร์ไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่อีกครั้งในอีกสักครู่' : 'The service is temporarily unavailable. Please try again in a moment.';
+  String get noInternet => isThai ? 'ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้ กรุณาตรวจสอบการเชื่อมต่อ' : 'No internet connection. Please check your network.';
   String get passwordMismatch => isThai ? 'รหัสผ่านไม่ตรงกัน' : 'Passwords do not match';
   String get passwordTooShort => isThai ? 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' : 'Password must be at least 8 characters';
   String get invalidEmail => isThai ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'Invalid email format';

@@ -107,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } on AuthException catch (e) {
       setState(() => _errorMessage = _mapAuthError(e.message));
     } catch (e) {
-      setState(() => _errorMessage = '$e');
+      setState(() => _errorMessage = _mapGenericError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -148,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } on AuthException catch (e) {
       setState(() => _errorMessage = _mapAuthError(e.message));
     } catch (e) {
-      setState(() => _errorMessage = '$e');
+      setState(() => _errorMessage = _mapGenericError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -192,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } on AuthException catch (e) {
       setState(() => _errorMessage = _mapAuthError(e.message));
     } catch (e) {
-      setState(() => _errorMessage = '$e');
+      setState(() => _errorMessage = _mapGenericError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -265,6 +265,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
       ),
     );
+  }
+
+  /// Maps non-Auth exceptions (network/host-lookup/timeout) to a friendly,
+  /// localised message instead of dumping a raw `SocketException` string at
+  /// the user. A paused Supabase project surfaces as "failed host lookup".
+  String _mapGenericError(Object e) {
+    final s = e.toString().toLowerCase();
+    // Clearly the device itself is offline.
+    final offline = s.contains('network is unreachable') ||
+        s.contains('no address associated with hostname');
+    if (offline) return context.l10n.noInternet;
+    // Host unreachable / DNS fail / timeout — most often a paused or
+    // restoring Supabase project. Show a calm "try again" message.
+    final unreachable = s.contains('socketexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('clientexception') ||
+        s.contains('connection refused') ||
+        s.contains('connection closed') ||
+        s.contains('connection reset') ||
+        s.contains('timeout');
+    if (unreachable) return context.l10n.serviceUnavailable;
+    // Unknown error — still avoid leaking a raw stack/exception string.
+    return context.l10n.serviceUnavailable;
   }
 
   String _mapAuthError(String message) {
