@@ -8,15 +8,6 @@ import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
 
-// ─── Provider ─────────────────────────────────────────────────
-final _clinicProvider = FutureProvider<Clinic?>((ref) async {
-  final clinicId = ref.watch(currentClinicIdProvider);
-  if (clinicId == null) return null;
-  final client = ref.watch(supabaseClientProvider);
-  final data = await client.from('clinics').select().eq('id', clinicId).maybeSingle();
-  return data != null ? Clinic.fromJson(data) : null;
-});
-
 class ClinicInfoScreen extends ConsumerStatefulWidget {
   const ClinicInfoScreen({super.key});
 
@@ -76,7 +67,7 @@ class _ClinicInfoScreenState extends ConsumerState<ClinicInfoScreen> {
         await client.from('clinics').insert(updated.toInsertJson());
       }
 
-      ref.invalidate(_clinicProvider);
+      ref.invalidate(currentClinicProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.saveSuccess), backgroundColor: AiraColors.sage),
@@ -95,7 +86,7 @@ class _ClinicInfoScreenState extends ConsumerState<ClinicInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clinicAsync = ref.watch(_clinicProvider);
+    final clinicAsync = ref.watch(currentClinicProvider);
     final l = context.l10n;
 
     return Scaffold(

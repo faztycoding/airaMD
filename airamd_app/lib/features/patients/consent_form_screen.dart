@@ -25,18 +25,6 @@ final _consentDoctorsProvider = FutureProvider<List<Staff>>((ref) async {
   return ref.watch(staffRepoProvider).getDoctors(clinicId);
 });
 
-final _consentClinicProvider = FutureProvider<Clinic?>((ref) async {
-  final clinicId = ref.watch(currentClinicIdProvider);
-  if (clinicId == null) return null;
-  final data = await ref
-      .watch(supabaseClientProvider)
-      .from('clinics')
-      .select()
-      .eq('id', clinicId)
-      .maybeSingle();
-  return data != null ? Clinic.fromJson(data) : null;
-});
-
 /// Extract per-line risk/side-effect items from a consent template so the
 /// patient can acknowledge each one individually. Items are the lines that
 /// follow the "…เช่น" marker, up to the closing paragraph.
@@ -142,7 +130,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
       _sigCtrl.isNotEmpty;
 
   String _clinicName() =>
-      ref.read(_consentClinicProvider).valueOrNull?.name ?? 'คลินิก';
+      ref.read(currentClinicProvider).valueOrNull?.name ?? 'คลินิก';
 
   Future<String?> _uploadSig(
       SignatureController ctrl, String clinicId, String tag, int ts) async {
@@ -345,7 +333,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
     final templatesAsync = ref.watch(consentTemplatesProvider);
     final doctorsAsync = ref.watch(_consentDoctorsProvider);
-    final clinicName = ref.watch(_consentClinicProvider).valueOrNull?.name;
+    final clinicName = ref.watch(currentClinicProvider).valueOrNull?.name;
     final now = DateTime.now();
 
     return Scaffold(

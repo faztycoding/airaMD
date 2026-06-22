@@ -43,6 +43,20 @@ final currentClinicIdProvider = Provider<String?>((ref) {
   return staffAsync.valueOrNull?.clinicId;
 });
 
+/// Current clinic record (shared, invalidatable).
+///
+/// Both Settings → Clinic Info and the consent form read this provider so an
+/// edit to the clinic name (or other info) reflects everywhere once the
+/// provider is invalidated after saving.
+final currentClinicProvider = FutureProvider<Clinic?>((ref) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return null;
+  final client = ref.watch(supabaseClientProvider);
+  final data =
+      await client.from('clinics').select().eq('id', clinicId).maybeSingle();
+  return data != null ? Clinic.fromJson(data) : null;
+});
+
 final effectiveStaffRoleProvider = Provider<StaffRole>((ref) {
   final staffAsync = ref.watch(currentStaffProvider);
   return staffAsync.valueOrNull?.role ?? StaffRole.receptionist;
