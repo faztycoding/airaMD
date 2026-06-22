@@ -72,13 +72,22 @@ class ConsentPdfService {
           pw.Divider(),
           pw.SizedBox(height: 12),
 
-          // Full legal consent text
+          // Full legal consent text — split per line so MultiPage can
+          // paginate between paragraphs (a single Text taller than one page
+          // cannot span and throws "Widget won't fit into the page").
           if (legalBody.isNotEmpty) ...[
-            pw.Text(
-              legalBody,
-              style: const pw.TextStyle(fontSize: 11, lineSpacing: 3),
-              textAlign: pw.TextAlign.justify,
-            ),
+            for (final line in legalBody.split('\n'))
+              if (line.trim().isEmpty)
+                pw.SizedBox(height: 6)
+              else
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 3),
+                  child: pw.Text(
+                    line,
+                    style: const pw.TextStyle(fontSize: 11, lineSpacing: 3),
+                    textAlign: pw.TextAlign.justify,
+                  ),
+                ),
             pw.SizedBox(height: 14),
           ] else ...[
             _labelValue('หัตถการ / Procedure', form.procedure ?? '-'),
