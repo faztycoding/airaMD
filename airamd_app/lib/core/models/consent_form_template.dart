@@ -5,6 +5,7 @@ class ConsentFormTemplate {
   final String? category;
   final String content;
   final bool isActive;
+  final int version;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -15,6 +16,7 @@ class ConsentFormTemplate {
     this.category,
     required this.content,
     this.isActive = true,
+    this.version = 1,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +29,7 @@ class ConsentFormTemplate {
         category: json['category'] as String?,
         content: json['content'] as String,
         isActive: json['is_active'] as bool? ?? true,
+        version: json['version'] as int? ?? 1,
         createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
         updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null,
       );
@@ -44,5 +47,25 @@ class ConsentFormTemplate {
         'category': category,
         'content': content,
         'is_active': isActive,
+        'version': version,
       };
+
+  ConsentFormTemplate copyWith({
+    String? name,
+    String? category,
+    String? content,
+    bool? isActive,
+    int? version,
+  }) =>
+      ConsentFormTemplate(
+        id: id,
+        clinicId: clinicId,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        content: content ?? this.content,
+        isActive: isActive ?? this.isActive,
+        version: version ?? this.version,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
 }

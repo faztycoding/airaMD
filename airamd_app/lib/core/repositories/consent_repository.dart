@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../config/constants.dart';
 import '../models/models.dart';
 import 'base_repository.dart';
 
@@ -31,11 +33,16 @@ class ConsentTemplateRepository extends BaseRepository {
     return ConsentFormTemplate.fromJson(data);
   }
 
+  /// Update a template. Bumps [version] on every edit so signed consents can
+  /// reference the exact template revision the patient agreed to.
   Future<ConsentFormTemplate> updateTemplate(
       ConsentFormTemplate template) async {
-    final data = await update(template.id, template.toUpdateJson());
+    final json = template.toUpdateJson()..['version'] = template.version + 1;
+    final data = await update(template.id, json);
     return ConsentFormTemplate.fromJson(data);
   }
+
+  Future<void> deleteTemplate(String id) => delete(id);
 }
 
 class ConsentFormRepository extends BaseRepository {
@@ -61,5 +68,32 @@ class ConsentFormRepository extends BaseRepository {
   Future<ConsentForm> create(ConsentForm form) async {
     final data = await insert(form.toInsertJson());
     return ConsentForm.fromJson(data);
+  }
+
+  /// Upload an archived consent PDF to the `consent-pdfs` bucket and return the
+  /// storage path. Path convention: {clinicId}/{patientId}/{fileName}.
+  Future<String> uploadPdf({
+    required String clinicId,
+    required String patientId,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final path = '$clinicId/$patientId/$fileName';
+    await client.storage.from(AppConstants.bucketConsentPdfs).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+    return path;
+  }
+
+  /// Create a short-lived signed URL to view an archived consent PDF.
+  Future<String> signedPdfUrl(String path, {int expiresIn = 3600}) {
+    return client.storage
+        .from(AppConstants.bucketConsentPdfs)
+        .createSignedUrl(path, expiresIn);
   }
 }

@@ -14,6 +14,14 @@ class ConsentForm {
   final List<String> consentedItems;
   final String? notes;
   final DateTime? createdAt;
+  // ─── World-class consent fields (migration 025) ───
+  final String? doctorId;
+  final String? doctorSignatureUrl;
+  final String? witnessSignatureUrl;
+  final String? signedNameTyped;
+  final int? templateVersion;
+  final List<String> acknowledgedItems;
+  final String? deviceInfo;
 
   const ConsentForm({
     required this.id,
@@ -29,6 +37,13 @@ class ConsentForm {
     this.consentedItems = const [],
     this.notes,
     this.createdAt,
+    this.doctorId,
+    this.doctorSignatureUrl,
+    this.witnessSignatureUrl,
+    this.signedNameTyped,
+    this.templateVersion,
+    this.acknowledgedItems = const [],
+    this.deviceInfo,
   });
 
   factory ConsentForm.fromJson(Map<String, dynamic> json) => ConsentForm(
@@ -47,6 +62,13 @@ class ConsentForm {
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
             : null,
+        doctorId: json['doctor_id'] as String?,
+        doctorSignatureUrl: json['doctor_signature_url'] as String?,
+        witnessSignatureUrl: json['witness_signature_url'] as String?,
+        signedNameTyped: json['signed_name_typed'] as String?,
+        templateVersion: json['template_version'] as int?,
+        acknowledgedItems: parseStringList(json['acknowledged_items']),
+        deviceInfo: json['device_info'] as String?,
       );
 
   Map<String, dynamic> toInsertJson() => {
@@ -61,5 +83,14 @@ class ConsentForm {
         if (procedure != null) 'procedure': procedure,
         'consented_items': consentedItems,
         if (notes != null) 'notes': notes,
+        if (doctorId != null) 'doctor_id': doctorId,
+        if (doctorSignatureUrl != null)
+          'doctor_signature_url': doctorSignatureUrl,
+        if (witnessSignatureUrl != null)
+          'witness_signature_url': witnessSignatureUrl,
+        if (signedNameTyped != null) 'signed_name_typed': signedNameTyped,
+        if (templateVersion != null) 'template_version': templateVersion,
+        'acknowledged_items': acknowledgedItems,
+        if (deviceInfo != null) 'device_info': deviceInfo,
       };
 }
