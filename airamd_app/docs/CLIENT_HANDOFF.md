@@ -201,6 +201,29 @@
 - [x] `docs/FEATURE_MATRIX.md`
 - [x] `docs/CLIENT_HANDOFF.md` (ไฟล์นี้)
 
+## Build 24 — ใบยินยอม World-class + จัดการเครื่องเลเซอร์
+
+### ใบยินยอม (Consent) ยกระดับเป็นหลักฐานทางการแพทย์
+- เทมเพลตเก็บถาวรใน DB พร้อม **versioning** จัดการได้ใน **Settings → เทมเพลตใบยินยอม** (CRUD + หมวด LASER/TREATMENT + seed เทมเพลตมาตรฐาน)
+- ใช้ placeholder `{clinic_name}` แทนชื่อคลินิกอัตโนมัติตอนเซ็น
+- **เซ็นหลายฝ่าย**: ผู้ป่วย + แพทย์ (พร้อมเลข ว.) + พยาน
+- **ติ๊กรับทราบความเสี่ยงรายข้อ** + พิมพ์ชื่อยืนยัน + เก็บ audit (เวลา/อุปกรณ์)
+- สร้าง **PDF กฎหมายเต็มรูปแบบ** แล้ว archive ขึ้น storage (`consent-pdfs`)
+- ใบที่เซ็นแล้ว **แก้ไขไม่ได้ (immutable)** — RLS ตัดสิทธิ์ UPDATE
+- ดู **ประวัติใบยินยอม** + เปิด PDF เก่าได้จากแท็บ consent ในโปรไฟล์ผู้ป่วย
+
+### จัดการเครื่อง/อุปกรณ์เลเซอร์
+- **Settings → เครื่อง/อุปกรณ์**: OWNER เพิ่ม/แก้/ลบเครื่องเองได้ (seed Ulthera Prime / Ultraformer III / Oligio)
+- ฟอร์มการรักษามี **chip เลือกเครื่องด่วน** จากรายการของคลินิก (ยังพิมพ์เองได้)
+
+### ⚠️ ขั้นตอนที่ต้องทำก่อนใช้งานจริง (สำคัญ)
+ฟีเจอร์ใหม่ต้องมีตารางใน Supabase ก่อน มิฉะนั้นแอปจะ error:
+1. รัน migration **`supabase/migrations/025_consent_worldclass.sql`** (Supabase Studio → SQL editor หรือ `supabase db push`)
+2. รัน migration **`supabase/migrations/026_clinic_devices.sql`**
+3. Migration ทั้งคู่ **idempotent** รันซ้ำได้ปลอดภัย
+4. ทดสอบด้วยบัญชี **OWNER** (`airamdclinic@gmail.com`) — สิทธิ์เขียนเทมเพลต/เครื่องจำกัดเฉพาะ OWNER
+5. แนะนำให้ลูกค้า proofread ข้อความกฎหมายในเทมเพลตที่ seed (แก้ในแอปได้)
+
 ## กรอบการยอมรับงาน
 
 ระบบอยู่ในสถานะ **พร้อม production** สำหรับคลินิกขนาดเล็ก-กลาง:

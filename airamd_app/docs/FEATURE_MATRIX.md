@@ -16,7 +16,11 @@
 | Product Library | ตั้งค่าราคาและสต็อกของสินค้า/บริการ | พร้อมใช้ | รองรับการแก้ไขราคาเริ่มต้นและข้อมูลสต็อก |
 | Inventory | รับเข้า / เบิกใช้ / สูญเสีย / ปรับยอด | พร้อมใช้ | ป้องกันสต็อกติดลบ มี batch chips และ expiry visibility |
 | การใช้สต็อกแบบทศนิยม | รองรับจำนวนแบบ decimal | พร้อมใช้ | ใช้ได้ทั้งตอนตัดสต็อกจาก treatment และ inventory entry |
-| Consent | การเก็บใบยินยอมแบบดิจิทัล | พร้อมใช้ | route ด้าน clinical ถูกป้องกันด้วยสิทธิ์ |
+| Consent (World-class) | ใบยินยอมดิจิทัลระดับใช้เป็นหลักฐานได้ | พร้อมใช้ | เทมเพลตเก็บใน DB + versioning, เซ็นหลายฝ่าย (ผู้ป่วย/แพทย์/พยาน), ติ๊กรับทราบความเสี่ยงรายข้อ, พิมพ์ชื่อยืนยัน, PDF กฎหมายเต็ม + archive, แก้ไม่ได้หลังเซ็น (immutable) |
+| Consent Templates | จัดการเทมเพลตใบยินยอมใน Settings | พร้อมใช้ | CRUD + หมวด (LASER/TREATMENT) + version badge + seed เทมเพลตมาตรฐาน, placeholder {clinic_name} |
+| Consent History | ดูประวัติใบยินยอมที่เซ็นแล้วของผู้ป่วย | พร้อมใช้ | ลิสต์ใน profile + เปิด PDF ที่ archive ไว้ |
+| Device Management | จัดการเครื่อง/อุปกรณ์เลเซอร์ใน Settings | พร้อมใช้ | clinic_devices, OWNER แก้ได้, seed Ulthera Prime/Ultraformer III/Oligio |
+| Laser Device Quick-Pick | เลือกเครื่องด่วนในฟอร์มการรักษา | พร้อมใช้ | chips จากรายการเครื่องของคลินิก พิมพ์เองได้ |
 | Digital Notepad | กระดานบันทึก clinical note | พร้อมใช้ | route ด้าน clinical ถูกป้องกันด้วยสิทธิ์ |
 | Settings Readiness | หน้า settings ที่ใช้ข้อมูลพนักงานจริงและคัดเมนูที่พร้อมใช้ | พร้อมใช้ | ลบ placeholder ของ cloud item แล้ว |
 | Auditability | audit log ครอบคลุม flow หลัก | พร้อมใช้ | appointment, patient, treatment, inventory ดีขึ้นชัดเจน |
@@ -44,6 +48,7 @@
 | หน้าการเงิน | ได้ | ได้ | ไม่ได้ |
 | Settings | ได้ | ได้ | ไม่ได้ |
 | Route ของ Consent / Notepad / Diagram | ได้ | ได้ | ไม่ได้ |
+| จัดการเทมเพลตใบยินยอม / เครื่อง (Settings) | ได้ (OWNER) | เฉพาะอ่าน | ไม่ได้ |
 | จุดเข้าใช้งาน Messaging | ตามบริบท | ตามบริบท | ตามบริบท แต่ยังถูกจำกัดตาม route ที่เข้าถึงได้ |
 
 ## สรุปความพร้อมเชิงปฏิบัติการ
