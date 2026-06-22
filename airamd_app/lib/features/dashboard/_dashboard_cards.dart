@@ -10,6 +10,7 @@ class _StatCardsRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
     final isThai = ref.watch(isThaiProvider);
+    final canAccessFinancial = ref.watch(canAccessFinancialDataProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -22,6 +23,10 @@ class _StatCardsRow extends ConsumerWidget {
             _formatRevenue(stats.monthRevenue),
             isThai: isThai,
             wide: wide,
+            onTap1: () => context.go('/calendar'),
+            onTap2: () => context.go('/patients'),
+            onTap3: () => context.go('/patients'),
+            onTap4: canAccessFinancial ? () => context.push('/settings/financial') : null,
           ),
           loading: () => _grid('-', '-', '-', '-', isThai: isThai, wide: wide),
           error: (e, s) => _grid('!', '!', '!', '!', isThai: isThai, wide: wide),
@@ -37,6 +42,10 @@ class _StatCardsRow extends ConsumerWidget {
     String v4, {
     required bool isThai,
     bool wide = false,
+    VoidCallback? onTap1,
+    VoidCallback? onTap2,
+    VoidCallback? onTap3,
+    VoidCallback? onTap4,
   }) {
     if (wide) {
       return Row(
@@ -47,6 +56,7 @@ class _StatCardsRow extends ConsumerWidget {
               _t(isThai, 'นัดวันนี้', 'Today'),
               Icons.calendar_today_rounded,
               AiraColors.woodMid,
+              onTap: onTap1,
             ),
           ),
           const SizedBox(width: 12),
@@ -56,6 +66,7 @@ class _StatCardsRow extends ConsumerWidget {
               _t(isThai, 'คนไข้ทั้งหมด', 'Patients'),
               Icons.people_rounded,
               AiraColors.sage,
+              onTap: onTap2,
             ),
           ),
           const SizedBox(width: 12),
@@ -65,6 +76,7 @@ class _StatCardsRow extends ConsumerWidget {
               _t(isThai, 'รอ Follow-up', 'Follow-ups'),
               Icons.replay_rounded,
               AiraColors.gold,
+              onTap: onTap3,
             ),
           ),
           const SizedBox(width: 12),
@@ -74,6 +86,7 @@ class _StatCardsRow extends ConsumerWidget {
               _t(isThai, 'รายได้วันนี้', 'Revenue'),
               Icons.account_balance_wallet_rounded,
               const Color(0xFFB86848),
+              onTap: onTap4,
             ),
           ),
         ],
@@ -89,6 +102,7 @@ class _StatCardsRow extends ConsumerWidget {
                 _t(isThai, 'นัดวันนี้', 'Today'),
                 Icons.calendar_today_rounded,
                 AiraColors.woodMid,
+                onTap: onTap1,
               ),
             ),
             const SizedBox(width: 12),
@@ -98,6 +112,7 @@ class _StatCardsRow extends ConsumerWidget {
                 _t(isThai, 'คนไข้ทั้งหมด', 'Patients'),
                 Icons.people_rounded,
                 AiraColors.sage,
+                onTap: onTap2,
               ),
             ),
           ],
@@ -111,6 +126,7 @@ class _StatCardsRow extends ConsumerWidget {
                 _t(isThai, 'รอ Follow-up', 'Follow-ups'),
                 Icons.replay_rounded,
                 AiraColors.gold,
+                onTap: onTap3,
               ),
             ),
             const SizedBox(width: 12),
@@ -120,6 +136,7 @@ class _StatCardsRow extends ConsumerWidget {
                 _t(isThai, 'รายได้วันนี้', 'Revenue'),
                 Icons.account_balance_wallet_rounded,
                 const Color(0xFFB86848),
+                onTap: onTap4,
               ),
             ),
           ],
@@ -140,12 +157,13 @@ class _StatCard extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _StatCard(this.value, this.label, this.icon, this.color);
+  const _StatCard(this.value, this.label, this.icon, this.color, {this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -203,6 +221,8 @@ class _StatCard extends StatelessWidget {
         ],
       ),
     );
+    if (onTap == null) return card;
+    return AiraTapEffect(onTap: onTap, scaleDown: 0.97, child: card);
   }
 }
 

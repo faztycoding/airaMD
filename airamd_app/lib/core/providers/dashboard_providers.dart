@@ -67,6 +67,38 @@ final lowStockAlertsProvider = FutureProvider<List<Product>>((ref) async {
   return repo.getLowStock(clinicId);
 });
 
+/// Revenue trend: today vs same weekday last week.
+class RevenueTrend {
+  final double today;
+  final double previous;
+  final double? pct; // null = no comparison available (previous was 0)
+
+  const RevenueTrend({required this.today, required this.previous, this.pct});
+
+  bool get isUp => pct != null && pct! > 0;
+  bool get isDown => pct != null && pct! < 0;
+  bool get hasComparison => pct != null;
+}
+
+final revenueTrendProvider = FutureProvider<RevenueTrend>((ref) async {
+  final clinicId = ref.watch(currentClinicIdProvider);
+  if (clinicId == null) return const RevenueTrend(today: 0, previous: 0);
+
+  final repo = ref.watch(financialRepoProvider);
+  final lastWeekSameDay = DateTime.now().subtract(const Duration(days: 7));
+
+  final results = await Future.wait([
+    repo.todayRevenue(clinicId),
+    repo.revenueForDate(clinicId, lastWeekSameDay),
+  ]);
+
+  final today = results[0];
+  final previous = results[1];
+  final pct = previous > 0 ? (today - previous) / previous * 100 : null;
+
+  return RevenueTrend(today: today, previous: previous, pct: pct);
+});
+
 /// Products expiring within 30 days or already expired.
 final expiringProductsProvider = FutureProvider<List<Product>>((ref) async {
   final clinicId = ref.watch(currentClinicIdProvider);

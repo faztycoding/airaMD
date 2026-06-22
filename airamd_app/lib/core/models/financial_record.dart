@@ -11,6 +11,7 @@ class FinancialRecord {
   final PaymentMethod? paymentMethod;
   final String? description;
   final bool isOutstanding;
+  final double amountPaid;
   final String? createdBy;
   final DateTime? createdAt;
 
@@ -25,9 +26,16 @@ class FinancialRecord {
     this.paymentMethod,
     this.description,
     this.isOutstanding = false,
+    this.amountPaid = 0,
     this.createdBy,
     this.createdAt,
   });
+
+  /// Amount still owed for this charge record.
+  double get outstandingRemaining => (amount - amountPaid).clamp(0, double.infinity);
+
+  /// True when this charge has been fully settled.
+  bool get isFullyPaid => !isOutstanding && type == FinancialType.charge;
 
   factory FinancialRecord.fromJson(Map<String, dynamic> json) =>
       FinancialRecord(
@@ -43,6 +51,7 @@ class FinancialRecord {
             : null,
         description: json['description'] as String?,
         isOutstanding: json['is_outstanding'] as bool? ?? false,
+        amountPaid: (json['amount_paid'] as num?)?.toDouble() ?? 0,
         createdBy: json['created_by'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'].toString())
@@ -59,6 +68,7 @@ class FinancialRecord {
         if (paymentMethod != null) 'payment_method': paymentMethod!.dbValue,
         if (description != null) 'description': description,
         'is_outstanding': isOutstanding,
+        'amount_paid': amountPaid,
         if (createdBy != null) 'created_by': createdBy,
       };
 }

@@ -21,7 +21,7 @@ class _FinanceTab extends ConsumerWidget {
         data: (records) {
           final remainingSessions = courses.fold<int>(0, (sum, course) => sum + course.sessionsRemaining);
           final outstanding = records.where((record) => record.isOutstanding).toList();
-          final outstandingTotal = outstanding.fold<double>(0, (sum, record) => sum + record.amount);
+          final outstandingTotal = outstanding.fold<double>(0, (sum, record) => sum + record.outstandingRemaining);
           final activeCourses = courses.where((course) => course.status != CourseStatus.completed).toList();
           final history = [...records]
             ..sort((a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
@@ -113,7 +113,9 @@ class _FinanceTab extends ConsumerWidget {
                         child: _OutstandingItem(
                           record.description ?? _financialTypeLabel(record.type),
                           '${_formatDate(record.createdAt)} • ยังไม่ชำระ',
-                          record.amount,
+                          record.outstandingRemaining,
+                          amountPaid: record.amountPaid,
+                          onSettle: () => showSettlePaymentDialog(context, ref, record),
                         ),
                       )),
                 ],
@@ -365,26 +367,72 @@ class _CourseCard extends StatelessWidget {
 class _OutstandingItem extends StatelessWidget {
   final String name;
   final String detail;
-  final double amount;
-  const _OutstandingItem(this.name, this.detail, this.amount);
+  final double outstanding;
+  final double amountPaid;
+  final VoidCallback? onSettle;
+  const _OutstandingItem(
+    this.name,
+    this.detail,
+    this.outstanding, {
+    this.amountPaid = 0,
+    this.onSettle,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    String fmt(double v) =>
+        v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
-              Text(detail, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
-            ],
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w600, color: AiraColors.charcoal)),
+                  Text(detail, style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.muted)),
+                  if (amountPaid > 0)
+                    Text(
+                      'ชำระไปแล้ว ฿${fmt(amountPaid)}',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 11, color: AiraColors.sage),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              '฿${fmt(outstanding)}',
+              style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w700, color: AiraColors.terra),
+            ),
+          ],
+        ),
+        if (onSettle != null) ...[
+          const SizedBox(height: 10),
+          AiraTapEffect(
+            onTap: onSettle,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: AiraColors.sage.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AiraColors.sage.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.payments_rounded, size: 15, color: AiraColors.sage),
+                  const SizedBox(width: 6),
+                  Text(
+                    'รับชำระ',
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.sage),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        Text(
-          '฿${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
-          style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w700, color: AiraColors.terra),
-        ),
+        ],
       ],
     );
   }

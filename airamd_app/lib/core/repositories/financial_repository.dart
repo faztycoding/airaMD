@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import 'base_repository.dart';
+import 'repository_exceptions.dart';
 
 class FinancialRepository extends BaseRepository {
   FinancialRepository(SupabaseClient client)
@@ -70,12 +71,56 @@ class FinancialRepository extends BaseRepository {
     return data.map(FinancialRecord.fromJson).toList();
   }
 
-  /// Mark an outstanding record as paid.
+  /// Mark an outstanding record as fully paid (legacy — prefer settleCharge).
   Future<void> markAsPaid(String recordId) async {
     await client
         .from(tableName)
         .update({'is_outstanding': false})
         .eq('id', recordId);
+  }
+
+  /// Atomically settle part or all of an outstanding charge via the
+  /// `settle_charge` RPC (migration 028). Increments `amount_paid` by
+  /// [amount], flips `is_outstanding=false` when fully paid, and inserts
+  /// a matching PAYMENT record — all in a single server-side transaction.
+  ///
+  /// [method] is the [PaymentMethod.dbValue] string ('CASH', 'TRANSFER', …).
+  /// Throws [UnknownRepositoryException] on server-side errors such as
+  /// `payment_exceeds_remaining` or `record_already_paid`.
+  Future<FinancialRecord> settleCharge(
+    String recordId,
+    double amount,
+    String method,
+  ) async {
+    try {
+      final result = await client.rpc('settle_charge', params: {
+        'p_record_id': recordId,
+        'p_amount': amount,
+        'p_method': method.isEmpty ? null : method,
+      });
+      if (result == null) throw const NotFoundException('financial_record');
+      return FinancialRecord.fromJson(Map<String, dynamic>.from(result as Map));
+    } on PostgrestException catch (e) {
+      if (e.code == 'P0002' || e.message.contains('not found')) {
+        throw const NotFoundException('financial_record');
+      }
+      throw UnknownRepositoryException(e.message, e);
+    }
+  }
+
+  /// Sum of PAYMENT records for a specific calendar day.
+  /// Used by [revenueTrendProvider] to compare today vs same weekday last week.
+  Future<double> revenueForDate(String clinicId, DateTime date) async {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final records = await getByDateRange(
+      clinicId: clinicId,
+      from: dayStart,
+      to: dayEnd,
+    );
+    return records
+        .where((r) => r.type == FinancialType.payment)
+        .fold<double>(0.0, (sum, r) => sum + r.amount);
   }
 
   /// Calculate today's revenue for a clinic.

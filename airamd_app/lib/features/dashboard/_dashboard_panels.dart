@@ -93,7 +93,7 @@ class _RevenueCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isThai = ref.watch(isThaiProvider);
-    final revenueAsync = ref.watch(todayRevenueProvider);
+    final trendAsync = ref.watch(revenueTrendProvider);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -144,41 +144,17 @@ class _RevenueCard extends ConsumerWidget {
                   style: AiraFonts.label(fontSize: 13, color: AiraColors.muted),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AiraColors.sage.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.arrow_upward_rounded,
-                      size: 13,
-                      color: AiraColors.sage,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '+23%',
-                      style: AiraFonts.numeric(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AiraColors.sage,
-                      ),
-                    ),
-                  ],
-                ),
+              trendAsync.when(
+                data: (trend) => _TrendBadge(trend: trend),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          revenueAsync.when(
-            data: (amount) => Text(
-              _formatDashboardAmount(amount),
+          trendAsync.when(
+            data: (trend) => Text(
+              _formatDashboardAmount(trend.today),
               style: AiraFonts.numeric(
                 fontSize: 34,
                 fontWeight: FontWeight.w700,
@@ -201,9 +177,59 @@ class _RevenueCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
+          trendAsync.when(
+            data: (trend) => Text(
+              trend.hasComparison
+                  ? _t(isThai, 'เทียบกับสัปดาห์ที่แล้ว', 'Compared to last week')
+                  : _t(isThai, 'ยังไม่มีข้อมูลเปรียบเทียบ', 'No prior week data'),
+              style: AiraFonts.label(fontSize: 11, color: AiraColors.muted),
+            ),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendBadge extends StatelessWidget {
+  final RevenueTrend trend;
+  const _TrendBadge({required this.trend});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!trend.hasComparison) return const SizedBox.shrink();
+    final pct = trend.pct!;
+    final isUp = pct > 0;
+    final isDown = pct < 0;
+    final color = isUp ? AiraColors.sage : isDown ? AiraColors.terra : AiraColors.muted;
+    final icon = isUp
+        ? Icons.arrow_upward_rounded
+        : isDown
+            ? Icons.arrow_downward_rounded
+            : Icons.remove_rounded;
+    final label = isUp
+        ? '+${pct.toStringAsFixed(0)}%'
+        : '${pct.toStringAsFixed(0)}%';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 2),
           Text(
-            _t(isThai, 'เทียบกับสัปดาห์ที่แล้ว', 'Compared to last week'),
-            style: AiraFonts.label(fontSize: 11, color: AiraColors.muted),
+            label,
+            style: AiraFonts.numeric(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),

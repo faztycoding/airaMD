@@ -13,6 +13,7 @@ import '../../core/widgets/aira_tap_effect.dart';
 import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
 import 'financial_validation.dart';
+import 'settle_payment_dialog.dart';
 
 /// Active tab for financial screen.
 final _finTabProvider = StateProvider<int>((ref) => 0);
@@ -648,12 +649,17 @@ class _FinancialRecordCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${isIncome ? '+' : isCharge ? '-' : ''}฿${NumberFormat('#,##0').format(record.amount)}',
+                      '${isIncome ? '+' : isCharge ? '-' : ''}฿${NumberFormat('#,##0').format(isCharge && record.isOutstanding ? record.outstandingRemaining : record.amount)}',
                       style: AiraFonts.numeric(
                         fontSize: 16, fontWeight: FontWeight.w700,
                         color: isIncome ? AiraColors.sage : isCharge ? AiraColors.terra : AiraColors.charcoal,
                       ),
                     ),
+                    if (isCharge && record.isOutstanding && record.amountPaid > 0)
+                      Text(
+                        'ชำระแล้ว ฿${NumberFormat('#,##0').format(record.amountPaid)}',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 9, color: AiraColors.sage),
+                      ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(
@@ -670,11 +676,11 @@ class _FinancialRecordCard extends ConsumerWidget {
                 ),
               ],
             ),
-            // Mark as Paid button for outstanding charges
-            if (showPayButton && record.isOutstanding) ...[
+            // Settle button for outstanding charges
+            if (showPayButton && record.isOutstanding) ...[  
               const SizedBox(height: 10),
               AiraTapEffect(
-                onTap: () => _markAsPaid(context, ref),
+                onTap: () => showSettlePaymentDialog(context, ref, record),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -686,10 +692,10 @@ class _FinancialRecordCard extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline_rounded, size: 16, color: AiraColors.sage),
+                      const Icon(Icons.payments_rounded, size: 16, color: AiraColors.sage),
                       const SizedBox(width: 6),
                       Text(
-                        context.l10n.isThai ? 'รับชำระแล้ว' : 'Mark as Paid',
+                        context.l10n.isThai ? 'รับชำระ' : 'Record Payment',
                         style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.sage),
                       ),
                     ],
@@ -701,67 +707,6 @@ class _FinancialRecordCard extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _markAsPaid(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(context.l10n.isThai ? 'ยืนยันรับชำระ' : 'Confirm Payment'),
-        content: Text(
-          context.l10n.isThai
-              ? 'ยืนยันว่าได้รับชำระเงิน ฿${NumberFormat('#,##0').format(record.amount)} แล้ว?'
-              : 'Confirm payment of ฿${NumberFormat('#,##0').format(record.amount)} received?',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(context.l10n.cancel)),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: Text(context.l10n.confirm, style: TextStyle(color: AiraColors.sage, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(financialRepoProvider).markAsPaid(record.id);
-      // Create a matching payment record
-      final clinicId = ref.read(currentClinicIdProvider);
-      if (clinicId != null) {
-        final paymentRecord = FinancialRecord(
-          id: const Uuid().v4(),
-          clinicId: clinicId,
-          patientId: record.patientId,
-          treatmentRecordId: record.treatmentRecordId,
-          courseId: record.courseId,
-          type: FinancialType.payment,
-          amount: record.amount,
-          paymentMethod: PaymentMethod.cash,
-          description: record.description != null ? 'ชำระ: ${record.description}' : 'ชำระยอดค้าง',
-          isOutstanding: false,
-        );
-        await ref.read(financialRepoProvider).create(paymentRecord);
-      }
-      ref.invalidate(financialListProvider);
-      ref.invalidate(outstandingRecordsProvider);
-      ref.invalidate(todayRevenueAmountProvider);
-      ref.invalidate(dashboardStatsProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.isThai ? 'บันทึกการรับชำระสำเร็จ' : 'Payment recorded'),
-            backgroundColor: AiraColors.sage,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.saveFailed('$e')), backgroundColor: AiraColors.terra),
-        );
-      }
-    }
   }
 
   void _showReceiptDialog(BuildContext context, WidgetRef ref) {

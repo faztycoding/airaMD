@@ -20,6 +20,7 @@ import 'digital_notepad_screen.dart';
 import 'photo_comparison_screen.dart';
 import 'message_history_screen.dart';
 import '../settings/consent_template_providers.dart';
+import '../financial/settle_payment_dialog.dart';
 
 part '_profile_header.dart';
 part '_profile_info_tabs.dart';

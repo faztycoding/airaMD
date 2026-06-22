@@ -94,6 +94,16 @@ String _dashboardFormattedDate(bool isThai) {
   return '${enDayNames[now.weekday - 1]}, ${enMonthNames[now.month - 1]} ${now.day}, ${now.year}';
 }
 
+void _refreshDashboard(WidgetRef ref) {
+  ref.invalidate(dashboardStatsProvider);
+  ref.invalidate(todayAppointmentsProvider);
+  ref.invalidate(todayRevenueProvider);
+  ref.invalidate(revenueTrendProvider);
+  ref.invalidate(upcomingFollowUpsProvider);
+  ref.invalidate(lowStockAlertsProvider);
+  ref.invalidate(expiringProductsProvider);
+}
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -135,7 +145,7 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(hp, 0, hp, 16),
-                      child: _buildWide(context),
+                      child: _buildWide(context, ref),
                     ),
                   ),
                 ],
@@ -147,9 +157,17 @@ class DashboardScreen extends ConsumerWidget {
         return Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxW),
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
+            child: RefreshIndicator(
+              onRefresh: () async {
+                _refreshDashboard(ref);
+                try {
+                  await ref.read(dashboardStatsProvider.future);
+                } catch (_) {}
+              },
+              color: AiraColors.woodMid,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
                 SliverToBoxAdapter(child: _HeroHeader(isWide: false)),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 SliverToBoxAdapter(
@@ -183,21 +201,31 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
           ),
+        ),
         );
       },
     );
   }
 
-  Widget _buildWide(BuildContext context) {
+  Widget _buildWide(BuildContext context, WidgetRef ref) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 7,
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 24),
-            child: _AppointmentsSection(),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _refreshDashboard(ref);
+              try {
+                await ref.read(dashboardStatsProvider.future);
+              } catch (_) {}
+            },
+            color: AiraColors.woodMid,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
+              child: _AppointmentsSection(),
+            ),
           ),
         ),
         const SizedBox(width: 24),
