@@ -847,14 +847,19 @@ class _ConsentHistoryTileState extends ConsumerState<_ConsentHistoryTile> {
     setState(() => _opening = true);
     try {
       final bytes = await ref.read(consentFormRepoProvider).downloadPdf(path);
-      // Share sheet (Save to Files / email / print) — works on simulator and
-      // real device, unlike the print-preview dialog which hangs on Loading
-      // Preview in the iOS Simulator.
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename:
-            'Consent_${widget.form.signedAt.toIso8601String().split('T').first}.pdf',
-      );
+      if (!mounted) return;
+      // Open a polished, full-screen in-app document preview that renders the
+      // archived PDF pages (looks like the real legal document) with built-in
+      // share / print / save-to-Files actions. Works on simulator + device.
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _ConsentPdfPreviewScreen(
+          bytes: bytes,
+          title: widget.form.procedure ??
+              (widget.isThai ? 'ใบยินยอมรับการรักษา' : 'Consent Form'),
+          fileName:
+              'Consent_${widget.form.signedAt.toIso8601String().split('T').first}.pdf',
+        ),
+      ));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -923,6 +928,42 @@ class _ConsentHistoryTileState extends ConsumerState<_ConsentHistoryTile> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Full-screen consent PDF preview (official document viewer) ───
+class _ConsentPdfPreviewScreen extends StatelessWidget {
+  final Uint8List bytes;
+  final String title;
+  final String fileName;
+  const _ConsentPdfPreviewScreen({
+    required this.bytes,
+    required this.title,
+    required this.fileName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AiraColors.cream,
+      appBar: AppBar(
+        title: Text(title,
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+        backgroundColor: AiraColors.woodDk,
+        foregroundColor: Colors.white,
+      ),
+      body: PdfPreview(
+        build: (_) => bytes,
+        allowSharing: true,
+        allowPrinting: true,
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        canDebug: false,
+        pdfFileName: fileName,
+        loadingWidget: const Center(
+            child: CircularProgressIndicator(color: AiraColors.woodMid)),
       ),
     );
   }
