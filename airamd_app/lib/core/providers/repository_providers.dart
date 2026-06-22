@@ -49,6 +49,10 @@ final consentFormRepoProvider = Provider<ConsentFormRepository>((ref) {
   return ConsentFormRepository(ref.watch(supabaseClientProvider));
 });
 
+final deviceRepoProvider = Provider<DeviceRepository>((ref) {
+  return DeviceRepository(ref.watch(supabaseClientProvider));
+});
+
 final photoRepoProvider = Provider<PhotoRepository>((ref) {
   return PhotoRepository(ref.watch(supabaseClientProvider));
 });

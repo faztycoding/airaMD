@@ -13,6 +13,7 @@ export 'patient_photo.dart';
 export 'face_diagram.dart';
 export 'consent_form_template.dart';
 export 'consent_form.dart';
+export 'clinic_device.dart';
 export 'product.dart';
 export 'inventory_transaction.dart';
 export 'course.dart';

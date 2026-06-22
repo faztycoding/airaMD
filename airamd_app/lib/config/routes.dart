@@ -14,6 +14,7 @@ import '../features/settings/inventory_screen.dart';
 import '../features/settings/audit_log_screen.dart';
 import '../features/settings/security_screen.dart';
 import '../features/settings/consent_template_screen.dart';
+import '../features/settings/device_settings_screen.dart';
 import '../features/settings/notification_settings_screen.dart';
 import '../features/settings/messaging_config_screen.dart';
 import '../features/settings/clinic_info_screen.dart';
@@ -301,6 +302,16 @@ List<RouteBase> get appRoutes => [
       builder: (context, state) => const AccessGuard(
         permission: AiraPermission.settings,
         child: ConsentTemplateScreen(),
+      ),
+    ),
+
+    // ─── Devices (Laser/Machine presets) ─────────────────
+    GoRoute(
+      path: '/settings/devices',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const AccessGuard(
+        permission: AiraPermission.settings,
+        child: DeviceSettingsScreen(),
       ),
     ),
 
