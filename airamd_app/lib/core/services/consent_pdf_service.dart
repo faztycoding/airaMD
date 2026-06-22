@@ -226,9 +226,14 @@ class ConsentPdfService {
       witness2SignatureBytes: witness2SignatureBytes,
     );
 
-    await Printing.layoutPdf(
-      onLayout: (_) => bytes,
-      name: 'Consent_${patient.fullName.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(form.signedAt)}',
+    // Use the iOS/Android share sheet (Save to Files / email / AirDrop /
+    // Print) instead of the print-preview dialog. The print preview hangs on
+    // "Loading Preview" on the iOS Simulator and is print-centric; the share
+    // sheet is the true "export PDF" the clinic expects and works everywhere.
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename:
+          'Consent_${patient.fullName.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd').format(form.signedAt)}.pdf',
     );
   }
 

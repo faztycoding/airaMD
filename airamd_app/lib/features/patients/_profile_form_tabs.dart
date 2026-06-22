@@ -847,7 +847,14 @@ class _ConsentHistoryTileState extends ConsumerState<_ConsentHistoryTile> {
     setState(() => _opening = true);
     try {
       final bytes = await ref.read(consentFormRepoProvider).downloadPdf(path);
-      await Printing.layoutPdf(onLayout: (_) => bytes);
+      // Share sheet (Save to Files / email / print) — works on simulator and
+      // real device, unlike the print-preview dialog which hangs on Loading
+      // Preview in the iOS Simulator.
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename:
+            'Consent_${widget.form.signedAt.toIso8601String().split('T').first}.pdf',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
