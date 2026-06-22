@@ -77,11 +77,13 @@ class ConsentFormScreen extends ConsumerStatefulWidget {
 
 class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
   final _witnessCtrl = TextEditingController();
+  final _witness2Ctrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _typedNameCtrl = TextEditingController();
   late final SignatureController _sigCtrl;
   late final SignatureController _doctorSigCtrl;
   late final SignatureController _witnessSigCtrl;
+  late final SignatureController _witness2SigCtrl;
 
   bool _agreedGeneral = false;
   bool _agreedPhoto = false;
@@ -98,6 +100,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
     _sigCtrl = _newSig();
     _doctorSigCtrl = _newSig();
     _witnessSigCtrl = _newSig();
+    _witness2SigCtrl = _newSig();
   }
 
   SignatureController _newSig() => SignatureController(
@@ -110,11 +113,13 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
   @override
   void dispose() {
     _witnessCtrl.dispose();
+    _witness2Ctrl.dispose();
     _notesCtrl.dispose();
     _typedNameCtrl.dispose();
     _sigCtrl.dispose();
     _doctorSigCtrl.dispose();
     _witnessSigCtrl.dispose();
+    _witness2SigCtrl.dispose();
     super.dispose();
   }
 
@@ -173,12 +178,16 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
           _doctorSigCtrl.isNotEmpty ? await _doctorSigCtrl.toPngBytes() : null;
       final Uint8List? witSigBytes =
           _witnessSigCtrl.isNotEmpty ? await _witnessSigCtrl.toPngBytes() : null;
+      final Uint8List? wit2SigBytes =
+          _witness2SigCtrl.isNotEmpty ? await _witness2SigCtrl.toPngBytes() : null;
 
       // 2. Upload signature PNGs
       final sigPath = await _uploadSig(_sigCtrl, clinicId, 'sig', ts);
       final docSigPath = await _uploadSig(_doctorSigCtrl, clinicId, 'docsig', ts);
       final witSigPath =
           await _uploadSig(_witnessSigCtrl, clinicId, 'witsig', ts);
+      final wit2SigPath =
+          await _uploadSig(_witness2SigCtrl, clinicId, 'wit2sig', ts);
 
       // 3. Resolve doctor + clinic info
       final doctors = ref.read(_consentDoctorsProvider).valueOrNull ?? const [];
@@ -210,6 +219,9 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
         signedAt: now,
         witnessName:
             _witnessCtrl.text.trim().isEmpty ? null : _witnessCtrl.text.trim(),
+        witness2Name: _witness2Ctrl.text.trim().isEmpty
+            ? null
+            : _witness2Ctrl.text.trim(),
         procedure: template.name,
         consentedItems: consentedItems,
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
@@ -237,6 +249,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
           signatureBytes: sigBytes,
           doctorSignatureBytes: docSigBytes,
           witnessSignatureBytes: witSigBytes,
+          witness2SignatureBytes: wit2SigBytes,
         );
         pdfPath = await ref.read(consentFormRepoProvider).uploadPdf(
               clinicId: clinicId,
@@ -257,6 +270,9 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
         signedAt: now,
         witnessName:
             _witnessCtrl.text.trim().isEmpty ? null : _witnessCtrl.text.trim(),
+        witness2Name: _witness2Ctrl.text.trim().isEmpty
+            ? null
+            : _witness2Ctrl.text.trim(),
         pdfUrl: pdfPath,
         procedure: template.name,
         consentedItems: consentedItems,
@@ -264,6 +280,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
         doctorId: _selectedDoctorId,
         doctorSignatureUrl: docSigPath,
         witnessSignatureUrl: witSigPath,
+        witness2SignatureUrl: wit2SigPath,
         signedNameTyped: _typedNameCtrl.text.trim(),
         templateVersion: template.version,
         acknowledgedItems: acknowledged,
@@ -303,6 +320,7 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
           signatureBytes: sigBytes,
           doctorSignatureBytes: docSigBytes,
           witnessSignatureBytes: witSigBytes,
+          witness2SignatureBytes: wit2SigBytes,
         );
       }
       if (mounted) context.pop();
@@ -482,11 +500,13 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       _signaturePad(_doctorSigCtrl),
                       const SizedBox(height: 20),
 
-                      // ─── Witness ───
+                      // ─── Witness 1 ───
                       AiraSectionHeader(
                           step: 0,
                           icon: Icons.person_outline_rounded,
-                          title: context.l10n.witnessName),
+                          title: isThai
+                              ? 'พยานคนที่ 1'
+                              : 'Witness 1'),
                       AiraPremiumCard(
                         accentColor: AiraColors.woodLt,
                         children: [
@@ -504,6 +524,32 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
                       ),
                       const SizedBox(height: 12),
                       _signaturePad(_witnessSigCtrl),
+                      const SizedBox(height: 20),
+
+                      // ─── Witness 2 ───
+                      AiraSectionHeader(
+                          step: 0,
+                          icon: Icons.person_outline_rounded,
+                          title: isThai
+                              ? 'พยานคนที่ 2'
+                              : 'Witness 2'),
+                      AiraPremiumCard(
+                        accentColor: AiraColors.woodLt,
+                        children: [
+                          TextField(
+                            controller: _witness2Ctrl,
+                            style: airaFieldTextStyle,
+                            decoration: airaFieldDecoration(
+                              label: context.l10n.witness,
+                              hint: context.l10n.witnessNameOptional,
+                              prefixIcon: Icons.person_outline_rounded,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _signaturePad(_witness2SigCtrl),
                       const SizedBox(height: 20),
 
                       // ─── Notes ───

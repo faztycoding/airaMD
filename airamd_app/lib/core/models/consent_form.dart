@@ -18,6 +18,8 @@ class ConsentForm {
   final String? doctorId;
   final String? doctorSignatureUrl;
   final String? witnessSignatureUrl;
+  final String? witness2Name;
+  final String? witness2SignatureUrl;
   final String? signedNameTyped;
   final int? templateVersion;
   final List<String> acknowledgedItems;
@@ -40,6 +42,8 @@ class ConsentForm {
     this.doctorId,
     this.doctorSignatureUrl,
     this.witnessSignatureUrl,
+    this.witness2Name,
+    this.witness2SignatureUrl,
     this.signedNameTyped,
     this.templateVersion,
     this.acknowledgedItems = const [],
@@ -65,6 +69,8 @@ class ConsentForm {
         doctorId: json['doctor_id'] as String?,
         doctorSignatureUrl: json['doctor_signature_url'] as String?,
         witnessSignatureUrl: json['witness_signature_url'] as String?,
+        witness2Name: json['witness2_name'] as String?,
+        witness2SignatureUrl: json['witness2_signature_url'] as String?,
         signedNameTyped: json['signed_name_typed'] as String?,
         templateVersion: json['template_version'] as int?,
         acknowledgedItems: parseStringList(json['acknowledged_items']),
@@ -88,6 +94,9 @@ class ConsentForm {
           'doctor_signature_url': doctorSignatureUrl,
         if (witnessSignatureUrl != null)
           'witness_signature_url': witnessSignatureUrl,
+        if (witness2Name != null) 'witness2_name': witness2Name,
+        if (witness2SignatureUrl != null)
+          'witness2_signature_url': witness2SignatureUrl,
         if (signedNameTyped != null) 'signed_name_typed': signedNameTyped,
         if (templateVersion != null) 'template_version': templateVersion,
         'acknowledged_items': acknowledgedItems,

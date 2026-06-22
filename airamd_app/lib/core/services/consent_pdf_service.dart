@@ -27,6 +27,7 @@ class ConsentPdfService {
     Uint8List? signatureBytes,
     Uint8List? doctorSignatureBytes,
     Uint8List? witnessSignatureBytes,
+    Uint8List? witness2SignatureBytes,
   }) async {
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(
@@ -131,7 +132,9 @@ class ConsentPdfService {
           _labelValue('วันที่ลงนาม / Signed at', dateFmt.format(form.signedAt)),
           pw.SizedBox(height: 24),
 
-          // Signature blocks: patient + doctor + witness
+          // Signature blocks — mirrors the paper form layout:
+          // Row 1: ผู้รับการรักษา | แพทย์ผู้ให้คำแนะนำ/การรักษา
+          // Row 2: พยาน | พยาน
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -145,7 +148,7 @@ class ConsentPdfService {
               pw.SizedBox(width: 16),
               pw.Expanded(
                 child: _signatureBlock(
-                  'แพทย์ผู้ทำการรักษา / Doctor',
+                  'แพทย์ผู้ให้คำแนะนำ/การรักษา / Doctor',
                   doctorSignatureBytes,
                   subtitle: doctorName != null
                       ? (doctorLicenseNo != null && doctorLicenseNo.isNotEmpty
@@ -154,12 +157,25 @@ class ConsentPdfService {
                       : null,
                 ),
               ),
-              pw.SizedBox(width: 16),
+            ],
+          ),
+          pw.SizedBox(height: 24),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
               pw.Expanded(
                 child: _signatureBlock(
                   'พยาน / Witness',
                   witnessSignatureBytes,
                   subtitle: form.witnessName,
+                ),
+              ),
+              pw.SizedBox(width: 16),
+              pw.Expanded(
+                child: _signatureBlock(
+                  'พยาน / Witness',
+                  witness2SignatureBytes,
+                  subtitle: form.witness2Name,
                 ),
               ),
             ],
@@ -184,6 +200,7 @@ class ConsentPdfService {
     Uint8List? signatureBytes,
     Uint8List? doctorSignatureBytes,
     Uint8List? witnessSignatureBytes,
+    Uint8List? witness2SignatureBytes,
   }) async {
     final bytes = await generate(
       form: form,
@@ -197,6 +214,7 @@ class ConsentPdfService {
       signatureBytes: signatureBytes,
       doctorSignatureBytes: doctorSignatureBytes,
       witnessSignatureBytes: witnessSignatureBytes,
+      witness2SignatureBytes: witness2SignatureBytes,
     );
 
     await Printing.layoutPdf(

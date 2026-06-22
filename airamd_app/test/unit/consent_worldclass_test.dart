@@ -14,6 +14,8 @@ void main() {
         doctorId: 'd1',
         doctorSignatureUrl: 'doc.png',
         witnessSignatureUrl: 'wit.png',
+        witness2Name: 'พยานสอง',
+        witness2SignatureUrl: 'wit2.png',
         signedNameTyped: 'สมหญิง ใจดี',
         templateVersion: 3,
         acknowledgedItems: const ['risk a', 'risk b'],
@@ -23,6 +25,8 @@ void main() {
       expect(json['doctor_id'], 'd1');
       expect(json['doctor_signature_url'], 'doc.png');
       expect(json['witness_signature_url'], 'wit.png');
+      expect(json['witness2_name'], 'พยานสอง');
+      expect(json['witness2_signature_url'], 'wit2.png');
       expect(json['signed_name_typed'], 'สมหญิง ใจดี');
       expect(json['template_version'], 3);
       expect(json['acknowledged_items'], ['risk a', 'risk b']);
