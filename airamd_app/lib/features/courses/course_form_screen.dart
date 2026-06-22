@@ -170,6 +170,7 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
     );
 
     try {
+      bool chargeFailed = false;
       final repo = ref.read(courseRepoProvider);
       if (widget.isEdit) {
         await repo.updateCourse(course);
@@ -196,8 +197,10 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
             ref.invalidate(outstandingRecordsProvider);
             ref.invalidate(financialsByPatientProvider(_selectedPatientId!));
           } catch (_) {
-            // Don't block course creation if charge fails — receptionist
-            // can still add the charge manually.
+            // Don't block course creation if the charge insert fails, but
+            // surface a warning so staff know to add the bill manually
+            // instead of silently losing the receivable.
+            chargeFailed = true;
           }
         }
       }
@@ -206,7 +209,18 @@ class _CourseFormScreenState extends ConsumerState<CourseFormScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.isEdit ? context.l10n.courseEditSuccess : context.l10n.courseSaveSuccess), backgroundColor: AiraColors.sage),
+          chargeFailed
+              ? const SnackBar(
+                  content: Text(
+                      'บันทึกคอร์สแล้ว แต่ออกบิลไม่สำเร็จ — กรุณากดปุ่ม "ออกบิล" ในแท็บค่าใช้จ่าย'),
+                  backgroundColor: AiraColors.gold,
+                )
+              : SnackBar(
+                  content: Text(widget.isEdit
+                      ? context.l10n.courseEditSuccess
+                      : context.l10n.courseSaveSuccess),
+                  backgroundColor: AiraColors.sage,
+                ),
         );
         context.pop();
       }

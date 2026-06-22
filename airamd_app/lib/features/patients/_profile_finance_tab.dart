@@ -23,6 +23,13 @@ class _FinanceTab extends ConsumerWidget {
           final outstanding = records.where((record) => record.isOutstanding).toList();
           final outstandingTotal = outstanding.fold<double>(0, (sum, record) => sum + record.outstandingRemaining);
           final activeCourses = courses.where((course) => course.status != CourseStatus.completed).toList();
+          // Course ids that already have a CHARGE record — used to flag
+          // courses whose bill was never created (old data or a failed
+          // auto-charge) so staff can issue the bill with one tap.
+          final chargedCourseIds = records
+              .where((r) => r.type == FinancialType.charge && r.courseId != null)
+              .map((r) => r.courseId!)
+              .toSet();
           final history = [...records]
             ..sort((a, b) => (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
                 .compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
@@ -88,6 +95,8 @@ class _FinanceTab extends ConsumerWidget {
                 final detail = 'ซื้อ ${course.sessionsBought} แถม ${course.sessionsBonus}'
                     '${course.expiryDate != null ? ' • ครบกำหนด ${_formatDate(course.expiryDate)}' : ' • ไม่กำหนดวันหมดอายุ'}'
                     ' • $total ครั้ง$priceLine';
+                final hasPrice = course.price != null && course.price! > 0;
+                final needsBill = hasPrice && !chargedCourseIds.contains(course.id);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _CourseCard(
@@ -97,6 +106,9 @@ class _FinanceTab extends ConsumerWidget {
                     sessionsUsed: course.sessionsUsed,
                     color: _courseColor(course.status),
                     statusLabel: _courseStatusLabel(course.status),
+                    billAmount: needsBill ? course.price : null,
+                    onCreateBill:
+                        needsBill ? () => _confirmCreateBill(context, ref, course) : null,
                   ),
                 );
               }),
@@ -153,6 +165,62 @@ class _FinanceTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator(color: AiraColors.woodMid)),
       error: (e, _) => Center(child: Text('Error: $e')),
     );
+  }
+
+  /// Issue an outstanding CHARGE for a course that has no bill yet.
+  /// Used to backfill old data or recover from a failed auto-charge.
+  Future<void> _confirmCreateBill(
+    BuildContext context,
+    WidgetRef ref,
+    Course course,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final price = course.price ?? 0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ออกบิลค่าคอร์ส'),
+        content: Text(
+          'สร้างยอดค้างชำระ ฿${_formatAmount(price)} สำหรับคอร์ส "${course.name}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ออกบิล'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(financialRepoProvider).create(FinancialRecord(
+            id: const Uuid().v4(),
+            clinicId: course.clinicId,
+            patientId: course.patientId,
+            courseId: course.id,
+            type: FinancialType.charge,
+            amount: price,
+            description: 'ค่าคอร์ส: ${course.name}',
+            isOutstanding: true,
+          ));
+      ref.invalidate(financialsByPatientProvider(course.patientId));
+      ref.invalidate(financialListProvider);
+      ref.invalidate(outstandingRecordsProvider);
+      ref.invalidate(patientBalanceProvider(course.patientId));
+      messenger.showSnackBar(const SnackBar(
+        content: Text('ออกบิลสำเร็จ ✓'),
+        backgroundColor: AiraColors.sage,
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('ออกบิลไม่สำเร็จ: $e'),
+        backgroundColor: AiraColors.terra,
+      ));
+    }
   }
 
   Color _courseColor(CourseStatus status) {
@@ -279,10 +347,13 @@ class _CourseCard extends StatelessWidget {
   final int sessionsUsed;
   final Color color;
   final String statusLabel;
+  final VoidCallback? onCreateBill;
+  final double? billAmount;
   const _CourseCard({
     required this.name, required this.detail,
     required this.sessionsTotal, required this.sessionsUsed,
     required this.color, required this.statusLabel,
+    this.onCreateBill, this.billAmount,
   });
 
   @override
@@ -358,6 +429,34 @@ class _CourseCard extends StatelessWidget {
               Text(context.l10n.remainingSessions(remaining), style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
             ],
           ),
+          if (onCreateBill != null) ...[
+            const SizedBox(height: 12),
+            AiraTapEffect(
+              onTap: onCreateBill,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: AiraColors.gold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AiraColors.gold.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.receipt_long_rounded, size: 15, color: AiraColors.gold),
+                    const SizedBox(width: 6),
+                    Text(
+                      billAmount != null
+                          ? 'ออกบิล ฿${billAmount!.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}'
+                          : 'ออกบิล',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: AiraColors.gold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

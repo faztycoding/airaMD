@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
+import 'package:uuid/uuid.dart';
 import '../../config/constants.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
