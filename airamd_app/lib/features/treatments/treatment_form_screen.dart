@@ -16,6 +16,7 @@ import '../../core/widgets/aira_premium_form.dart';
 import '../../core/localization/app_localizations.dart';
 import 'smart_pickers.dart';
 import 'treatment_post_save_service.dart';
+import '../settings/device_providers.dart';
 
 part '_treatment_form_providers.dart';
 part '_treatment_doctor_info_card.dart';
@@ -1428,11 +1429,73 @@ class _TreatmentFormScreenState extends ConsumerState<TreatmentFormScreen> {
     );
   }
 
+  Widget _buildDeviceQuickPicks(bool isThai) {
+    final devicesAsync = ref.watch(activeDevicesProvider);
+    return devicesAsync.maybeWhen(
+      data: (devices) {
+        if (devices.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isThai ? 'เลือกเครื่องด่วน' : 'Quick-pick device',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AiraColors.muted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: devices.map((d) {
+                  final selected = _deviceCtrl.text.trim() == d.name;
+                  return AiraTapEffect(
+                    onTap: () => setState(() => _deviceCtrl.text = d.name),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: selected ? AiraColors.woodDk : AiraColors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: selected
+                                ? AiraColors.woodDk
+                                : AiraColors.woodPale),
+                      ),
+                      child: Text(
+                        d.name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: selected ? Colors.white : AiraColors.charcoal,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildDeviceSection() {
     final isThai = context.l10n.isThai;
     return AiraPremiumCard(
       accentColor: AiraColors.gold,
       children: [
+        // ── Quick-pick chips from the clinic's managed device list ──
+        // The OWNER manages these in Settings → Devices (Ulthera Prime,
+        // Ultraformer III, Oligio, …). Tapping a chip fills the device field;
+        // free-text typing still works.
+        _buildDeviceQuickPicks(isThai),
         Row(children: [
           Expanded(child: _premiumField('เครื่อง/อุปกรณ์', _deviceCtrl, icon: Icons.devices_rounded)),
           const SizedBox(width: 14),

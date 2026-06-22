@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:printing/printing.dart';
 import '../../config/constants.dart';
 import '../../config/theme.dart';
 import '../../core/models/models.dart';
@@ -16,6 +17,7 @@ import '../../core/repositories/repository_exceptions.dart';
 import 'digital_notepad_screen.dart';
 import 'photo_comparison_screen.dart';
 import 'message_history_screen.dart';
+import '../settings/consent_template_providers.dart';
 
 part '_profile_header.dart';
 part '_profile_info_tabs.dart';

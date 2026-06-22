@@ -107,6 +107,7 @@ class _Sidebar extends ConsumerWidget {
                   _Item(Icons.medical_services_rounded, l.serviceList, l.serviceListSubtitle, route: '/settings/services'),
                   _Item(Icons.card_membership_rounded, l.courses, l.manageCourses, route: '/settings/course-overview'),
                   _Item(Icons.description_rounded, l.consentTemplates, l.consentTemplateSubtitle, route: '/settings/consent-templates'),
+                  _Item(Icons.precision_manufacturing_rounded, l.isThai ? 'เครื่อง / อุปกรณ์' : 'Devices', l.isThai ? 'เลเซอร์ / เครื่องมือ' : 'Laser / machines', route: '/settings/devices'),
                   _Item(Icons.timer_rounded, l.treatmentRules, l.treatmentRulesSubtitle, route: '/settings/treatment-rules'),
                 ]),
                 const SizedBox(height: 12),

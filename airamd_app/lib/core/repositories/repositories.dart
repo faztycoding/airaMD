@@ -13,6 +13,7 @@ export 'product_repository.dart';
 export 'course_repository.dart';
 export 'financial_repository.dart';
 export 'consent_repository.dart';
+export 'device_repository.dart';
 export 'photo_repository.dart';
 export 'diagram_repository.dart';
 export 'inventory_repository.dart';

@@ -1,7 +1,7 @@
 name: airamd
 description: "airaMD — Clinic Management App for Aesthetic Clinics"
 publish_to: 'none'
-version: 1.0.0+23
+version: 1.0.0+24
 
 environment:
   sdk: ^3.7.0
