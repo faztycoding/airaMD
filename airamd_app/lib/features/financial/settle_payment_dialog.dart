@@ -36,7 +36,13 @@ Future<void> showSettlePaymentDialog(
   final amountCtrl = TextEditingController(text: remaining.toStringAsFixed(0));
   final methodNotifier = ValueNotifier<PaymentMethod>(PaymentMethod.cash);
   final messenger = ScaffoldMessenger.of(context);
-  final isThai = context.l10n.isThai;
+  // Capture every localized value up front so the dialog builder performs
+  // NO inherited-widget lookups (calling context.l10n inside the builder
+  // registers the wrong element as a dependent and trips the
+  // InheritedElement._dependents.isEmpty assertion on teardown).
+  final l = context.l10n;
+  final isThai = l.isThai;
+  final cancelLabel = l.cancel;
   final fmt = NumberFormat('#,##0');
 
   final confirmed = await showDialog<bool>(
@@ -61,7 +67,7 @@ Future<void> showSettlePaymentDialog(
             ),
             const SizedBox(width: 10),
             Text(
-              context.l10n.isThai ? 'รับชำระ' : 'Record Payment',
+              isThai ? 'รับชำระ' : 'Record Payment',
               style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
             ),
           ],
@@ -93,7 +99,7 @@ Future<void> showSettlePaymentDialog(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      context.l10n.isThai ? 'ยอดค้างชำระ' : 'Outstanding',
+                      isThai ? 'ยอดค้างชำระ' : 'Outstanding',
                       style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AiraColors.terra),
                     ),
                     Text(
@@ -107,7 +113,7 @@ Future<void> showSettlePaymentDialog(
               const SizedBox(height: 14),
               // ─── Amount input ───
               Text(
-                context.l10n.isThai ? 'จำนวนที่รับชำระ' : 'Payment Amount',
+                isThai ? 'จำนวนที่รับชำระ' : 'Payment Amount',
                 style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
               ),
               const SizedBox(height: 6),
@@ -143,7 +149,7 @@ Future<void> showSettlePaymentDialog(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                     child: Text(
-                      context.l10n.isThai ? 'เต็ม' : 'Full',
+                      isThai ? 'เต็ม' : 'Full',
                       style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -152,7 +158,7 @@ Future<void> showSettlePaymentDialog(
               const SizedBox(height: 16),
               // ─── Payment method ───
               Text(
-                context.l10n.isThai ? 'วิธีชำระ' : 'Payment Method',
+                isThai ? 'วิธีชำระ' : 'Payment Method',
                 style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: AiraColors.charcoal),
               ),
               const SizedBox(height: 8),
@@ -202,12 +208,12 @@ Future<void> showSettlePaymentDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.l10n.cancel, style: const TextStyle(color: AiraColors.muted)),
+            child: Text(cancelLabel, style: const TextStyle(color: AiraColors.muted)),
           ),
           FilledButton.icon(
             icon: const Icon(Icons.check_rounded, size: 16),
             label: Text(
-              context.l10n.isThai ? 'รับชำระ' : 'Receive',
+              isThai ? 'รับชำระ' : 'Receive',
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
             ),
             style: FilledButton.styleFrom(backgroundColor: AiraColors.sage),
