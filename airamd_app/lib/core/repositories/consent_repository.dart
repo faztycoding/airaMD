@@ -96,4 +96,9 @@ class ConsentFormRepository extends BaseRepository {
         .from(AppConstants.bucketConsentPdfs)
         .createSignedUrl(path, expiresIn);
   }
+
+  /// Download an archived consent PDF's raw bytes (for re-print / viewing).
+  Future<Uint8List> downloadPdf(String path) {
+    return client.storage.from(AppConstants.bucketConsentPdfs).download(path);
+  }
 }

@@ -767,32 +767,156 @@ class _ConsentFormTab extends ConsumerWidget {
           children: [
             Text(
               isThai
-                  ? 'Consent Form แต่ละครั้งจะบันทึกแยกเป็น session เพื่อเก็บเป็นหลักฐานทางการแพทย์'
-                  : 'Each consent form is saved per session for medical compliance.',
+                  ? 'Consent Form แต่ละครั้งจะบันทึกแยกเป็น session เพื่อเก็บเป็นหลักฐานทางการแพทย์ (ลงนามแล้วแก้ไม่ได้)'
+                  : 'Each consent form is saved per session as an immutable medical record.',
               style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AiraColors.muted),
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AiraColors.parchment,
-                borderRadius: BorderRadius.circular(12),
-              ),
+            ref.watch(patientConsentFormsProvider(patientId)).when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => Text('$e',
+                      style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12, color: AiraColors.terra)),
+                  data: (forms) {
+                    if (forms.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: AiraColors.parchment,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.description_rounded,
+                                size: 36,
+                                color: AiraColors.muted.withValues(alpha: 0.4)),
+                            const SizedBox(height: 8),
+                            Text(
+                              context.l10n.noConsentFormsHint,
+                              style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  color: AiraColors.muted,
+                                  fontWeight: FontWeight.w600),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return Column(
+                      children: forms
+                          .map((f) => _ConsentHistoryTile(form: f, isThai: isThai))
+                          .toList(),
+                    );
+                  },
+                ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Signed consent history tile (opens archived PDF) ─────────────
+class _ConsentHistoryTile extends ConsumerStatefulWidget {
+  final ConsentForm form;
+  final bool isThai;
+  const _ConsentHistoryTile({required this.form, required this.isThai});
+
+  @override
+  ConsumerState<_ConsentHistoryTile> createState() =>
+      _ConsentHistoryTileState();
+}
+
+class _ConsentHistoryTileState extends ConsumerState<_ConsentHistoryTile> {
+  bool _opening = false;
+
+  Future<void> _open() async {
+    final path = widget.form.pdfUrl;
+    if (path == null || path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(widget.isThai
+            ? 'ใบยินยอมนี้ไม่มีไฟล์ PDF ที่จัดเก็บไว้'
+            : 'No archived PDF for this consent'),
+      ));
+      return;
+    }
+    setState(() => _opening = true);
+    try {
+      final bytes = await ref.read(consentFormRepoProvider).downloadPdf(path);
+      await Printing.layoutPdf(onLayout: (_) => bytes);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.errorMsg('$e'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.form;
+    final dateStr = DateFormat(
+            widget.isThai ? 'd MMM yyyy HH:mm' : 'MMM d, yyyy HH:mm',
+            widget.isThai ? 'th' : 'en')
+        .format(f.signedAt);
+    return AiraTapEffect(
+      onTap: _opening ? null : _open,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AiraColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AiraColors.woodPale.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.verified_rounded, color: AiraColors.sage, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.description_rounded, size: 36, color: AiraColors.muted.withValues(alpha: 0.4)),
-                  const SizedBox(height: 8),
                   Text(
-                    context.l10n.noConsentFormsHint,
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AiraColors.muted, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
+                    f.procedure ??
+                        (widget.isThai ? 'ใบยินยอม' : 'Consent form'),
+                    style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AiraColors.charcoal),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$dateStr  •  ${widget.isThai ? 'ลงนามแล้ว' : 'Signed'}',
+                    style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12, color: AiraColors.muted),
                   ),
                 ],
               ),
             ),
+            if (_opening)
+              const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              Icon(
+                f.pdfUrl != null && f.pdfUrl!.isNotEmpty
+                    ? Icons.picture_as_pdf_rounded
+                    : Icons.chevron_right_rounded,
+                color: AiraColors.woodMid,
+                size: 20,
+              ),
           ],
         ),
-      ],
+      ),
     );
   }
 }

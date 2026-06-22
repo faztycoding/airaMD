@@ -4,6 +4,12 @@ import '../../core/providers/auth_providers.dart';
 import '../../core/providers/repository_providers.dart';
 import 'consent_default_templates.dart';
 
+/// Signed consent forms for a patient, newest first (history viewer).
+final patientConsentFormsProvider =
+    FutureProvider.family<List<ConsentForm>, String>((ref, patientId) async {
+  return ref.read(consentFormRepoProvider).getByPatient(patientId: patientId);
+});
+
 /// DB-backed consent templates for the current clinic.
 ///
 /// Replaces the previous in-memory list — templates now persist to Supabase
